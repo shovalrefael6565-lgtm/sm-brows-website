@@ -13,10 +13,13 @@ const CATEGORIES = ['הכל', 'סרומים', 'כלים', 'ערכות', 'טיפ�
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('הכל')
 
+  const premiumProducts = products.filter((p) => p.isPremium)
+  const regularProducts = products.filter((p) => !p.isPremium)
+
   const filtered =
     activeCategory === 'הכל'
-      ? products
-      : products.filter((p) => p.category === activeCategory)
+      ? regularProducts
+      : regularProducts.filter((p) => p.category === activeCategory)
 
   return (
     <>
@@ -29,6 +32,28 @@ export default function ShopPage() {
 
       <section aria-label="חנות מוצרים" className="section-padding bg-brand-cream">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
+
+          {/* Premium featured products */}
+          {premiumProducts.length > 0 && (
+            <div className="mb-12">
+              <p className="text-xs tracking-[0.2em] text-brand-gold font-semibold uppercase mb-4">
+                מוצר מומלץ
+              </p>
+              <ul className="grid grid-cols-1 gap-5" role="list" aria-label="מוצרים מומלצים">
+                {premiumProducts.map((product, i) => (
+                  <motion.li
+                    key={product.id}
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.08, duration: 0.5 }}
+                  >
+                    <ProductCard product={product} />
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Cart notice */}
           <motion.div
             initial={{ opacity: 0, y: -12 }}

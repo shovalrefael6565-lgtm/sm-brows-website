@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { Calendar } from 'lucide-react'
 import { WHATSAPP_URL } from '@/lib/utils'
 
 export default function BookingCTA() {
@@ -9,15 +11,25 @@ export default function BookingCTA() {
       <p className="text-brand-medium text-sm mb-4">
         צרי קשר עכשיו לקביעת תור ב-S.M BROWS
       </p>
-      <a
-        href={WHATSAPP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="קביעת תור בוואצאפ"
-        className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-semibold px-6 py-3 rounded-xl hover:bg-brand-gold-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-      >
-        קבעי תור בוואצאפ ←
-      </a>
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="קביעת תור בוואצאפ"
+          className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-semibold px-6 py-3 rounded-xl hover:bg-brand-gold-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+        >
+          קבעי תור בוואצאפ ←
+        </a>
+        <Link
+          href="/booking"
+          aria-label="קביעת תור ביומן"
+          className="inline-flex items-center gap-2 text-brand-dark font-medium px-5 py-3 rounded-xl border border-brand-rose-light hover:bg-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+        >
+          <Calendar className="w-4 h-4 text-brand-rose" />
+          קביעת תור ביומן
+        </Link>
+      </div>
     </div>
   )
 }

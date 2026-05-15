@@ -1,8 +1,9 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Clock, Check } from 'lucide-react'
+import { Clock, Check, Calendar } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
@@ -87,16 +88,26 @@ export default function ServiceCard({ service, index }: Props) {
           </div>
         </div>
 
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`קביעת תור לטיפול ${service.name} בוואצאפ`}
-          className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold px-8 py-4 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
-        >
-          <WhatsAppIcon className="w-5 h-5" />
-          קבעי תור בוואצאפ
-        </a>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`קביעת תור לטיפול ${service.name} בוואצאפ`}
+            className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold px-8 py-4 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+          >
+            <WhatsAppIcon className="w-5 h-5" />
+            קבעי תור בוואצאפ
+          </a>
+          <Link
+            href="/booking"
+            aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
+            className="inline-flex items-center gap-2 text-brand-dark font-medium px-6 py-4 rounded-full border border-brand-rose-light hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+          >
+            <Calendar className="w-4 h-4 text-brand-rose" />
+            קביעת תור ביומן
+          </Link>
+        </div>
       </div>
     </motion.article>
   )

@@ -41,6 +41,8 @@ export interface Product {
   category: string
   badge?: string
   isDigital?: boolean
+  isPremium?: boolean
+  includes?: string[]
 }
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -469,5 +471,17 @@ export const products: Product[] = [
     category: 'קורסים',
     badge: 'PDF',
     isDigital: true,
+  },
+  {
+    id: 'p8',
+    name: 'קורס עיצוב גבות טבעיות מקצועי',
+    description: 'קורס אונליין מקצועי למעצבות גבות שרוצות להתמקצע בעיצוב טבעי. רכשי מיומנויות מתקדמות ועבדי עם לקוחות בביטחון.',
+    price: 1000,
+    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&h=600&q=80&auto=format&fit=crop',
+    category: 'קורסים',
+    badge: 'אונליין',
+    isDigital: true,
+    isPremium: true,
+    includes: ['חוברת מקצועית דיגיטלית', 'פגישת זום אישית', 'תמיכה לאחר הקורס'],
   },
 ]

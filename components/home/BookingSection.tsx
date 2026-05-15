@@ -2,7 +2,8 @@
 
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
-import { MapPin, Phone, Clock } from 'lucide-react'
+import Link from 'next/link'
+import { MapPin, Phone, Clock, Calendar } from 'lucide-react'
 import { WHATSAPP_URL, PHONE_NUMBER, LOCATION } from '@/lib/utils'
 
 export default function BookingSection() {
@@ -36,19 +37,30 @@ export default function BookingSection() {
             ייעוץ ראשוני חינם!
           </p>
 
-          {/* WhatsApp CTA */}
-          <motion.a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="קביעת תור בוואצאפ – S.M BROWS"
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            className="inline-flex items-center gap-3 bg-[#25D366] text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 mb-12"
-          >
-            <WhatsAppIcon className="w-7 h-7" />
-            שלחי הודעה בוואצאפ
-          </motion.a>
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+            <motion.a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="קביעת תור בוואצאפ – S.M BROWS"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-3 bg-[#25D366] text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+            >
+              <WhatsAppIcon className="w-7 h-7" />
+              שלחי הודעה בוואצאפ
+            </motion.a>
+
+            <Link
+              href="/booking"
+              aria-label="קביעת תור דרך הטופס"
+              className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-lg px-10 py-5 rounded-full shadow-gold hover:bg-brand-gold-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+            >
+              <Calendar className="w-6 h-6" />
+              קביעת תור בטופס
+            </Link>
+          </div>
 
           {/* Info cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="list" aria-label="פרטי התקשרות">

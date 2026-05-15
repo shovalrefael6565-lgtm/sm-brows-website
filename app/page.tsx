@@ -5,6 +5,7 @@ import BeforeAfterSection from '@/components/home/BeforeAfterSection'
 import GalleryPreview from '@/components/home/GalleryPreview'
 import WhyChooseUs from '@/components/home/WhyChooseUs'
 import CourseBanner from '@/components/home/CourseBanner'
+import OnlineCoursePromo from '@/components/home/OnlineCoursePromo'
 import BlogPreview from '@/components/home/BlogPreview'
 import BookingSection from '@/components/home/BookingSection'
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function HomePage() {
       <GalleryPreview />
       <WhyChooseUs />
       <CourseBanner />
+      <OnlineCoursePromo />
       <BlogPreview />
       <BookingSection />
     </>

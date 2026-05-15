@@ -3,7 +3,8 @@
 import Image from 'next/image'
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
-import { Check, Monitor, Users, MapPin, CalendarDays } from 'lucide-react'
+import Link from 'next/link'
+import { Check, Monitor, Users, MapPin, CalendarDays, Calendar } from 'lucide-react'
 import { courseService } from '@/lib/data'
 import { WHATSAPP_URL, LOCATION } from '@/lib/utils'
 
@@ -105,6 +106,14 @@ export default function CourseCard() {
               <WhatsAppIcon className="w-5 h-5" />
               לפרטים ורישום בוואצאפ
             </a>
+            <Link
+              href="/booking"
+              aria-label="קביעת תור לקורס ביומן"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-medium text-base px-6 py-4 rounded-full hover:bg-white/10 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 w-full sm:w-auto"
+            >
+              <Calendar className="w-5 h-5" />
+              קביעת תור ביומן
+            </Link>
           </div>
 
           {/* Price panel */}
