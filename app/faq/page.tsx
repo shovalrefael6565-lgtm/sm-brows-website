@@ -1,0 +1,22 @@
+import type { Metadata } from 'next'
+import PageHero from '@/components/ui/PageHero'
+import FaqContent from '@/components/faq/FaqContent'
+
+export const metadata: Metadata = {
+  title: 'שאלות ותשובות | S.M BROWS',
+  description: 'תשובות לשאלות הנפוצות ביותר על מיקרובליידינג, עיצוב גבות, הרמת גבות וקורסים ב-S.M BROWS.',
+}
+
+export default function FaqPage() {
+  return (
+    <>
+      <PageHero
+        tag="שאלות נפוצות"
+        title="שאלות"
+        titleHighlight="ותשובות"
+        description="כל מה שרצית לדעת על הטיפולים, ההכנה, ההחלמה ועוד."
+      />
+      <FaqContent />
+    </>
+  )
+}

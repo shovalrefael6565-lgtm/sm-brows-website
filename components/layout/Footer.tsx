@@ -3,15 +3,15 @@ import { Phone, Mail, MapPin } from 'lucide-react'
 import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
 
 const col2Links = [
-  { href: WHATSAPP_URL, label: 'יצירת קשר', external: true },
+  { href: '/contact', label: 'יצירת קשר', external: false },
   { href: '/faq', label: 'שאלות ותשובות', external: false },
   { href: '/privacy', label: 'מדיניות פרטיות', external: false },
   { href: '/accessibility', label: 'הצהרת נגישות', external: false },
 ]
 
 const col3Links = [
-  { href: '/about', label: 'הסיפור שלנו' },
-  { href: '/services', label: 'שירותים' },
+  { href: '/about', label: 'הסיפור שלי' },
+  { href: '/services', label: 'טיפולים' },
   { href: '/services#course', label: 'קורסים' },
   { href: '/blog', label: 'מאמרים' },
 ]
@@ -104,10 +104,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 3 — עלינו */}
+          {/* Col 3 — עליי */}
           <div>
             <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
-              עלינו
+              עליי
             </h3>
             <ul className="space-y-3" role="list">
               {col3Links.map(({ href, label }) => (
@@ -126,7 +126,7 @@ export default function Footer() {
           {/* Col 4 — הסטודיו */}
           <div>
             <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
-              הסטודיו שלנו
+              הסטודיו שלי
             </h3>
             <ul className="space-y-4" role="list">
               <li>
@@ -138,7 +138,7 @@ export default function Footer() {
               <li>
                 <a
                   href={`tel:${PHONE_NUMBER.replace(/-/g, '')}`}
-                  aria-label={`התקשרי אלינו – ${PHONE_NUMBER}`}
+                  aria-label={`התקשרי אליי – ${PHONE_NUMBER}`}
                   className="flex items-center gap-3 text-white/55 hover:text-brand-gold transition-colors text-sm cursor-pointer"
                 >
                   <Phone className="w-4 h-4 flex-shrink-0 text-brand-gold" aria-hidden="true" />

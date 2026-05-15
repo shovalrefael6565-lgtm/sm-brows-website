@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import Image from 'next/image'
-import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { motion, useScroll, useTransform, useReducedMotion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { ChevronDown } from 'lucide-react'
 import { WHATSAPP_URL } from '@/lib/utils'
 
 const fadeUp = {
@@ -18,6 +19,18 @@ const fadeUp = {
 export default function Hero() {
   const ref = useRef<HTMLElement>(null)
   const prefersReduced = useReducedMotion()
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const bookingRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (bookingRef.current && !bookingRef.current.contains(e.target as Node)) {
+        setBookingOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -103,34 +116,75 @@ export default function Hero() {
             animate="visible"
             className="flex flex-col sm:flex-row items-center lg:items-start gap-3 justify-center lg:justify-start"
           >
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="קביעת תור בוואצאפ עם S.M BROWS"
-              className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full shadow-gold hover:bg-brand-gold-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
-            >
-              <WhatsAppIcon className="w-5 h-5" />
-              קבעי תור בוואצאפ
-            </a>
+            {/* Single booking button with dropdown */}
+            <div ref={bookingRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setBookingOpen((v) => !v)}
+                aria-haspopup="true"
+                aria-expanded={bookingOpen}
+                aria-label="קביעת תור"
+                className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full shadow-gold hover:bg-brand-gold-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
+              >
+                <CalendarIcon className="w-5 h-5" />
+                קבעי תור
+                <motion.span
+                  animate={{ rotate: bookingOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </motion.span>
+              </button>
 
-            <Link
-              href="/booking"
-              aria-label="קביעת תור ביומן"
-              className="inline-flex items-center gap-2 text-brand-dark font-medium text-sm px-5 py-3 rounded-full border border-brand-gold/50 hover:bg-brand-gold/10 hover:border-brand-gold transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-            >
-              <CalendarIcon className="w-4 h-4 text-brand-gold" />
-              קביעת תור ביומן
-            </Link>
+              <AnimatePresence>
+                {bookingOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute top-full mt-3 right-0 lg:right-auto lg:left-0 z-30 bg-white rounded-2xl shadow-[0_8px_40px_-8px_rgba(44,24,16,0.18)] border border-brand-cream-dark/60 overflow-hidden min-w-[220px]"
+                    role="menu"
+                  >
+                    {/* WhatsApp option */}
+                    <a
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      onClick={() => setBookingOpen(false)}
+                      className="flex items-center gap-3 px-5 py-4 hover:bg-brand-cream transition-colors cursor-pointer group border-b border-brand-cream-dark/40"
+                    >
+                      <span className="w-9 h-9 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
+                        <WhatsAppIcon className="w-4.5 h-4.5 text-[#25D366]" />
+                      </span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-brand-dark">תור בוואצאפ</p>
+                        <p className="text-xs text-brand-muted">מענה מהיר</p>
+                      </div>
+                    </a>
 
-            <a
-              href="/gallery"
-              aria-label="צפייה בגלריית העבודות שלנו"
-              className="inline-flex items-center gap-2 text-brand-dark font-medium text-base px-6 py-4 rounded-full border-2 border-brand-rose-light hover:border-brand-rose hover:bg-brand-rose-bg transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
-            >
-              צפי בגלריה
-            </a>
+                    {/* Calendar option */}
+                    <Link
+                      href="/booking"
+                      role="menuitem"
+                      onClick={() => setBookingOpen(false)}
+                      className="flex items-center gap-3 px-5 py-4 hover:bg-brand-cream transition-colors cursor-pointer group"
+                    >
+                      <span className="w-9 h-9 rounded-xl bg-brand-rose/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-rose/20 transition-colors">
+                        <CalendarIcon className="w-4 h-4 text-brand-rose" />
+                      </span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-brand-dark">תור ביומן</p>
+                        <p className="text-xs text-brand-muted">בחרי תאריך ושעה</p>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
+            {/* Course button */}
             <Link
               href="/services#course"
               aria-label="לקורס עיצוב גבות המקצועי"
@@ -172,13 +226,13 @@ export default function Hero() {
         >
           <motion.div style={{ y }} className="relative">
             {/* Main image container */}
-            <div className="relative w-80 h-96 sm:w-[440px] sm:h-[560px] lg:w-[520px] lg:h-[640px] rounded-[2rem] overflow-hidden shadow-soft-lg">
+            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[540px] lg:h-[660px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
                 src="/hero.jpg"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
                 fill
                 priority
-                sizes="(max-width: 640px) 320px, (max-width: 1024px) 440px, 520px"
+                sizes="(max-width: 640px) 320px, (max-width: 1024px) 430px, 540px"
                 className="object-cover object-center scale-105"
               />
               <div
