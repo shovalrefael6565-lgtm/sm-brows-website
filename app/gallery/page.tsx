@@ -12,10 +12,10 @@ export default function GalleryPage() {
   return (
     <>
       <PageHero
-        tag="הגלריה שלנו"
+        tag="הגלריה שלי"
         title="עבודות שמדברות"
         titleHighlight="בעד עצמן"
-        description="כל תמונה כאן מספרת סיפור של שינוי. סינוני לפי סוג הטיפול וגלי את העבודות שלנו."
+        description="כל תמונה כאן מספרת סיפור של שינוי. סינוני לפי סוג הטיפול וגלי את העבודות שלי."
       />
       <section aria-label="גלריית עבודות" className="section-padding bg-brand-cream">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">

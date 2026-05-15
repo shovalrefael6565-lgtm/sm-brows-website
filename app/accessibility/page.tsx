@@ -14,7 +14,7 @@ export default function AccessibilityPage() {
         tag="נגישות"
         title="הצהרת"
         titleHighlight="נגישות"
-        description="אתר S.M BROWS מחויב לנגישות דיגיטלית עבור כלל המשתמשים."
+        description="אני מחויבת לנגישות דיגיטלית עבור כלל המשתמשים."
       />
       <AccessibilityContent />
     </>

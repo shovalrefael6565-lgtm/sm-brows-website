@@ -6,18 +6,18 @@ import BookingSection from '@/components/home/BookingSection'
 import { services } from '@/lib/data'
 
 export const metadata: Metadata = {
-  title: 'שירותים | S.M BROWS',
+  title: 'טיפולים | S.M BROWS',
   description:
-    'שירותי עיצוב גבות מקצועיים: מיקרובליידינג, עיצוב גבות טבעי והרמת גבות. קורס עיצוב גבות מקצועי. S.M BROWS אשקלון.',
+    'טיפולי עיצוב גבות מקצועיים: מיקרובליידינג, עיצוב גבות טבעי והרמת גבות. קורס עיצוב גבות מקצועי. S.M BROWS אשקלון.',
 }
 
 export default function ServicesPage() {
   return (
     <>
       <PageHero
-        tag="מה אנחנו מציעות"
-        title="השירותים"
-        titleHighlight="שלנו"
+        tag="מה אני מציעה"
+        title="הטיפולים"
+        titleHighlight="שלי"
         description="טיפולים מקצועיים לגבות מושלמות וקורס פרימיום להפוך את התשוקה למקצוע."
       />
 
@@ -26,7 +26,7 @@ export default function ServicesPage() {
         className="section-padding bg-brand-cream"
       >
         <h2 id="services-list-heading" className="sr-only">
-          רשימת שירותים
+          רשימת טיפולים
         </h2>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-24">
           {services.map((service, i) => (

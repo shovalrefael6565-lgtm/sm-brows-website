@@ -15,7 +15,7 @@ export default function BlogPage() {
   return (
     <>
       <PageHero
-        tag="הבלוג שלנו"
+        tag="הבלוג שלי"
         title="טיפים, ידע"
         titleHighlight="ועדכונים"
         description="כל מה שצריך לדעת על גבות – מאמרים מקצועיים, טיפים לטיפול, ועדכונים מהסטודיו."

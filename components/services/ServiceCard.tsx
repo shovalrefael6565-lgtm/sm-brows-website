@@ -126,7 +126,7 @@ export default function ServiceCard({ service, index }: Props) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
       transition={{ delay: index * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      aria-label={`שירות: ${service.name}`}
+      aria-label={`טיפול: ${service.name}`}
       className={`grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center ${
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}

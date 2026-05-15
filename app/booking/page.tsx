@@ -20,7 +20,7 @@ export default function BookingPage() {
             קביעת תור
           </h1>
           <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
-            מלאי את הפרטים ונחזור אלייך בהקדם לאישור התור. ייעוץ ראשוני חינם!
+            מלאי את הפרטים ואחזור אלייך בהקדם לאישור התור. ייעוץ ראשוני חינם!
           </p>
           <div className="flex items-center justify-center gap-2 mt-4">
             <span className="w-8 h-px bg-brand-rose-light" aria-hidden="true" />

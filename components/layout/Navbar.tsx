@@ -8,7 +8,7 @@ import { Menu, X, Search, ShoppingCart, Truck } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 
 const navLinks = [
-  { href: '/services', label: 'שירותים', special: null },
+  { href: '/services', label: 'טיפולים', special: null },
   { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
@@ -17,7 +17,7 @@ const navLinks = [
 ]
 
 const mobileNavLinks = [
-  { href: '/services', label: 'שירותים', special: null },
+  { href: '/services', label: 'טיפולים', special: null },
   { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
@@ -27,10 +27,10 @@ const mobileNavLinks = [
 
 const SECTIONS = [
   { id: 'hero', label: 'ראשי' },
-  { id: 'services', label: 'שירותים' },
+  { id: 'services', label: 'טיפולים' },
   { id: 'before-after', label: 'לפני ואחרי' },
   { id: 'gallery', label: 'גלריה' },
-  { id: 'why-us', label: 'למה אנחנו' },
+  { id: 'why-us', label: 'למה אני' },
   { id: 'blog', label: 'מאמרים' },
   { id: 'booking', label: 'קביעת תור' },
 ]

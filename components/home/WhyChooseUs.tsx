@@ -18,7 +18,7 @@ const FEATURES = [
   {
     icon: <ShieldCheck className="w-6 h-6" aria-hidden="true" />,
     title: 'תוצאות מובטחות',
-    description: 'אנחנו מתחייבות לתוצאה. לא מרוצה? נחזור על הטיפול עד שתהיי.',
+    description: 'אני מתחייבת לתוצאה. לא מרוצה? אחזור על הטיפול עד שתהיי.',
   },
   {
     icon: <Heart className="w-6 h-6" aria-hidden="true" />,
@@ -28,7 +28,7 @@ const FEATURES = [
   {
     icon: <Sparkles className="w-6 h-6" aria-hidden="true" />,
     title: 'חומרים מהשורה הראשונה',
-    description: 'אנחנו עובדות רק עם מוצרים ופיגמנטים מקצועיים מהמובילים בעולם.',
+    description: 'אני עובדת רק עם מוצרים ופיגמנטים מקצועיים מהמובילים בעולם.',
   },
 ]
 
@@ -68,10 +68,10 @@ export default function WhyChooseUs() {
             className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4"
           >
             למה לבחור
-            <span className="text-brand-gold"> בנו?</span>
+            <span className="text-brand-gold"> בי?</span>
           </h2>
           <p className="text-white/60 max-w-xl mx-auto leading-relaxed">
-            לא כל הסטודיואים שווים. הנה מה שמבדיל אותנו מהשאר ומה שתקבלי כשתבחרי ב-S.M BROWS.
+            לא כל הסטודיואים שווים. הנה מה שמבדיל אותי מהשאר ומה שתקבלי כשתבחרי ב-S.M BROWS.
           </p>
         </motion.div>
 

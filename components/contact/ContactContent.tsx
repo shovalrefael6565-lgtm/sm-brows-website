@@ -134,7 +134,7 @@ export default function ContactContent() {
                 מענה מהיר בוואצאפ
               </h3>
               <p className="text-brand-medium text-sm leading-relaxed">
-                הדרך המהירה ביותר לתאם תור היא דרך וואצאפ. אנו מגיבות בדרך כלל תוך מספר שעות בימי עסקים.
+                הדרך המהירה ביותר לתאם תור היא דרך וואצאפ. אני מגיבה בדרך כלל תוך מספר שעות בימי עסקים.
               </p>
             </motion.div>
           </div>

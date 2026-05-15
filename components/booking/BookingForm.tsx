@@ -93,7 +93,7 @@ export default function BookingForm() {
     const e: Partial<FormData> = {}
     if (!form.name.trim()) e.name = 'שדה חובה'
     if (!form.phone.trim()) e.phone = 'שדה חובה'
-    if (!form.service) e.service = 'יש לבחור שירות'
+    if (!form.service) e.service = 'יש לבחור טיפול'
     if (!form.date) e.date = 'יש לבחור תאריך'
     if (!form.time) e.time = 'יש לבחור שעה'
     setErrors(e)
@@ -106,7 +106,7 @@ export default function BookingForm() {
       '',
       `👤 שם: ${form.name}`,
       `📞 טלפון: ${form.phone}`,
-      `💆 שירות: ${form.service}`,
+      `💆 טיפול: ${form.service}`,
       `📅 תאריך: ${form.date}`,
       `⏰ שעה: ${form.time}`,
       form.notes.trim() ? `📝 הערות: ${form.notes}` : '',
@@ -144,7 +144,7 @@ export default function BookingForm() {
           תודה! הבקשה התקבלה 🌸
         </h2>
         <p className="text-brand-medium text-lg leading-relaxed mb-2 max-w-md mx-auto">
-          פתחנו עבורך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ונחזור אלייך בהקדם לאישור התור.
+          פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
         </p>
         <p className="text-brand-muted text-sm mb-8">
           {form.name} | {form.service} | {form.date} בשעה {form.time}
@@ -238,7 +238,7 @@ export default function BookingForm() {
             <label htmlFor="booking-service" className="block text-sm font-semibold text-brand-dark mb-1.5">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                שירות מבוקש
+                טיפול מבוקש
                 <span className="text-brand-rose" aria-hidden="true">*</span>
               </span>
             </label>
@@ -255,7 +255,7 @@ export default function BookingForm() {
                 errors.service ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
               )}
             >
-              <option value="" disabled>בחרי שירות...</option>
+              <option value="" disabled>בחרי טיפול...</option>
               {SERVICES.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}

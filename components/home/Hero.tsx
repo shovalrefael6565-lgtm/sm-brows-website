@@ -241,11 +241,6 @@ export default function Hero() {
               />
             </div>
 
-            {/* Gold ring decoration */}
-            <div
-              aria-hidden="true"
-              className="absolute -bottom-4 -left-4 w-full h-full rounded-[2rem] border-2 border-brand-gold/30 -z-10"
-            />
 
             {/* Bottom floating badge */}
             <div

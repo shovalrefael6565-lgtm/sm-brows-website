@@ -2,11 +2,67 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Clock, Sparkles } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
+
+function ServiceImageSlider({ images, name, tagline }: { images: string[]; name: string; tagline: string }) {
+  const [current, setCurrent] = useState(0)
+
+  useEffect(() => {
+    if (images.length <= 1) return
+    const interval = setInterval(() => {
+      setCurrent((i) => (i + 1) % images.length)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [images.length])
+
+  return (
+    <div className="relative h-52 overflow-hidden flex-shrink-0">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
+          className="absolute inset-0"
+        >
+          <Image
+            src={images[current]}
+            alt={`${name} – ${tagline}`}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
+          />
+        </motion.div>
+      </AnimatePresence>
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none"
+        aria-hidden="true"
+      />
+      <div className="absolute top-4 end-4">
+        <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur-sm text-brand-rose text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+          <Sparkles className="w-3 h-3" aria-hidden="true" />
+          {tagline}
+        </span>
+      </div>
+      {/* Dots indicator */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5" aria-hidden="true">
+        {images.map((_, i) => (
+          <span
+            key={i}
+            className={`rounded-full transition-all duration-300 ${
+              i === current ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ServicesPreview() {
   const ref = useRef(null)
@@ -28,7 +84,7 @@ export default function ServicesPreview() {
           className="text-center mb-14"
         >
           <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
-            השירותים שלנו
+            הטיפולים שלי
           </p>
           <h2
             id="services-heading"
@@ -48,7 +104,7 @@ export default function ServicesPreview() {
         <ul
           className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
           role="list"
-          aria-label="רשימת שירותים"
+          aria-label="רשימת טיפולים"
         >
           {services.map((service, i) => (
             <motion.li
@@ -60,28 +116,14 @@ export default function ServicesPreview() {
             >
               <article
                 className="h-full bg-white rounded-3xl overflow-hidden shadow-soft hover:shadow-soft-lg transition-all duration-300 border border-brand-cream-dark/50 hover:-translate-y-1 flex flex-col"
-                aria-label={`שירות: ${service.name}`}
+                aria-label={`טיפול: ${service.name}`}
               >
-                {/* Image */}
-                <div className="relative h-52 overflow-hidden flex-shrink-0">
-                  <Image
-                    src={service.image}
-                    alt={`${service.name} – ${service.tagline}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div
-                    className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent"
-                    aria-hidden="true"
-                  />
-                  <div className="absolute top-4 end-4">
-                    <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur-sm text-brand-rose text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-                      <Sparkles className="w-3 h-3" aria-hidden="true" />
-                      {service.tagline}
-                    </span>
-                  </div>
-                </div>
+                {/* Auto-rotating image */}
+                <ServiceImageSlider
+                  images={service.images}
+                  name={service.name}
+                  tagline={service.tagline}
+                />
 
                 {/* Content */}
                 <div className="p-6 flex flex-col flex-1">
@@ -155,11 +197,11 @@ export default function ServicesPreview() {
         >
           <Link
             href="/services"
-            aria-label="צפייה בעמוד השירותים המלא"
+            aria-label="צפייה בעמוד הטיפולים המלא"
             className="inline-flex items-center gap-2 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            לכל השירותים
+            לכל הטיפולים
           </Link>
         </motion.div>
       </div>

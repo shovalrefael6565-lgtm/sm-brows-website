@@ -24,10 +24,10 @@ export default function ShopPage() {
   return (
     <>
       <PageHero
-        tag="החנות שלנו"
+        tag="החנות שלי"
         title="מוצרי גבות"
         titleHighlight="מקצועיים"
-        description="כל מה שצריך לשמור על הגבות מושלמות בין הטיפולים. מוצרים מקצועיים שאנחנו ממליצות עליהם."
+        description="כל מה שצריך לשמור על הגבות מושלמות בין הטיפולים. מוצרים מקצועיים שאני ממליצה עליהם."
       />
 
       <section aria-label="חנות מוצרים" className="section-padding bg-brand-cream">

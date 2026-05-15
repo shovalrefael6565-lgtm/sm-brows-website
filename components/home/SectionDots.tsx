@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
 
 const SECTIONS = [
   { id: 'hero', label: 'ראשי' },
-  { id: 'services', label: 'שירותים' },
+  { id: 'services', label: 'טיפולים' },
   { id: 'before-after', label: 'לפני ואחרי' },
   { id: 'gallery', label: 'גלריה' },
-  { id: 'why-us', label: 'למה אנחנו' },
+  { id: 'why-us', label: 'למה אני' },
   { id: 'blog', label: 'מאמרים' },
   { id: 'booking', label: 'קביעת תור' },
 ]

@@ -60,11 +60,9 @@ export const services: Service[] = [
     image:
       'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=400&q=80&auto=format&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1527243413060-6c1b52b47a54?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=400&q=80&auto=format&fit=crop',
     ],
     features: [
       'תוצאות של 12–24 חודשים',
@@ -84,11 +82,9 @@ export const services: Service[] = [
     image:
       'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=600&h=400&q=80&auto=format&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=600&h=400&q=80&auto=format&fit=crop',
     ],
     features: [
       'תוצאה מיידית',
@@ -108,11 +104,9 @@ export const services: Service[] = [
     image:
       'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?w=800&h=600&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=600&h=400&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=400&q=80&auto=format&fit=crop',
     ],
     features: [
       'אפקט הרמה מיידי',
@@ -242,7 +236,7 @@ export const blogPosts: BlogPost[] = [
     slug: 'aftercare-microblading',
     title: 'טיפול לאחר מיקרובליידינג – המדריך המלא',
     excerpt:
-      'עשיתן מיקרובליידינג? מעולה! כעת הגיע הזמן להבין איך לשמור על התוצאה כמה שיותר זמן. אספנו עבורכן את כל הטיפים החשובים ביותר.',
+      'עשית מיקרובליידינג? מעולה! כעת הגיע הזמן להבין איך לשמור על התוצאה כמה שיותר זמן. אספתי עבורך את כל הטיפים החשובים ביותר.',
     image:
       'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=800&h=450&q=80&auto=format&fit=crop',
     category: 'מיקרובליידינג',
@@ -295,9 +289,9 @@ export const blogPosts: BlogPost[] = [
 
 **שבועות 3-4:** הצבע מתייצב ומגיע לתוצאה הסופית.
 
-## מתי לפנות אלינו?
+## מתי לפנות אליי?
 
-אם יש כאב חזק, נפיחות קשה, או סימנים של זיהום – פנו אלינו מיד. בכל שאלה ובכל ספק, הוואצאפ שלנו פתוח תמיד!
+אם יש כאב חזק, נפיחות קשה, או סימנים של זיהום – פני אליי מיד. בכל שאלה ובכל ספק, הוואצאפ שלי פתוח תמיד!
     `,
   },
   {
@@ -354,9 +348,9 @@ export const blogPosts: BlogPost[] = [
   {
     id: '3',
     slug: 'brow-lifting-faq',
-    title: 'שאלות נפוצות על הרמת גבות – כל מה שרציתן לדעת',
+    title: 'שאלות נפוצות על הרמת גבות – כל מה שרצית לדעת',
     excerpt:
-      'הרמת גבות הפכה לאחד הטיפולים הפופולריים ביותר בעולם. אבל מה זה בדיוק? כואב? כמה זמן זה מחזיק? ריכזנו תשובות לכל השאלות שלכן.',
+      'הרמת גבות הפכה לאחד הטיפולים הפופולריים ביותר בעולם. אבל מה זה בדיוק? כואב? כמה זמן זה מחזיק? ריכזתי תשובות לכל השאלות שלך.',
     image:
       'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=450&q=80&auto=format&fit=crop',
     category: 'הרמת גבות',
@@ -411,15 +405,15 @@ export const blogPosts: BlogPost[] = [
 
 ### האם יש תוצאות לפני ואחרי דרמטיות?
 
-בהחלט! הטיפול יכול לשנות לחלוטין את מראה הפנים. גבות שנראו "ישנות" ולא מוגדרות הופכות לגבות עפות ומרחפות. אם את רוצה לראות דוגמאות – בקרי בגלריה שלנו.
+בהחלט! הטיפול יכול לשנות לחלוטין את מראה הפנים. גבות שנראו "ישנות" ולא מוגדרות הופכות לגבות עפות ומרחפות. אם את רוצה לראות דוגמאות – בקרי בגלריה שלי.
 
 ### כמה זה עולה?
 
-במרפאות S.M BROWS הרמת גבות עולה בין ₪350 ל-₪550. המחיר תלוי בסוג הטיפול ובתוספות.
+ב-S.M BROWS הרמת גבות עולה ₪250. המחיר תלוי בסוג הטיפול ובתוספות.
 
 ### איך קובעים תור?
 
-שלחי לנו הודעה בוואצאפ ואנחנו נחזור אלייך בהקדם לקביעת מועד מתאים!
+שלחי לי הודעה בוואצאפ ואחזור אלייך בהקדם לקביעת מועד מתאים!
     `,
   },
 ]

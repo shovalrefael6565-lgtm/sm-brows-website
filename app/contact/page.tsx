@@ -14,7 +14,7 @@ export default function ContactPage() {
         tag="דברי איתנו"
         title="יצירת"
         titleHighlight="קשר"
-        description="שמחות לשמוע ממך – לקביעת תור, שאלות על טיפולים, או כל דבר אחר."
+        description="שמחה לשמוע ממך – לקביעת תור, שאלות על טיפולים, או כל דבר אחר."
       />
       <ContactContent />
     </>

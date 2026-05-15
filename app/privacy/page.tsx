@@ -4,7 +4,7 @@ import PrivacyContent from '@/components/privacy/PrivacyContent'
 
 export const metadata: Metadata = {
   title: 'מדיניות פרטיות | S.M BROWS',
-  description: 'מדיניות הפרטיות של S.M BROWS – כיצד אנו אוספים, משתמשים ושומרים על המידע האישי שלך.',
+  description: 'מדיניות הפרטיות של S.M BROWS – כיצד אני אוספת, משתמשת ושומרת על המידע האישי שלך.',
 }
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         tag="מסמך משפטי"
         title="מדיניות"
         titleHighlight="פרטיות"
-        description="אנו מחויבים לשמור על פרטיותך בהתאם לחוק הגנת הפרטיות, תשמ״א-1981."
+        description="אני מחויבת לשמור על פרטיותך בהתאם לחוק הגנת הפרטיות, תשמ״א-1981."
       />
       <PrivacyContent />
     </>

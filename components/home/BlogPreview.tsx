@@ -27,14 +27,14 @@ export default function BlogPreview() {
         >
           <div>
             <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
-              המאמרים שלנו
+              המאמרים שלי
             </p>
             <h2
               id="blog-preview-heading"
               className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
             >
               טיפים וידע
-              <span className="text-brand-rose"> מהמומחים</span>
+              <span className="text-brand-rose"> ממני</span>
             </h2>
           </div>
           <Link

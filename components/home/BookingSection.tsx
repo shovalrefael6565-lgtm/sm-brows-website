@@ -33,7 +33,7 @@ export default function BookingSection() {
             מוכנה לשדרג את הגבות?
           </h2>
           <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-2xl mx-auto mb-8">
-            לקביעת תור שלחי לנו הודעה בוואצאפ ונחזור אלייך בהקדם לתיאום מועד מתאים.
+            לקביעת תור שלחי לי הודעה בוואצאפ ואחזור אלייך בהקדם לתיאום מועד מתאים.
             ייעוץ ראשוני חינם!
           </p>
 
@@ -79,7 +79,7 @@ export default function BookingSection() {
                 value: PHONE_NUMBER,
                 href: `tel:${PHONE_NUMBER.replace(/-/g, '')}`,
                 isExternal: false,
-                ariaLabel: `התקשרי אלינו – ${PHONE_NUMBER}`,
+                ariaLabel: `התקשרי אליי – ${PHONE_NUMBER}`,
               },
               {
                 icon: <MapPin className="w-6 h-6 text-brand-gold" aria-hidden="true" />,

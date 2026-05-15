@@ -81,7 +81,7 @@ export default function CourseBanner() {
               </a>
               <Link
                 href="/services"
-                aria-label="פרטים נוספים על הקורס בדף השירותים"
+                aria-label="פרטים נוספים על הקורס בדף הטיפולים"
                 className="inline-flex items-center gap-2 text-white/70 font-medium text-base px-5 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:text-white transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               >
                 פרטים נוספים
