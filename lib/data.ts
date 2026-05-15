@@ -57,12 +57,10 @@ export const services: Service[] = [
       'טכניקה מתקדמת של קעקוע קוסמטי ידני ליצירת גבות טבעיות ומוגדרות. כל שיערה מצוירת בנפרד לאפקט ריאליסטי מרהיב. תוצאות המחזיקות 12–24 חודשים.',
     price: '₪1,500 – ₪2,000',
     duration: '2–3 שעות',
-    image:
-      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=400&q=80&auto=format&fit=crop',
+    image: '/microblading-1.jpg',
     images: [
-      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=400&q=80&auto=format&fit=crop',
+      '/microblading-1.jpg',
+      '/microblading-2.jpg',
     ],
     features: [
       'תוצאות של 12–24 חודשים',

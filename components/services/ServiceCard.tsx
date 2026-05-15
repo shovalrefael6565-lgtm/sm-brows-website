@@ -55,10 +55,15 @@ function ImageSlider({ images, alt, duration }: { images: string[]; alt: string;
             alt={`${alt} – תמונה ${current + 1}`}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover"
+            className="object-cover object-top"
+            style={{ filter: 'brightness(1.04) contrast(1.03) saturate(1.06)' }}
           />
           <div
-            className="absolute inset-0 bg-gradient-to-br from-brand-rose/10 to-transparent"
+            className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-dark/20"
+            aria-hidden="true"
+          />
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-brand-rose/8 via-transparent to-brand-gold/5"
             aria-hidden="true"
           />
         </motion.div>
