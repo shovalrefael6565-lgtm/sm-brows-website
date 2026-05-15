@@ -134,6 +134,10 @@ function GalleryCard({
           beforeSrc={item.beforeImage!}
           afterSrc={item.afterImage!}
           alt={item.alt}
+          leftLabel={item.category === 'microblading' ? '' : 'לפני'}
+          rightLabel={item.category === 'microblading' ? '' : 'אחרי'}
+          leftObjectPosition={item.leftObjectPosition}
+          rightObjectPosition={item.rightObjectPosition}
         />
         <CategoryBadge category={item.category} />
       </article>

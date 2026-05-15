@@ -139,14 +139,15 @@ export default function ServiceCard({ service, index }: Props) {
     >
       {/* Image — comparison slider for microblading, auto carousel for others */}
       {service.id === 'microblading' && service.images.length >= 2 ? (
-        <div className="relative rounded-3xl overflow-hidden aspect-[4/5] shadow-soft-lg">
+        <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-soft-lg">
           <BeforeAfterSlider
             beforeSrc={service.images[0]}
             afterSrc={service.images[1]}
             alt={service.name}
             leftLabel=""
             rightLabel=""
-            objectPosition="top"
+            leftObjectPosition="50% 30%"
+            rightObjectPosition="50% 18%"
           />
         </div>
       ) : (

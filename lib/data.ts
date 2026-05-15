@@ -19,6 +19,8 @@ export interface GalleryItem {
   image?: string
   alt: string
   caption?: string
+  leftObjectPosition?: string
+  rightObjectPosition?: string
 }
 
 export interface BlogPost {
@@ -144,18 +146,17 @@ export const galleryItems: GalleryItem[] = [
     id: 'g1',
     category: 'microblading',
     type: 'before-after',
-    beforeImage:
-      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=600&h=500&q=80&auto=format&fit=crop&fp-y=0.35',
-    afterImage:
-      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=500&q=80&auto=format&fit=crop',
-    alt: 'לפני ואחרי מיקרובליידינג – גבות מלאות ומוגדרות',
+    beforeImage: '/microblading-1.jpg',
+    afterImage: '/microblading-2.jpg',
+    alt: 'השוואת זוויות מיקרובליידינג – גבות מלאות ומוגדרות',
+    leftObjectPosition: '50% 30%',
+    rightObjectPosition: '50% 18%',
   },
   {
     id: 'g2',
     category: 'microblading',
     type: 'portrait',
-    image:
-      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=750&q=80&auto=format&fit=crop',
+    image: '/microblading-1.jpg',
     alt: 'לקוחה עם גבות מיקרובליידינג מושלמות',
     caption: 'מיקרובליידינג – תוצאה טבעית ומרהיבה',
   },
@@ -201,8 +202,7 @@ export const galleryItems: GalleryItem[] = [
     id: 'g7',
     category: 'microblading',
     type: 'process',
-    image:
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=500&q=80&auto=format&fit=crop',
+    image: '/microblading-2.jpg',
     alt: 'תהליך מיקרובליידינג – עבודה מקצועית',
     caption: 'במהלך הטיפול',
   },
@@ -219,8 +219,7 @@ export const galleryItems: GalleryItem[] = [
     id: 'g9',
     category: 'microblading',
     type: 'portrait',
-    image:
-      'https://images.unsplash.com/photo-1527243413060-6c1b52b47a54?w=600&h=750&q=80&auto=format&fit=crop',
+    image: '/microblading-2.jpg',
     alt: 'לקוחה מרוצה לאחר מיקרובליידינג',
     caption: 'תוצאות מדהימות',
   },

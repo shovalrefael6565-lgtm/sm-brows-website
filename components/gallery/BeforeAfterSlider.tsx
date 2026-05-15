@@ -10,6 +10,8 @@ interface Props {
   leftLabel?: string
   rightLabel?: string
   objectPosition?: string
+  leftObjectPosition?: string
+  rightObjectPosition?: string
 }
 
 export default function BeforeAfterSlider({
@@ -19,7 +21,11 @@ export default function BeforeAfterSlider({
   leftLabel = 'לפני',
   rightLabel = 'אחרי',
   objectPosition = 'center',
+  leftObjectPosition,
+  rightObjectPosition,
 }: Props) {
+  const leftPos = leftObjectPosition ?? objectPosition
+  const rightPos = rightObjectPosition ?? objectPosition
   const [position, setPosition] = useState(50)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -77,18 +83,18 @@ export default function BeforeAfterSlider({
       aria-label={`השוואת לפני ואחרי: ${alt}`}
       role="img"
     >
-      {/* After image (bottom layer) */}
+      {/* After/right image (base layer) */}
       <Image
         src={afterSrc}
         alt={`${rightLabel}: ${alt}`}
         fill
         sizes="(max-width: 768px) 100vw, 50vw"
         className="object-cover"
-        style={{ objectPosition }}
+        style={{ objectPosition: rightPos }}
         draggable={false}
       />
 
-      {/* Before image (clipped) */}
+      {/* Before/left image (clipped) */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ width: `${position}%` }}
@@ -100,7 +106,7 @@ export default function BeforeAfterSlider({
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
           className="object-cover"
-          style={{ objectPosition }}
+          style={{ objectPosition: leftPos }}
           draggable={false}
         />
       </div>

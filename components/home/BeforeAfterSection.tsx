@@ -4,14 +4,25 @@ import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import BeforeAfterSlider from '@/components/gallery/BeforeAfterSlider'
 
-const PAIRS = [
+interface Pair {
+  id: string
+  label: string
+  beforeSrc: string
+  afterSrc: string
+  alt: string
+  leftObjectPosition?: string
+  rightObjectPosition?: string
+}
+
+const PAIRS: Pair[] = [
   {
     id: 'ba1',
     label: 'מיקרובליידינג',
-    beforeSrc:
-      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.35',
-    afterSrc: '/microblading-1.jpg',
-    alt: 'לפני ואחרי מיקרובליידינג',
+    beforeSrc: '/microblading-1.jpg',
+    afterSrc: '/microblading-2.jpg',
+    alt: 'השוואת זוויות מיקרובליידינג',
+    leftObjectPosition: '50% 30%',
+    rightObjectPosition: '50% 18%',
   },
   {
     id: 'ba2',
@@ -84,7 +95,11 @@ export default function BeforeAfterSection() {
                     beforeSrc={pair.beforeSrc}
                     afterSrc={pair.afterSrc}
                     alt={pair.alt}
-                    objectPosition={pair.id === 'ba1' ? 'top' : 'center'}
+                    leftLabel={pair.id === 'ba1' ? '' : 'לפני'}
+                    rightLabel={pair.id === 'ba1' ? '' : 'אחרי'}
+                    leftObjectPosition={pair.leftObjectPosition}
+                    rightObjectPosition={pair.rightObjectPosition}
+                    objectPosition={pair.id !== 'ba1' ? 'center' : undefined}
                   />
                 </div>
                 <div className="px-4 py-3 bg-brand-cream flex items-center justify-between">
