@@ -21,8 +21,8 @@ const PAIRS: Pair[] = [
     beforeSrc: '/microblading-1.jpg',
     afterSrc: '/microblading-2.jpg',
     alt: 'השוואת זוויות מיקרובליידינג',
-    leftObjectPosition: '50% 30%',
-    rightObjectPosition: '50% 18%',
+    leftObjectPosition: '50% 24%',
+    rightObjectPosition: '50% 22%',
   },
   {
     id: 'ba2',

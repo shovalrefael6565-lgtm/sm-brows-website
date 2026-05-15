@@ -1,16 +1,44 @@
 'use client'
 
 import Image from 'next/image'
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import Link from 'next/link'
-import { Check, Monitor, Users, MapPin, CalendarDays, Calendar } from 'lucide-react'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { useRef, useState } from 'react'
+import { Check, Monitor, MapPin, CalendarDays, Users, Video } from 'lucide-react'
 import { courseService } from '@/lib/data'
 import { WHATSAPP_URL, LOCATION } from '@/lib/utils'
+
+const FRONTAL = {
+  price: '₪2,500',
+  priceLabel: 'כולל ערכת כלים',
+  sessions: '2 מפגשים',
+  sessionIcon: 'users',
+  description: courseService.description,
+  features: courseService.features,
+}
+
+const ONLINE = {
+  price: '₪1,000',
+  priceLabel: 'קורס דיגיטלי',
+  sessions: 'מפגש זום אישי',
+  sessionIcon: 'video',
+  description:
+    'קורס אונליין ממוקד במיוחד לבנות שכבר עובדות בתחום עיצוב הגבות ורוצות לחדד את הטכניקה, להעמיק את הידע ולהגיע לתוצאות מקצועיות יותר בעיצוב גבות טבעי. ללא צורך לצאת מהבית — הקורס מועבר בנוחות מוחלטת, בזמן שמתאים לך.',
+  features: [
+    'חוברת קורס מקצועית לגבות טבעיות',
+    'מפגש זום אישי אחד על אחד',
+    'חומר לימוד דיגיטלי מקיף ומפורט',
+    'מתאים לבעלות ניסיון שרוצות להשתפר',
+    'ליווי ותמיכה מקצועית לאחר הקורס',
+    'נגישות מכל מקום ובזמן שנוח לך',
+  ],
+}
 
 export default function CourseCard() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-60px' })
+  const [format, setFormat] = useState<'frontal' | 'online'>('frontal')
+
+  const data = format === 'frontal' ? FRONTAL : ONLINE
 
   return (
     <motion.div
@@ -23,7 +51,7 @@ export default function CourseCard() {
         aria-label="קורס עיצוב גבות מקצועי – פרימיום"
         className="relative overflow-hidden rounded-3xl bg-brand-dark text-white shadow-[0_20px_80px_-12px_rgba(44,24,16,0.4)]"
       >
-        {/* Background image with overlay */}
+        {/* Background image */}
         <div className="absolute inset-0" aria-hidden="true">
           <Image
             src={courseService.image}
@@ -35,7 +63,7 @@ export default function CourseCard() {
           <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-brand-dark/95 to-brand-dark/70" />
         </div>
 
-        {/* Gold border accent top */}
+        {/* Gold top border */}
         <div className="absolute top-0 inset-x-0 h-1 bg-gold-gradient" aria-hidden="true" />
 
         <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 sm:p-12">
@@ -53,49 +81,93 @@ export default function CourseCard() {
               {courseService.name}
             </h2>
 
-            <p className="text-white/70 leading-relaxed mb-6">
-              {courseService.description}
-            </p>
-
-            {/* Format badges */}
-            <div className="flex flex-wrap gap-2 mb-5">
-              <span className="inline-flex items-center gap-1.5 bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-xs font-semibold px-3 py-1.5 rounded-full">
+            {/* Format toggle */}
+            <div className="flex gap-2 mb-5" role="group" aria-label="בחרי פורמט קורס">
+              <button
+                type="button"
+                onClick={() => setFormat('frontal')}
+                aria-pressed={format === 'frontal'}
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
+                  format === 'frontal'
+                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
+                    : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white/80'
+                }`}
+              >
                 <MapPin className="w-3 h-3" aria-hidden="true" />
                 פרונטלי
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full">
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormat('online')}
+                aria-pressed={format === 'online'}
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
+                  format === 'online'
+                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
+                    : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white/80'
+                }`}
+              >
                 <Monitor className="w-3 h-3" aria-hidden="true" />
                 אונליין
-              </span>
+              </button>
             </div>
 
+            {/* Description */}
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={format + '-desc'}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="text-white/70 leading-relaxed mb-5"
+              >
+                {data.description}
+              </motion.p>
+            </AnimatePresence>
+
             {/* Key details */}
-            <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex flex-wrap gap-3 mb-6">
               <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
-                <Users className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-white font-medium">{courseService.sessions}</span>
+                {data.sessionIcon === 'video'
+                  ? <Video className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
+                  : <Users className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
+                }
+                <span className="text-sm text-white font-medium">{data.sessions}</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
-                <CalendarDays className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-white font-medium">מקומות מוגבלים</span>
-              </div>
+              {format === 'frontal' && (
+                <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
+                  <CalendarDays className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
+                  <span className="text-sm text-white font-medium">מקומות מוגבלים</span>
+                </div>
+              )}
             </div>
 
             {/* Features */}
-            <ul className="space-y-2.5 mb-8" aria-label="מה כלול בקורס">
-              {courseService.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-3">
-                  <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 border border-brand-gold/40 flex items-center justify-center mt-0.5"
-                    aria-hidden="true"
-                  >
-                    <Check className="w-3 h-3 text-brand-gold" />
-                  </span>
-                  <span className="text-sm text-white/80">{feature}</span>
-                </li>
-              ))}
-            </ul>
+            <AnimatePresence mode="wait">
+              <motion.ul
+                key={format + '-features'}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-2.5 mb-8"
+                aria-label="מה כלול בקורס"
+              >
+                {data.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <span
+                      className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 border border-brand-gold/40 flex items-center justify-center mt-0.5"
+                      aria-hidden="true"
+                    >
+                      <Check className="w-3 h-3 text-brand-gold" />
+                    </span>
+                    <span className="text-sm text-white/80">{feature}</span>
+                  </li>
+                ))}
+              </motion.ul>
+            </AnimatePresence>
 
+            {/* Only WhatsApp button */}
             <a
               href={WHATSAPP_URL}
               target="_blank"
@@ -106,46 +178,45 @@ export default function CourseCard() {
               <WhatsAppIcon className="w-5 h-5" />
               לפרטים ורישום בוואצאפ
             </a>
-            <Link
-              href="/booking"
-              aria-label="קביעת תור לקורס ביומן"
-              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-medium text-base px-6 py-4 rounded-full hover:bg-white/10 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 w-full sm:w-auto"
-            >
-              <Calendar className="w-5 h-5" />
-              קביעת תור ביומן
-            </Link>
           </div>
 
           {/* Price panel */}
           <div className="flex items-center justify-center lg:justify-end">
             <div className="relative text-center p-8 sm:p-10">
-              {/* Decorative ring */}
-              <div
-                className="absolute inset-0 rounded-full border-2 border-brand-gold/20 scale-110"
-                aria-hidden="true"
-              />
-              <div
-                className="absolute inset-0 rounded-full border border-brand-gold/10 scale-125"
-                aria-hidden="true"
-              />
+              <div className="absolute inset-0 rounded-full border-2 border-brand-gold/20 scale-110" aria-hidden="true" />
+              <div className="absolute inset-0 rounded-full border border-brand-gold/10 scale-125" aria-hidden="true" />
 
               <p className="text-white/50 text-sm uppercase tracking-widest mb-2">מחיר הקורס</p>
-              <p
-                className="font-serif text-6xl sm:text-7xl font-bold text-brand-gold leading-none mb-2"
-                aria-label="מחיר 2,500 שקלים"
-              >
-                {courseService.price}
-              </p>
-              <p className="text-white/40 text-xs">כולל ערכת כלים</p>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={format + '-price'}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="font-serif text-6xl sm:text-7xl font-bold text-brand-gold leading-none mb-2"
+                  aria-label={`מחיר ${data.price}`}
+                >
+                  {data.price}
+                </motion.p>
+              </AnimatePresence>
+              <p className="text-white/40 text-xs">{data.priceLabel}</p>
 
               <div className="mt-6 pt-6 border-t border-white/10 space-y-2">
-                <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
-                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                  <span>{LOCATION} / אונליין</span>
-                </div>
+                {format === 'frontal' ? (
+                  <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                    <span>{LOCATION} / אונליין</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
+                    <Monitor className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                    <span>מכל מקום, בזמן שנוח לך</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
                   <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                  <span>מקומות מוגבלים</span>
+                  <span>{data.sessions}</span>
                 </div>
               </div>
             </div>

@@ -146,8 +146,8 @@ export default function ServiceCard({ service, index }: Props) {
             alt={service.name}
             leftLabel=""
             rightLabel=""
-            leftObjectPosition={service.id === 'microblading' ? '50% 30%' : '50% 14%'}
-            rightObjectPosition={service.id === 'microblading' ? '50% 18%' : '50% 20%'}
+            leftObjectPosition={service.id === 'microblading' ? '50% 24%' : '50% 14%'}
+            rightObjectPosition={service.id === 'microblading' ? '50% 22%' : '50% 20%'}
           />
         </div>
       ) : (
