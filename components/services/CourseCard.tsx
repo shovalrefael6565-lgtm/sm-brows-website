@@ -5,7 +5,7 @@ import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import { Check, Monitor, Users, MapPin, CalendarDays } from 'lucide-react'
 import { courseService } from '@/lib/data'
-import { WHATSAPP_URL } from '@/lib/utils'
+import { WHATSAPP_URL, LOCATION } from '@/lib/utils'
 
 export default function CourseCard() {
   const ref = useRef(null)
@@ -132,7 +132,7 @@ export default function CourseCard() {
               <div className="mt-6 pt-6 border-t border-white/10 space-y-2">
                 <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
                   <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                  <span>אשקלון / אונליין</span>
+                  <span>{LOCATION} / אונליין</span>
                 </div>
                 <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
                   <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
