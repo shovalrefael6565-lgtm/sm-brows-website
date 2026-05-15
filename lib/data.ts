@@ -6,6 +6,7 @@ export interface Service {
   price: string
   duration: string
   image: string
+  images: string[]
   features: string[]
 }
 
@@ -58,6 +59,13 @@ export const services: Service[] = [
     duration: '2–3 שעות',
     image:
       'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=600&h=400&q=80&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1527243413060-6c1b52b47a54?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=800&h=600&q=80&auto=format&fit=crop',
+    ],
     features: [
       'תוצאות של 12–24 חודשים',
       'מראה טבעי לחלוטין',
@@ -75,6 +83,13 @@ export const services: Service[] = [
     duration: '45–60 דקות',
     image:
       'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=600&h=400&q=80&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=800&h=600&q=80&auto=format&fit=crop',
+    ],
     features: [
       'תוצאה מיידית',
       'מראה מלוטש ומוגדר',
@@ -92,6 +107,13 @@ export const services: Service[] = [
     duration: '60–90 דקות',
     image:
       'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?w=800&h=600&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&h=600&q=80&auto=format&fit=crop',
+    ],
     features: [
       'אפקט הרמה מיידי',
       'תוצאות ל-6–8 שבועות',

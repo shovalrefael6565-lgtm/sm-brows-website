@@ -2,14 +2,119 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Clock, Check, Calendar } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useCallback } from 'react'
+import { Clock, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
 interface Props {
   service: Service
   index: number
+}
+
+function ImageSlider({ images, alt, duration }: { images: string[]; alt: string; duration: string }) {
+  const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [direction, setDirection] = useState(1)
+
+  const go = useCallback((idx: number, dir: number) => {
+    setDirection(dir)
+    setCurrent(idx)
+  }, [])
+
+  const prev = () => go((current - 1 + images.length) % images.length, -1)
+  const next = useCallback(() => go((current + 1) % images.length, 1), [current, images.length, go])
+
+  useEffect(() => {
+    if (paused) return
+    const timer = setInterval(next, 3000)
+    return () => clearInterval(timer)
+  }, [paused, next])
+
+  return (
+    <div
+      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/3] group"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      aria-roledescription="carousel"
+      aria-label={`תמונות של ${alt}`}
+    >
+      {/* Images */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={current}
+          initial={{ opacity: 0, x: direction * 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: direction * -40 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute inset-0"
+        >
+          <Image
+            src={images[current]}
+            alt={`${alt} – תמונה ${current + 1}`}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-cover"
+          />
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-brand-rose/10 to-transparent"
+            aria-hidden="true"
+          />
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Duration badge */}
+      <div
+        className="absolute bottom-4 end-4 glass-card rounded-2xl px-4 py-2 flex items-center gap-2 z-10"
+        aria-hidden="true"
+      >
+        <Clock className="w-4 h-4 text-brand-gold" />
+        <span className="text-sm font-semibold text-brand-dark">{duration}</span>
+      </div>
+
+      {/* Arrows — visible on hover */}
+      <button
+        type="button"
+        onClick={prev}
+        aria-label="תמונה קודמת"
+        className="absolute top-1/2 -translate-y-1/2 start-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+      >
+        <ChevronRight className="w-4 h-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={next}
+        aria-label="תמונה הבאה"
+        className="absolute top-1/2 -translate-y-1/2 end-14 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+      >
+        <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+      </button>
+
+      {/* Dots */}
+      <div
+        className="absolute bottom-4 start-4 flex items-center gap-1.5 z-10"
+        role="tablist"
+        aria-label="בחרי תמונה"
+      >
+        {images.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            role="tab"
+            aria-selected={i === current}
+            aria-label={`תמונה ${i + 1}`}
+            onClick={() => go(i, i > current ? 1 : -1)}
+            className={`transition-all duration-300 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${
+              i === current
+                ? 'w-4 h-1.5 bg-brand-gold'
+                : 'w-1.5 h-1.5 bg-white/60 hover:bg-white'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function ServiceCard({ service, index }: Props) {
@@ -26,29 +131,12 @@ export default function ServiceCard({ service, index }: Props) {
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}
     >
-      {/* Image */}
-      <div className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/3]">
-        <Image
-          src={service.image}
-          alt={`${service.name} – ${service.tagline}`}
-          fill
-          sizes="(max-width: 1024px) 100vw, 50vw"
-          className="object-cover"
-        />
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-brand-rose/10 to-transparent"
-          aria-hidden="true"
-        />
-
-        {/* Duration badge */}
-        <div
-          className="absolute bottom-4 end-4 glass-card rounded-2xl px-4 py-2 flex items-center gap-2"
-          aria-hidden="true"
-        >
-          <Clock className="w-4 h-4 text-brand-gold" />
-          <span className="text-sm font-semibold text-brand-dark">{service.duration}</span>
-        </div>
-      </div>
+      {/* Image Slider */}
+      <ImageSlider
+        images={service.images}
+        alt={service.name}
+        duration={service.duration}
+      />
 
       {/* Content */}
       <div>

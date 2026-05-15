@@ -172,13 +172,13 @@ export default function Hero() {
         >
           <motion.div style={{ y }} className="relative">
             {/* Main image container */}
-            <div className="relative w-72 h-80 sm:w-96 sm:h-[480px] lg:w-[440px] lg:h-[540px] rounded-[2rem] overflow-hidden shadow-soft-lg">
+            <div className="relative w-80 h-96 sm:w-[440px] sm:h-[560px] lg:w-[520px] lg:h-[640px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
                 src="/hero.jpg"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
                 fill
                 priority
-                sizes="(max-width: 640px) 288px, (max-width: 1024px) 384px, 440px"
+                sizes="(max-width: 640px) 320px, (max-width: 1024px) 440px, 520px"
                 className="object-cover object-center scale-105"
               />
               <div
