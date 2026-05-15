@@ -41,13 +41,13 @@ function ImageSlider({ images, alt, duration }: { images: string[]; alt: string;
       aria-label={`תמונות של ${alt}`}
     >
       {/* Images */}
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence initial={false}>
         <motion.div
           key={current}
-          initial={{ opacity: 0, x: direction * 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: direction * -40 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
           className="absolute inset-0"
         >
           <Image

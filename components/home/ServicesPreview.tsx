@@ -21,13 +21,13 @@ function ServiceImageSlider({ images, name, tagline }: { images: string[]; name:
 
   return (
     <div className="relative h-52 overflow-hidden flex-shrink-0">
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           key={current}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.6, ease: 'easeInOut' }}
           className="absolute inset-0"
         >
           <Image
