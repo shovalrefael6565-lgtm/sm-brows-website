@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Check, Download, Star, Monitor } from 'lucide-react'
 import { type Product } from '@/lib/data'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
+import { useCart } from '@/lib/cart'
 
 interface Props {
   product: Product
@@ -13,8 +14,10 @@ interface Props {
 
 export default function ProductCard({ product }: Props) {
   const [added, setAdded] = useState(false)
+  const { addItem } = useCart()
 
   const handleAdd = () => {
+    addItem(product.id, product.name, product.price)
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }

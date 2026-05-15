@@ -5,7 +5,7 @@ import PageHero from '@/components/ui/PageHero'
 export const metadata: Metadata = {
   title: 'גלריה | S.M BROWS',
   description:
-    'גלריית עבודות של S.M BROWS – תמונות לפני ואחרי מיקרובליידינג, עיצוב גבות טבעי והרמת גבות באשדוד.',
+    'גלריית עבודות של S.M BROWS – תמונות לפני ואחרי מיקרובליידינג, עיצוב גבות טבעי והרמת גבות באשקלון.',
 }
 
 export default function GalleryPage() {

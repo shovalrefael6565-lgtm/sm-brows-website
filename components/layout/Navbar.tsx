@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Search, ShoppingCart, Truck } from 'lucide-react'
+import { Menu, X, Search, ShoppingCart, Truck, Calendar, ChevronDown, ShoppingBag } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
+import { useCart } from '@/lib/cart'
+import { services, products } from '@/lib/data'
 
 const navLinks = [
   { href: '/services', label: 'טיפולים', special: null },
@@ -41,8 +43,12 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState('hero')
-  const [cartCount] = useState(0)
+  const [bookingOpen, setBookingOpen] = useState(false)
+
+  const { count: cartCount } = useCart()
   const searchRef = useRef<HTMLInputElement>(null)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+  const bookingRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const isHome = pathname === '/'
@@ -81,6 +87,29 @@ export default function Navbar() {
     if (searchOpen) searchRef.current?.focus()
   }, [searchOpen])
 
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+        setSearchQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Close booking dropdown on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (bookingRef.current && !bookingRef.current.contains(e.target as Node)) {
+        setBookingOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -89,6 +118,20 @@ export default function Navbar() {
       setSearchQuery('')
     }
   }
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) return []
+    const serviceMatches = services
+      .filter((s) => s.name.includes(q) || s.tagline.includes(q) || s.description.includes(q))
+      .slice(0, 3)
+      .map((s) => ({ type: 'service' as const, id: s.id, name: s.name, sub: s.tagline, href: `/services#${s.id}` }))
+    const productMatches = products
+      .filter((p) => p.name.includes(q) || p.description.includes(q) || p.category.includes(q))
+      .slice(0, 2)
+      .map((p) => ({ type: 'product' as const, id: p.id, name: p.name, sub: p.price > 0 ? `₪${p.price}` : 'לפרטים', href: '/shop' }))
+    return [...serviceMatches, ...productMatches]
+  }, [searchQuery])
 
   return (
     <>
@@ -109,7 +152,7 @@ export default function Navbar() {
             aria-label="ניווט ראשי"
             className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4"
           >
-            {/* Logo — right (RTL start) */}
+            {/* Logo */}
             <Link
               href="/"
               aria-label="S.M BROWS – דף הבית"
@@ -123,7 +166,7 @@ export default function Navbar() {
               </span>
             </Link>
 
-            {/* Desktop nav links — center */}
+            {/* Desktop nav links */}
             <ul className="hidden lg:flex items-center gap-6 flex-1 justify-center" role="list">
               {navLinks.map(({ href, label, special }) => {
                 const isActive = pathname === href || (href.includes('#') && pathname === href.split('#')[0])
@@ -159,57 +202,106 @@ export default function Navbar() {
               })}
             </ul>
 
-            {/* Left side — search + cart + CTA + mobile toggle */}
+            {/* Right side — search + cart + CTA + mobile toggle */}
             <div className="flex items-center gap-2 flex-shrink-0">
 
-              {/* Search */}
-              <AnimatePresence mode="wait">
-                {searchOpen ? (
-                  <motion.form
-                    key="search-open"
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 180, opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    onSubmit={handleSearch}
-                    className="hidden sm:flex items-center overflow-hidden"
-                  >
-                    <div className="flex items-center gap-1.5 bg-brand-cream border border-brand-cream-dark rounded-full px-3 py-1.5 w-full">
-                      <Search className="w-3.5 h-3.5 text-brand-muted flex-shrink-0" aria-hidden="true" />
-                      <input
-                        ref={searchRef}
-                        type="search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="חיפוש..."
-                        aria-label="חיפוש באתר"
-                        className="bg-transparent text-sm text-brand-dark placeholder:text-brand-muted outline-none w-full text-right"
-                      />
-                      <button
-                        type="button"
-                        aria-label="סגור חיפוש"
-                        onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-                        className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </motion.form>
-                ) : (
-                  <motion.button
-                    key="search-closed"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    type="button"
-                    aria-label="פתיחת חיפוש"
-                    onClick={() => setSearchOpen(true)}
-                    className="hidden sm:flex p-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-                  >
-                    <Search className="w-5 h-5" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
+              {/* Search with live results */}
+              <div ref={searchContainerRef} className="relative hidden sm:block">
+                <AnimatePresence mode="wait">
+                  {searchOpen ? (
+                    <motion.form
+                      key="search-open"
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 180, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onSubmit={handleSearch}
+                      className="flex items-center overflow-hidden"
+                    >
+                      <div className="flex items-center gap-1.5 bg-brand-cream border border-brand-cream-dark rounded-full px-3 py-1.5 w-full">
+                        <Search className="w-3.5 h-3.5 text-brand-muted flex-shrink-0" aria-hidden="true" />
+                        <input
+                          ref={searchRef}
+                          type="search"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="חיפוש..."
+                          aria-label="חיפוש באתר"
+                          className="bg-transparent text-sm text-brand-dark placeholder:text-brand-muted outline-none w-full text-right"
+                        />
+                        <button
+                          type="button"
+                          aria-label="סגור חיפוש"
+                          onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+                          className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </motion.form>
+                  ) : (
+                    <motion.button
+                      key="search-closed"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      type="button"
+                      aria-label="פתיחת חיפוש"
+                      onClick={() => setSearchOpen(true)}
+                      className="flex p-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    >
+                      <Search className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                {/* Live search results dropdown */}
+                <AnimatePresence>
+                  {searchOpen && searchResults.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute top-full mt-2 right-0 w-72 bg-white rounded-2xl shadow-[0_8px_40px_-8px_rgba(44,24,16,0.18)] border border-brand-cream-dark/60 overflow-hidden z-30"
+                      role="listbox"
+                      aria-label="תוצאות חיפוש"
+                    >
+                      {searchResults.map((result, i) => (
+                        <Link
+                          key={result.id}
+                          href={result.href}
+                          role="option"
+                          aria-selected="false"
+                          onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+                          className={cn(
+                            'flex items-center gap-3 px-4 py-3 hover:bg-brand-cream transition-colors cursor-pointer',
+                            i < searchResults.length - 1 && 'border-b border-brand-cream-dark/40'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center',
+                              result.type === 'service' ? 'bg-brand-rose/10' : 'bg-brand-gold/10'
+                            )}
+                            aria-hidden="true"
+                          >
+                            {result.type === 'service' ? (
+                              <SparkleIcon className="w-4 h-4 text-brand-rose" />
+                            ) : (
+                              <ShoppingBag className="w-4 h-4 text-brand-gold" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-brand-dark truncate">{result.name}</p>
+                            <p className="text-xs text-brand-muted truncate">{result.sub}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Cart */}
               <Link
@@ -218,25 +310,80 @@ export default function Navbar() {
                 className="relative hidden sm:flex p-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 <ShoppingCart className="w-5 h-5" />
-                <span
-                  className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] rounded-full bg-brand-rose text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
-                  aria-hidden="true"
-                >
-                  {cartCount}
-                </span>
+                {cartCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] rounded-full bg-brand-rose text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+                    aria-hidden="true"
+                  >
+                    {cartCount}
+                  </span>
+                )}
               </Link>
 
-              {/* WhatsApp CTA */}
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="קביעת תור בוואצאפ"
-                className="hidden md:inline-flex items-center gap-2 bg-brand-gold text-brand-dark text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 cursor-pointer"
-              >
-                <WhatsAppIcon className="w-4 h-4" />
-                קבעי תור
-              </a>
+              {/* Booking dropdown */}
+              <div ref={bookingRef} className="relative hidden md:block">
+                <button
+                  type="button"
+                  onClick={() => setBookingOpen((v) => !v)}
+                  aria-haspopup="true"
+                  aria-expanded={bookingOpen}
+                  aria-label="קביעת תור"
+                  className="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-sm font-semibold px-4 py-2.5 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
+                >
+                  <WhatsAppIcon className="w-4 h-4" />
+                  קבעי תור
+                  <motion.span
+                    animate={{ rotate: bookingOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </motion.span>
+                </button>
+
+                <AnimatePresence>
+                  {bookingOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute top-full mt-3 left-0 z-30 bg-white rounded-2xl shadow-[0_8px_40px_-8px_rgba(44,24,16,0.18)] border border-brand-cream-dark/60 overflow-hidden min-w-[210px]"
+                      role="menu"
+                    >
+                      <a
+                        href={WHATSAPP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        role="menuitem"
+                        onClick={() => setBookingOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group border-b border-brand-cream-dark/40"
+                      >
+                        <span className="w-8 h-8 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
+                          <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+                        </span>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-brand-dark">תור בוואצאפ</p>
+                          <p className="text-xs text-brand-muted">מענה מהיר</p>
+                        </div>
+                      </a>
+                      <Link
+                        href="/booking"
+                        role="menuitem"
+                        onClick={() => setBookingOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group"
+                      >
+                        <span className="w-8 h-8 rounded-xl bg-brand-rose/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-rose/20 transition-colors">
+                          <Calendar className="w-4 h-4 text-brand-rose" />
+                        </span>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-brand-dark">תור ביומן</p>
+                          <p className="text-xs text-brand-muted">בחרי תאריך ושעה</p>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Mobile toggle */}
               <button
@@ -333,6 +480,40 @@ export default function Navbar() {
                     className="bg-transparent text-sm text-brand-dark placeholder:text-brand-muted outline-none w-full text-right"
                   />
                 </div>
+                {/* Mobile search results */}
+                {searchResults.length > 0 && (
+                  <div className="mt-2 bg-white rounded-xl border border-brand-cream-dark/60 overflow-hidden">
+                    {searchResults.map((result, i) => (
+                      <Link
+                        key={result.id}
+                        href={result.href}
+                        onClick={() => { setMenuOpen(false); setSearchQuery('') }}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 hover:bg-brand-cream transition-colors cursor-pointer',
+                          i < searchResults.length - 1 && 'border-b border-brand-cream-dark/40'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
+                            result.type === 'service' ? 'bg-brand-rose/10' : 'bg-brand-gold/10'
+                          )}
+                          aria-hidden="true"
+                        >
+                          {result.type === 'service' ? (
+                            <SparkleIcon className="w-3.5 h-3.5 text-brand-rose" />
+                          ) : (
+                            <ShoppingBag className="w-3.5 h-3.5 text-brand-gold" />
+                          )}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-brand-dark">{result.name}</p>
+                          <p className="text-xs text-brand-muted">{result.sub}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </form>
 
               <nav aria-label="תפריט נייד" className="flex-1 overflow-y-auto px-5 pt-4 pb-4">
@@ -386,6 +567,14 @@ export default function Navbar() {
                   <WhatsAppIcon className="w-5 h-5" />
                   קבעי תור בוואצאפ
                 </a>
+                <Link
+                  href="/booking"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full border border-brand-rose-light text-brand-dark font-medium py-2.5 rounded-xl hover:bg-brand-rose-bg transition-colors cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4 text-brand-rose" />
+                  קביעת תור ביומן
+                </Link>
               </div>
             </motion.div>
           </>
@@ -399,6 +588,14 @@ function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  )
+}
+
+function SparkleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
     </svg>
   )
 }

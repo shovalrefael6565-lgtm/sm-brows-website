@@ -3,6 +3,7 @@ import { Heebo, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import Providers from '@/components/layout/Providers'
 import WhatsAppButton from '@/components/ui/WhatsAppButton'
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
@@ -23,13 +24,13 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'S.M BROWS | עיצוב גבות מקצועי באשדוד',
+  title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
   description:
-    'סטודיו מקצועי לעיצוב גבות באשדוד. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
-  keywords: ['מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות', 'אשדוד', 'גבות', 'S.M BROWS'],
+    'סטודיו מקצועי לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
+  keywords: ['מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות', 'אשקלון', 'גבות', 'S.M BROWS'],
   openGraph: {
     title: "S.M BROWS | IT'S ALL ABOUT YOUR EYEBROWS",
-    description: 'סטודיו מקצועי לעיצוב גבות באשדוד – מיקרובליידינג, עיצוב טבעי, הרמת גבות',
+    description: 'סטודיו מקצועי לעיצוב גבות באשקלון – מיקרובליידינג, עיצוב טבעי, הרמת גבות',
     type: 'website',
     locale: 'he_IL',
     siteName: 'S.M BROWS',
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'S.M BROWS | עיצוב גבות מקצועי',
-    description: 'סטודיו מקצועי לעיצוב גבות באשדוד',
+    description: 'סטודיו מקצועי לעיצוב גבות באשקלון',
   },
   robots: {
     index: true,
@@ -58,11 +59,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           דלגי לתוכן הראשי
         </a>
+        <Providers>
         <Navbar />
         <main id="main-content" tabIndex={-1}>
           {children}
         </main>
         <Footer />
+        </Providers>
         <FloatingSocialButtons />
         <WhatsAppButton />
         <AccessibilityWidget />
