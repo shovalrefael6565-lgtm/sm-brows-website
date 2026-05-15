@@ -104,9 +104,8 @@ export const services: Service[] = [
     image:
       'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=400&q=80&auto=format&fit=crop',
+      '/brow-lifting-before.jpg',
+      '/brow-lifting-after.jpg',
     ],
     features: [
       'אפקט הרמה מיידי',

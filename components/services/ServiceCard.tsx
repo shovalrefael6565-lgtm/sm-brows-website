@@ -137,8 +137,8 @@ export default function ServiceCard({ service, index }: Props) {
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}
     >
-      {/* Image — comparison slider for microblading, auto carousel for others */}
-      {service.id === 'microblading' && service.images.length >= 2 ? (
+      {/* Image — comparison slider for microblading & brow-lifting, auto carousel for others */}
+      {(service.id === 'microblading' || service.id === 'brow-lifting') && service.images.length >= 2 ? (
         <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-soft-lg">
           <BeforeAfterSlider
             beforeSrc={service.images[0]}
@@ -146,8 +146,8 @@ export default function ServiceCard({ service, index }: Props) {
             alt={service.name}
             leftLabel=""
             rightLabel=""
-            leftObjectPosition="50% 30%"
-            rightObjectPosition="50% 18%"
+            leftObjectPosition={service.id === 'microblading' ? '50% 30%' : '50% 14%'}
+            rightObjectPosition={service.id === 'microblading' ? '50% 18%' : '50% 20%'}
           />
         </div>
       ) : (

@@ -36,11 +36,11 @@ const PAIRS: Pair[] = [
   {
     id: 'ba3',
     label: 'הרמת גבות',
-    beforeSrc:
-      'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
-    afterSrc:
-      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
+    beforeSrc: '/brow-lifting-before.jpg',
+    afterSrc: '/brow-lifting-after.jpg',
     alt: 'לפני ואחרי הרמת גבות',
+    leftObjectPosition: '50% 14%',
+    rightObjectPosition: '50% 20%',
   },
 ]
 
@@ -95,11 +95,11 @@ export default function BeforeAfterSection() {
                     beforeSrc={pair.beforeSrc}
                     afterSrc={pair.afterSrc}
                     alt={pair.alt}
-                    leftLabel={pair.id === 'ba1' ? '' : 'לפני'}
-                    rightLabel={pair.id === 'ba1' ? '' : 'אחרי'}
+                    leftLabel={pair.id === 'ba1' || pair.id === 'ba3' ? '' : 'לפני'}
+                    rightLabel={pair.id === 'ba1' || pair.id === 'ba3' ? '' : 'אחרי'}
                     leftObjectPosition={pair.leftObjectPosition}
                     rightObjectPosition={pair.rightObjectPosition}
-                    objectPosition={pair.id !== 'ba1' ? 'center' : undefined}
+                    objectPosition={pair.id === 'ba2' ? 'center' : undefined}
                   />
                 </div>
                 <div className="px-4 py-3 bg-brand-cream flex items-center justify-between">
