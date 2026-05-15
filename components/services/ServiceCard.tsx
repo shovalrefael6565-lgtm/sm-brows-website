@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Clock, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
+import BeforeAfterSlider from '@/components/gallery/BeforeAfterSlider'
 
 interface Props {
   service: Service
@@ -136,12 +137,25 @@ export default function ServiceCard({ service, index }: Props) {
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}
     >
-      {/* Image Slider */}
-      <ImageSlider
-        images={service.images}
-        alt={service.name}
-        duration={service.duration}
-      />
+      {/* Image — comparison slider for microblading, auto carousel for others */}
+      {service.id === 'microblading' && service.images.length >= 2 ? (
+        <div className="relative rounded-3xl overflow-hidden aspect-[4/5] shadow-soft-lg">
+          <BeforeAfterSlider
+            beforeSrc={service.images[0]}
+            afterSrc={service.images[1]}
+            alt={service.name}
+            leftLabel="זווית 1"
+            rightLabel="זווית 2"
+            objectPosition="top"
+          />
+        </div>
+      ) : (
+        <ImageSlider
+          images={service.images}
+          alt={service.name}
+          duration={service.duration}
+        />
+      )}
 
       {/* Content */}
       <div>

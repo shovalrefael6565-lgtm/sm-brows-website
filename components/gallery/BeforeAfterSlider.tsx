@@ -7,9 +7,19 @@ interface Props {
   beforeSrc: string
   afterSrc: string
   alt: string
+  leftLabel?: string
+  rightLabel?: string
+  objectPosition?: string
 }
 
-export default function BeforeAfterSlider({ beforeSrc, afterSrc, alt }: Props) {
+export default function BeforeAfterSlider({
+  beforeSrc,
+  afterSrc,
+  alt,
+  leftLabel = 'לפני',
+  rightLabel = 'אחרי',
+  objectPosition = 'center',
+}: Props) {
   const [position, setPosition] = useState(50)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -70,10 +80,11 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, alt }: Props) {
       {/* After image (bottom layer) */}
       <Image
         src={afterSrc}
-        alt={`אחרי: ${alt}`}
+        alt={`${rightLabel}: ${alt}`}
         fill
         sizes="(max-width: 768px) 100vw, 50vw"
         className="object-cover"
+        style={{ objectPosition }}
         draggable={false}
       />
 
@@ -85,10 +96,11 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, alt }: Props) {
       >
         <Image
           src={beforeSrc}
-          alt={`לפני: ${alt}`}
+          alt={`${leftLabel}: ${alt}`}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
           className="object-cover"
+          style={{ objectPosition }}
           draggable={false}
         />
       </div>
@@ -98,13 +110,13 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, alt }: Props) {
         className="absolute top-3 start-3 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
         aria-hidden="true"
       >
-        לפני
+        {leftLabel}
       </span>
       <span
         className="absolute top-3 end-3 bg-brand-gold/90 text-brand-dark text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
         aria-hidden="true"
       >
-        אחרי
+        {rightLabel}
       </span>
 
       {/* Divider line */}

@@ -10,8 +10,7 @@ const PAIRS = [
     label: 'מיקרובליידינג',
     beforeSrc:
       'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.35',
-    afterSrc:
-      'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=700&h=500&q=80&auto=format&fit=crop',
+    afterSrc: '/microblading-1.jpg',
     alt: 'לפני ואחרי מיקרובליידינג',
   },
   {
@@ -85,6 +84,7 @@ export default function BeforeAfterSection() {
                     beforeSrc={pair.beforeSrc}
                     afterSrc={pair.afterSrc}
                     alt={pair.alt}
+                    objectPosition={pair.id === 'ba1' ? 'top' : 'center'}
                   />
                 </div>
                 <div className="px-4 py-3 bg-brand-cream flex items-center justify-between">
