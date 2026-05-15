@@ -105,19 +105,23 @@ export default function BeforeAfterSlider({
         />
       </div>
 
-      {/* Labels */}
-      <span
-        className="absolute top-3 start-3 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
-        aria-hidden="true"
-      >
-        {leftLabel}
-      </span>
-      <span
-        className="absolute top-3 end-3 bg-brand-gold/90 text-brand-dark text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
-        aria-hidden="true"
-      >
-        {rightLabel}
-      </span>
+      {/* Labels — hidden when empty */}
+      {leftLabel && (
+        <span
+          className="absolute top-3 start-3 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
+          aria-hidden="true"
+        >
+          {leftLabel}
+        </span>
+      )}
+      {rightLabel && (
+        <span
+          className="absolute top-3 end-3 bg-brand-gold/90 text-brand-dark text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none"
+          aria-hidden="true"
+        >
+          {rightLabel}
+        </span>
+      )}
 
       {/* Divider line */}
       <div

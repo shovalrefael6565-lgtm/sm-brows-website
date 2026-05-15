@@ -144,8 +144,8 @@ export default function ServiceCard({ service, index }: Props) {
             beforeSrc={service.images[0]}
             afterSrc={service.images[1]}
             alt={service.name}
-            leftLabel="זווית 1"
-            rightLabel="זווית 2"
+            leftLabel=""
+            rightLabel=""
             objectPosition="top"
           />
         </div>
