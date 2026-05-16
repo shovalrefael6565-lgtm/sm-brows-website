@@ -7,6 +7,7 @@ export interface Service {
   duration: string
   image: string
   images: string[]
+  imagePositions?: string[]
   features: string[]
 }
 
@@ -20,6 +21,8 @@ export interface GalleryItem {
   alt: string
   caption?: string
   objectPosition?: string
+  flipX?: boolean
+  imageTransform?: string
   leftObjectPosition?: string
   rightObjectPosition?: string
   rightScale?: number
@@ -80,7 +83,7 @@ export const services: Service[] = [
     description:
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. שיטות עיצוב ידניות מותאמות לצורת הפנים ולמבנה הגבה הטבעי שלך.',
     price: '₪70 – ₪80',
-    duration: '45–60 דקות',
+    duration: '15–30 דקות',
     image: '/natural-1.png',
     images: [
       '/natural-1.png',
@@ -88,6 +91,13 @@ export const services: Service[] = [
       '/natural-3.jpg',
       '/natural-4.jpg',
       '/natural-5.png',
+    ],
+    imagePositions: [
+      '50% 15%',
+      '50% 15%',
+      '50% 25%',
+      '50% 25%',
+      '50% 25%',
     ],
     features: [
       'תוצאה מיידית',
@@ -103,7 +113,7 @@ export const services: Service[] = [
     description:
       'טיפול מתקדם להרמה ועיצוב הגבות ללא פולשנות. מעניק מראה מורם ופתוח לעיניים, גבות מוגדרות ומאורגנות לתוצאה דרמטית ורעננה.',
     price: '₪250',
-    duration: '60–90 דקות',
+    duration: '45 דקות',
     image:
       'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
     images: [
@@ -162,6 +172,7 @@ export const galleryItems: GalleryItem[] = [
     image: '/microblading-2.jpg',
     alt: 'לקוחה מרוצה לאחר מיקרובליידינג',
     caption: 'תוצאות מדהימות',
+    objectPosition: '50% 20%',
   },
   // ── עיצוב גבות טבעי ──
   {
@@ -214,20 +225,30 @@ export const galleryItems: GalleryItem[] = [
     id: 'g5',
     category: 'lifting',
     type: 'before-after',
-    beforeImage:
-      'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=600&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
-    afterImage:
-      'https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?w=600&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
+    beforeImage: '/brow-lifting-before.jpg',
+    afterImage: '/brow-lifting-after.jpg',
     alt: 'לפני ואחרי הרמת גבות',
+    leftObjectPosition: '50% 14%',
+    rightObjectPosition: '50% 20%',
   },
   {
-    id: 'g6',
+    id: 'g12',
     category: 'lifting',
     type: 'portrait',
-    image:
-      'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?w=600&h=750&q=80&auto=format&fit=crop',
-    alt: 'לקוחה לאחר הרמת גבות – מראה צעיר ורענן',
-    caption: 'הרמת גבות – תוצאה דרמטית',
+    image: '/lifting-1.png',
+    alt: 'לקוחה לאחר הרמת גבות – גבות מורמות ומוגדרות',
+    caption: 'הרמת גבות – תוצאה מרהיבה',
+    objectPosition: '50% 30%',
+    imageTransform: 'rotate(-90deg)',
+  },
+  {
+    id: 'g13',
+    category: 'lifting',
+    type: 'portrait',
+    image: '/lifting-2.png',
+    alt: 'לקוחה לאחר הרמת גבות – גבות מורמות',
+    caption: 'הרמת גבות – תוצאה טבעית',
+    objectPosition: '50% 22%',
   },
 ]
 

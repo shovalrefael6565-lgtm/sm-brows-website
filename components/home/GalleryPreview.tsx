@@ -76,6 +76,7 @@ export default function GalleryPreview() {
                     fill
                     sizes="(max-width: 640px) 50vw, 33vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-107"
+                    style={{ objectPosition: item.objectPosition ?? '50% 50%' }}
                   />
                   <div
                     className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/20 transition-colors duration-300"

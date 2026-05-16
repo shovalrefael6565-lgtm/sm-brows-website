@@ -8,7 +8,7 @@ import { ArrowLeft, Clock, Sparkles } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
-function ServiceImageSlider({ images, name, tagline }: { images: string[]; name: string; tagline: string }) {
+function ServiceImageSlider({ images, imagePositions, name, tagline }: { images: string[]; imagePositions?: string[]; name: string; tagline: string }) {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
@@ -36,6 +36,7 @@ function ServiceImageSlider({ images, name, tagline }: { images: string[]; name:
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
+            style={{ objectPosition: imagePositions?.[current] ?? '50% 50%' }}
           />
         </motion.div>
       </AnimatePresence>
@@ -121,6 +122,7 @@ export default function ServicesPreview() {
                 {/* Auto-rotating image */}
                 <ServiceImageSlider
                   images={service.images}
+                  imagePositions={service.imagePositions}
                   name={service.name}
                   tagline={service.tagline}
                 />
