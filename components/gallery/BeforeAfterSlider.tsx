@@ -12,6 +12,7 @@ interface Props {
   objectPosition?: string
   leftObjectPosition?: string
   rightObjectPosition?: string
+  rightScale?: number
 }
 
 export default function BeforeAfterSlider({
@@ -23,6 +24,7 @@ export default function BeforeAfterSlider({
   objectPosition = 'center',
   leftObjectPosition,
   rightObjectPosition,
+  rightScale,
 }: Props) {
   const leftPos = leftObjectPosition ?? objectPosition
   const rightPos = rightObjectPosition ?? objectPosition
@@ -84,15 +86,20 @@ export default function BeforeAfterSlider({
       role="img"
     >
       {/* After/right image (base layer) */}
-      <Image
-        src={afterSrc}
-        alt={`${rightLabel}: ${alt}`}
-        fill
-        sizes="(max-width: 768px) 100vw, 50vw"
-        className="object-cover"
-        style={{ objectPosition: rightPos }}
-        draggable={false}
-      />
+      <div
+        className="absolute inset-0"
+        style={rightScale ? { transform: `scale(${rightScale})`, transformOrigin: 'center' } : undefined}
+      >
+        <Image
+          src={afterSrc}
+          alt={`${rightLabel}: ${alt}`}
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover"
+          style={{ objectPosition: rightPos }}
+          draggable={false}
+        />
+      </div>
 
       {/* Before/left image (clipped) */}
       <div

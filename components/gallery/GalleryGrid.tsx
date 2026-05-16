@@ -17,13 +17,20 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'lifting', label: 'הרמת גבות' },
 ]
 
+const CATEGORY_LABELS: Record<GalleryItem['category'], string> = {
+  microblading: 'מיקרובליידינג',
+  natural: 'עיצוב גבות טבעי',
+  lifting: 'הרמת גבות',
+}
+
+const CATEGORY_ORDER: GalleryItem['category'][] = ['microblading', 'natural', 'lifting']
+
 export default function GalleryGrid() {
   const [filter, setFilter] = useState<Filter>('all')
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const filtered = useMemo(
-    () =>
-      filter === 'all' ? galleryItems : galleryItems.filter((g) => g.category === filter),
+    () => filter === 'all' ? galleryItems : galleryItems.filter((g) => g.category === filter),
     [filter]
   )
 
@@ -37,9 +44,10 @@ export default function GalleryGrid() {
     [filtered]
   )
 
-  const openLightbox = (i: number) => {
-    if (filtered[i].type === 'before-after') return
-    setLightboxIndex(i)
+  const openLightbox = (item: GalleryItem) => {
+    if (item.type === 'before-after') return
+    const idx = filtered.findIndex((f) => f.id === item.id)
+    setLightboxIndex(idx)
   }
 
   return (
@@ -69,32 +77,54 @@ export default function GalleryGrid() {
         ))}
       </div>
 
-      {/* Grid */}
-      <motion.ul
-        layout
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6"
-        role="list"
-        aria-label="גלריית עבודות"
-      >
-        <AnimatePresence mode="popLayout">
-          {filtered.map((item, i) => (
-            <motion.li
-              key={item.id}
-              layout
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.3 }}
-              className={cn(
-                item.type === 'before-after' && 'sm:col-span-2 lg:col-span-1',
-                item.type === 'portrait' && i % 5 === 1 && 'lg:row-span-2'
-              )}
-            >
-              <GalleryCard item={item} onClick={() => openLightbox(i)} index={i} />
-            </motion.li>
-          ))}
-        </AnimatePresence>
-      </motion.ul>
+      {/* All view — grouped by category */}
+      {filter === 'all' ? (
+        <div className="space-y-10">
+          {CATEGORY_ORDER.map((cat) => {
+            const items = galleryItems.filter((g) => g.category === cat)
+            return (
+              <section key={cat} aria-labelledby={`gallery-section-${cat}`}>
+                <h3
+                  id={`gallery-section-${cat}`}
+                  className="font-serif text-lg font-bold text-brand-dark mb-4 pb-2 border-b border-brand-cream-dark"
+                >
+                  {CATEGORY_LABELS[cat]}
+                </h3>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4" role="list">
+                  {items.map((item) => (
+                    <li key={item.id}>
+                      <GalleryCard item={item} onClick={() => openLightbox(item)} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )
+          })}
+        </div>
+      ) : (
+        /* Filtered single-category view */
+        <motion.ul
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4"
+          role="list"
+          aria-label="גלריית עבודות"
+        >
+          <AnimatePresence mode="popLayout">
+            {filtered.map((item) => (
+              <motion.li
+                key={item.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+              >
+                <GalleryCard item={item} onClick={() => openLightbox(item)} />
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </motion.ul>
+      )}
 
       {/* Lightbox */}
       <Lightbox
@@ -112,17 +142,9 @@ export default function GalleryGrid() {
   )
 }
 
-function GalleryCard({
-  item,
-  onClick,
-  index,
-}: {
-  item: GalleryItem
-  onClick: () => void
-  index: number
-}) {
+function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void }) {
   const isBeforeAfter = item.type === 'before-after'
-  const height = item.type === 'portrait' ? 'h-72 sm:h-80' : 'h-60'
+  const height = 'h-52 sm:h-56'
 
   if (isBeforeAfter) {
     return (
@@ -138,6 +160,7 @@ function GalleryCard({
           rightLabel={item.category === 'microblading' ? '' : 'אחרי'}
           leftObjectPosition={item.leftObjectPosition}
           rightObjectPosition={item.rightObjectPosition}
+          rightScale={item.rightScale}
         />
         <CategoryBadge category={item.category} />
       </article>
@@ -158,6 +181,7 @@ function GalleryCard({
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
+          style={{ objectPosition: item.objectPosition ?? '50% 50%' }}
         />
         <div
           className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -175,12 +199,6 @@ function GalleryCard({
       <CategoryBadge category={item.category} />
     </article>
   )
-}
-
-const CATEGORY_LABELS: Record<GalleryItem['category'], string> = {
-  microblading: 'מיקרובליידינג',
-  natural: 'עיצוב טבעי',
-  lifting: 'הרמת גבות',
 }
 
 function CategoryBadge({ category }: { category: GalleryItem['category'] }) {

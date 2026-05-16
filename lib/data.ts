@@ -19,8 +19,10 @@ export interface GalleryItem {
   image?: string
   alt: string
   caption?: string
+  objectPosition?: string
   leftObjectPosition?: string
   rightObjectPosition?: string
+  rightScale?: number
 }
 
 export interface BlogPost {
@@ -79,12 +81,13 @@ export const services: Service[] = [
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. שיטות עיצוב ידניות מותאמות לצורת הפנים ולמבנה הגבה הטבעי שלך.',
     price: '₪70 – ₪80',
     duration: '45–60 דקות',
-    image:
-      'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=600&h=400&q=80&auto=format&fit=crop',
+    image: '/natural-1.png',
     images: [
-      'https://images.unsplash.com/photo-1512361436605-a484bdb34b5f?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&h=400&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=600&h=400&q=80&auto=format&fit=crop',
+      '/natural-1.png',
+      '/natural-2.png',
+      '/natural-3.jpg',
+      '/natural-4.jpg',
+      '/natural-5.png',
     ],
     features: [
       'תוצאה מיידית',
@@ -141,6 +144,7 @@ export const courseService = {
 // ── Gallery ───────────────────────────────────────────────────────────────────
 
 export const galleryItems: GalleryItem[] = [
+  // ── מיקרובליידינג ──
   {
     id: 'g1',
     category: 'microblading',
@@ -152,32 +156,60 @@ export const galleryItems: GalleryItem[] = [
     rightObjectPosition: '50% 15%',
   },
   {
-    id: 'g2',
+    id: 'g9',
     category: 'microblading',
     type: 'portrait',
-    image: '/microblading-1.jpg',
-    alt: 'לקוחה עם גבות מיקרובליידינג מושלמות',
-    caption: 'מיקרובליידינג – תוצאה טבעית ומרהיבה',
+    image: '/microblading-2.jpg',
+    alt: 'לקוחה מרוצה לאחר מיקרובליידינג',
+    caption: 'תוצאות מדהימות',
   },
+  // ── עיצוב גבות טבעי ──
   {
     id: 'g3',
     category: 'natural',
-    type: 'before-after',
-    beforeImage:
-      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=600&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
-    afterImage:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&h=500&q=80&auto=format&fit=crop&fp-y=0.35',
-    alt: 'לפני ואחרי עיצוב גבות טבעי',
+    type: 'portrait',
+    image: '/natural-1.png',
+    alt: 'לקוחה עם עיצוב גבות טבעי',
+    caption: 'עיצוב טבעי – הגדרה מושלמת',
+    objectPosition: '50% 8%',
+  },
+  {
+    id: 'g3b',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-2.png',
+    alt: 'לקוחה עם עיצוב גבות טבעי',
+    caption: 'עיצוב טבעי – תוצאה טבעית',
+    objectPosition: '50% 0%',
   },
   {
     id: 'g4',
     category: 'natural',
     type: 'portrait',
-    image:
-      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=600&h=750&q=80&auto=format&fit=crop',
+    image: '/natural-3.jpg',
     alt: 'לקוחה עם עיצוב גבות טבעי מושלם',
     caption: 'עיצוב טבעי – הגדרה מושלמת',
+    objectPosition: '50% 12%',
   },
+  {
+    id: 'g8',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-4.jpg',
+    alt: 'עיצוב גבות טבעי – תוצאה מרהיבה',
+    caption: 'עיצוב טבעי – תוצאה מרהיבה',
+    objectPosition: '50% 18%',
+  },
+  {
+    id: 'g11',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-5.png',
+    alt: 'לקוחה עם עיצוב גבות טבעי',
+    caption: 'עיצוב טבעי – חיוך מושלם',
+    objectPosition: '50% 28%',
+  },
+  // ── הרמת גבות ──
   {
     id: 'g5',
     category: 'lifting',
@@ -196,31 +228,6 @@ export const galleryItems: GalleryItem[] = [
       'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?w=600&h=750&q=80&auto=format&fit=crop',
     alt: 'לקוחה לאחר הרמת גבות – מראה צעיר ורענן',
     caption: 'הרמת גבות – תוצאה דרמטית',
-  },
-  {
-    id: 'g7',
-    category: 'microblading',
-    type: 'process',
-    image: '/microblading-2.jpg',
-    alt: 'תהליך מיקרובליידינג – עבודה מקצועית',
-    caption: 'במהלך הטיפול',
-  },
-  {
-    id: 'g8',
-    category: 'natural',
-    type: 'process',
-    image:
-      'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=600&h=500&q=80&auto=format&fit=crop',
-    alt: 'עיצוב גבות – תהליך מקצועי',
-    caption: 'תהליך עיצוב הגבות',
-  },
-  {
-    id: 'g9',
-    category: 'microblading',
-    type: 'portrait',
-    image: '/microblading-2.jpg',
-    alt: 'לקוחה מרוצה לאחר מיקרובליידינג',
-    caption: 'תוצאות מדהימות',
   },
 ]
 
