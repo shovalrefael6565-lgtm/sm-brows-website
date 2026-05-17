@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Heebo, Playfair_Display } from 'next/font/google'
+import { Heebo, Dancing_Script } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -15,11 +15,10 @@ const heebo = Heebo({
   display: 'swap',
 })
 
-const playfair = Playfair_Display({
+const dancing = Dancing_Script({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-playfair',
+  variable: '--font-dancing',
   display: 'swap',
 })
 
@@ -51,7 +50,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${playfair.variable}`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${dancing.variable}`}>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">
         <a
           href="#main-content"

@@ -239,7 +239,6 @@ export const galleryItems: GalleryItem[] = [
     alt: 'לקוחה לאחר הרמת גבות – גבות מורמות ומוגדרות',
     caption: 'הרמת גבות – תוצאה מרהיבה',
     objectPosition: '50% 30%',
-    imageTransform: 'rotate(-90deg)',
   },
   {
     id: 'g13',

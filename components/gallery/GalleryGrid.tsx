@@ -181,7 +181,10 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
-          style={{ objectPosition: item.objectPosition ?? '50% 50%' }}
+          style={{
+            objectPosition: item.objectPosition ?? '50% 50%',
+            transform: item.imageTransform ?? (item.flipX ? 'scaleX(-1)' : undefined),
+          }}
         />
         <div
           className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"

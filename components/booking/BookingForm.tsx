@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone, MessageSquare, Sparkles } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
@@ -12,16 +12,29 @@ const SERVICES = [
   'קורס מקצועי',
 ]
 
-const TIME_SLOTS = [
-  '09:00', '10:00', '11:00', '12:00', '13:00',
-  '14:00', '15:00', '16:00', '17:00', '18:00',
-]
-
 const MONTHS = [
   'ינואר','פברואר','מרץ','אפריל','מאי','יוני',
   'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר',
 ]
 const DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
+
+function pad(n: number) {
+  return n.toString().padStart(2, '0')
+}
+
+function buildTimeSlots(service: string): string[] {
+  const slots: string[] = []
+  if (service === 'עיצוב גבות טבעי') {
+    for (let m = 9 * 60; m <= 17 * 60 + 40; m += 20)
+      slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  } else if (service === 'הרמת גבות') {
+    for (let m = 9 * 60; m <= 17 * 60 + 15; m += 45)
+      slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  } else {
+    return ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00']
+  }
+  return slots
+}
 
 function buildCalendar(year: number, month: number) {
   const firstDow = new Date(year, month, 1).getDay()
@@ -56,7 +69,25 @@ export default function BookingForm() {
     name: '', phone: '', service: '', date: '', time: '', notes: '',
   })
 
+  const [takenSlots, setTakenSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+
+  const isMicroblading = form.service === 'מיקרובליידינג'
+  const timeSlots = buildTimeSlots(form.service)
   const cells = buildCalendar(viewYear, viewMonth)
+
+  const fetchTakenSlots = useCallback(async (isoDate: string) => {
+    setLoadingSlots(true)
+    try {
+      const res = await fetch(`/api/bookings/slots?date=${isoDate}`)
+      const data = await res.json()
+      setTakenSlots(data.taken ?? [])
+    } catch {
+      setTakenSlots([])
+    } finally {
+      setLoadingSlots(false)
+    }
+  }, [])
 
   const isPast = (day: number) => {
     const d = new Date(viewYear, viewMonth, day)
@@ -83,10 +114,18 @@ export default function BookingForm() {
     setForm(f => ({ ...f, date: '', time: '' }))
   }
 
+  const toIsoDate = (year: number, month: number, day: number) => {
+    const m = (month + 1).toString().padStart(2, '0')
+    const d = day.toString().padStart(2, '0')
+    return `${year}-${m}-${d}`
+  }
+
   const selectDay = (day: number) => {
     if (isDisabled(day)) return
     setSelectedDay(day)
+    setTakenSlots([])
     setForm(f => ({ ...f, date: fmtDate(viewYear, viewMonth, day), time: '' }))
+    fetchTakenSlots(toIsoDate(viewYear, viewMonth, day))
   }
 
   const validate = () => {
@@ -94,8 +133,10 @@ export default function BookingForm() {
     if (!form.name.trim()) e.name = 'שדה חובה'
     if (!form.phone.trim()) e.phone = 'שדה חובה'
     if (!form.service) e.service = 'יש לבחור טיפול'
-    if (!form.date) e.date = 'יש לבחור תאריך'
-    if (!form.time) e.time = 'יש לבחור שעה'
+    if (!isMicroblading) {
+      if (!form.date) e.date = 'יש לבחור תאריך'
+      if (!form.time) e.time = 'יש לבחור שעה'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -107,17 +148,33 @@ export default function BookingForm() {
       `👤 שם: ${form.name}`,
       `📞 טלפון: ${form.phone}`,
       `💆 טיפול: ${form.service}`,
-      `📅 תאריך: ${form.date}`,
-      `⏰ שעה: ${form.time}`,
+      ...(isMicroblading ? [] : [
+        `📅 תאריך: ${form.date}`,
+        `⏰ שעה: ${form.time}`,
+      ]),
       form.notes.trim() ? `📝 הערות: ${form.notes}` : '',
     ].filter(l => l !== undefined)
     return encodeURIComponent(lines.join('\n'))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
     setSubmitted(true)
+
+    // Add to Google Calendar (non-blocking — don't fail the UX if it errors)
+    if (!isMicroblading) {
+      try {
+        await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        })
+      } catch {
+        // Silent — WhatsApp flow continues regardless
+      }
+    }
+
     const url = `${WHATSAPP_URL}?text=${buildWhatsAppMessage()}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
@@ -125,7 +182,13 @@ export default function BookingForm() {
   const set = (k: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
+    const value = e.target.value
+    setForm(f => ({
+      ...f,
+      [k]: value,
+      ...(k === 'service' ? { date: '', time: '' } : {}),
+    }))
+    if (k === 'service') setSelectedDay(null)
     setErrors(err => ({ ...err, [k]: undefined }))
   }
 
@@ -147,7 +210,8 @@ export default function BookingForm() {
           פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
         </p>
         <p className="text-brand-muted text-sm mb-8">
-          {form.name} | {form.service} | {form.date} בשעה {form.time}
+          {form.name} | {form.service}
+          {!isMicroblading && ` | ${form.date} בשעה ${form.time}`}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
@@ -161,7 +225,11 @@ export default function BookingForm() {
           </a>
           <button
             type="button"
-            onClick={() => { setSubmitted(false); setForm({ name: '', phone: '', service: '', date: '', time: '', notes: '' }); setSelectedDay(null) }}
+            onClick={() => {
+              setSubmitted(false)
+              setForm({ name: '', phone: '', service: '', date: '', time: '', notes: '' })
+              setSelectedDay(null)
+            }}
             className="inline-flex items-center justify-center gap-2 border-2 border-brand-rose-light text-brand-dark font-medium px-8 py-4 rounded-full hover:bg-brand-rose-bg transition-colors cursor-pointer"
           >
             קביעת תור נוסף
@@ -284,150 +352,208 @@ export default function BookingForm() {
 
           {/* Submit — desktop */}
           <div className="hidden lg:block">
-            <SubmitButton form={form} />
+            <SubmitButton form={form} isMicroblading={isMicroblading} />
           </div>
         </div>
 
-        {/* ── Left column: calendar + time ── */}
+        {/* ── Left column: calendar + time / WhatsApp-only ── */}
         <div className="space-y-6">
 
-          {/* Calendar */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-3">
-              <Calendar className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-              <span className="text-sm font-semibold text-brand-dark">
-                בחירת תאריך
-                <span className="text-brand-rose me-1" aria-hidden="true">*</span>
-              </span>
-            </div>
-            {errors.date && <p className="text-red-500 text-xs mb-2">{errors.date}</p>}
-
-            <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
-              {/* Month nav */}
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  type="button"
-                  onClick={nextMonth}
-                  aria-label="חודש הבא"
-                  className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
-                >
-                  <ChevronRight className="w-5 h-5 text-brand-dark" />
-                </button>
-                <span className="font-semibold text-brand-dark text-sm">
-                  {MONTHS[viewMonth]} {viewYear}
-                </span>
-                <button
-                  type="button"
-                  onClick={prevMonth}
-                  aria-label="חודש קודם"
-                  className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
-                >
-                  <ChevronLeft className="w-5 h-5 text-brand-dark" />
-                </button>
-              </div>
-
-              {/* Day headers */}
-              <div className="grid grid-cols-7 mb-1">
-                {DAYS.map(d => (
-                  <div key={d} className={cn(
-                    'text-center text-xs font-semibold py-1',
-                    d === 'ש׳' ? 'text-brand-muted/40' : 'text-brand-muted'
-                  )}>
-                    {d}
-                  </div>
-                ))}
-              </div>
-
-              {/* Day cells */}
-              <div className="grid grid-cols-7 gap-0.5">
-                {cells.map((day, i) => {
-                  if (!day) return <div key={`empty-${i}`} />
-                  const disabled = isDisabled(day)
-                  const selected = selectedDay === day
-                  const isToday =
-                    day === today.getDate() &&
-                    viewMonth === today.getMonth() &&
-                    viewYear === today.getFullYear()
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => selectDay(day)}
-                      disabled={disabled}
-                      aria-label={`${fmtDate(viewYear, viewMonth, day)}${disabled ? ' — לא זמין' : ''}`}
-                      aria-pressed={selected}
-                      className={cn(
-                        'relative aspect-square flex items-center justify-center text-sm rounded-xl transition-all duration-150 cursor-pointer',
-                        disabled
-                          ? 'text-brand-muted/30 cursor-not-allowed'
-                          : selected
-                          ? 'bg-brand-rose text-white font-bold shadow-rose'
-                          : isToday
-                          ? 'bg-brand-gold/15 text-brand-dark font-semibold hover:bg-brand-rose hover:text-white'
-                          : 'text-brand-dark hover:bg-brand-rose/10 hover:text-brand-rose'
-                      )}
-                    >
-                      {day}
-                      {isToday && !selected && (
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-gold" aria-hidden="true" />
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {form.date && (
-                <p className="text-center text-xs text-brand-rose font-semibold mt-3 pt-3 border-t border-brand-cream-dark">
-                  {form.date}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Time slots */}
-          <AnimatePresence>
-            {form.date && (
+          <AnimatePresence mode="wait">
+            {isMicroblading ? (
+              /* Microblading: WhatsApp only */
               <motion.div
+                key="whatsapp-only"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 12 }}
                 transition={{ duration: 0.3 }}
+                className="flex flex-col items-center justify-center text-center bg-brand-rose-bg border border-brand-rose-light/60 rounded-3xl p-8 gap-5 min-h-[260px]"
               >
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Clock className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                  <span className="text-sm font-semibold text-brand-dark">
-                    בחירת שעה
-                    <span className="text-brand-rose me-1" aria-hidden="true">*</span>
-                  </span>
+                <div className="w-14 h-14 rounded-full bg-[#25D366]/10 flex items-center justify-center">
+                  <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
                 </div>
-                {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
+                <div>
+                  <p className="font-serif text-xl font-bold text-brand-dark mb-2">
+                    מיקרובליידינג — בוואצאפ בלבד
+                  </p>
+                  <p className="text-brand-medium text-sm leading-relaxed max-w-xs mx-auto">
+                    תהליך מיקרובליידינג נמשך 2–3 שעות ודורש ייעוץ אישי לפני קביעת התור.
+                    מלאי את פרטייך ושלחי את הבקשה — אחזור אלייך בהקדם.
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              /* Calendar + time slots */
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Calendar */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Calendar className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                    <span className="text-sm font-semibold text-brand-dark">
+                      בחירת תאריך
+                      <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+                    </span>
+                  </div>
+                  {errors.date && <p className="text-red-500 text-xs mb-2">{errors.date}</p>}
 
-                <div
-                  className="grid grid-cols-5 gap-2"
-                  role="group"
-                  aria-label="בחירת שעת הפגישה"
-                >
-                  {TIME_SLOTS.map(slot => (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => {
-                        setForm(f => ({ ...f, time: slot }))
-                        setErrors(e => ({ ...e, time: undefined }))
-                      }}
-                      aria-pressed={form.time === slot}
-                      aria-label={`שעה ${slot}`}
-                      className={cn(
-                        'py-2.5 rounded-xl text-sm font-semibold border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
-                        form.time === slot
-                          ? 'bg-brand-rose text-white border-brand-rose shadow-rose'
-                          : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg'
-                      )}
-                    >
-                      {slot}
-                    </button>
-                  ))}
+                  <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
+                    {/* Month nav */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        type="button"
+                        onClick={nextMonth}
+                        aria-label="חודש הבא"
+                        className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
+                      >
+                        <ChevronRight className="w-5 h-5 text-brand-dark" />
+                      </button>
+                      <span className="font-semibold text-brand-dark text-sm">
+                        {MONTHS[viewMonth]} {viewYear}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={prevMonth}
+                        aria-label="חודש קודם"
+                        className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-brand-dark" />
+                      </button>
+                    </div>
+
+                    {/* Day headers */}
+                    <div className="grid grid-cols-7 mb-1">
+                      {DAYS.map(d => (
+                        <div key={d} className={cn(
+                          'text-center text-xs font-semibold py-1',
+                          d === 'ש׳' ? 'text-brand-muted/40' : 'text-brand-muted'
+                        )}>
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Day cells */}
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={`empty-${i}`} />
+                        const disabled = isDisabled(day)
+                        const selected = selectedDay === day
+                        const isToday =
+                          day === today.getDate() &&
+                          viewMonth === today.getMonth() &&
+                          viewYear === today.getFullYear()
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => selectDay(day)}
+                            disabled={disabled}
+                            aria-label={`${fmtDate(viewYear, viewMonth, day)}${disabled ? ' — לא זמין' : ''}`}
+                            aria-pressed={selected}
+                            className={cn(
+                              'relative aspect-square flex items-center justify-center text-sm rounded-xl transition-all duration-150 cursor-pointer',
+                              disabled
+                                ? 'text-brand-muted/30 cursor-not-allowed'
+                                : selected
+                                ? 'bg-brand-rose text-white font-bold shadow-rose'
+                                : isToday
+                                ? 'bg-brand-gold/15 text-brand-dark font-semibold hover:bg-brand-rose hover:text-white'
+                                : 'text-brand-dark hover:bg-brand-rose/10 hover:text-brand-rose'
+                            )}
+                          >
+                            {day}
+                            {isToday && !selected && (
+                              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-gold" aria-hidden="true" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {form.date && (
+                      <p className="text-center text-xs text-brand-rose font-semibold mt-3 pt-3 border-t border-brand-cream-dark">
+                        {form.date}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {/* Time slots */}
+                <AnimatePresence>
+                  {form.date && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 12 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Clock className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                        <span className="text-sm font-semibold text-brand-dark">
+                          בחירת שעה
+                          <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+                        </span>
+                        {form.service === 'עיצוב גבות טבעי' && (
+                          <span className="text-xs text-brand-muted">(כל 20 דקות)</span>
+                        )}
+                        {form.service === 'הרמת גבות' && (
+                          <span className="text-xs text-brand-muted">(כל 45 דקות)</span>
+                        )}
+                      </div>
+                      {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
+
+                      {loadingSlots && (
+                        <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
+                      )}
+
+                      <div
+                        className={cn(
+                          'grid gap-2',
+                          timeSlots.length > 15 ? 'grid-cols-4 max-h-52 overflow-y-auto pr-1' : 'grid-cols-4'
+                        )}
+                        role="group"
+                        aria-label="בחירת שעת הפגישה"
+                      >
+                        {timeSlots.map(slot => {
+                          const isTaken = takenSlots.includes(slot)
+                          const isSelected = form.time === slot
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              disabled={isTaken || loadingSlots}
+                              onClick={() => {
+                                if (isTaken) return
+                                setForm(f => ({ ...f, time: slot }))
+                                setErrors(e => ({ ...e, time: undefined }))
+                              }}
+                              aria-pressed={isSelected}
+                              aria-label={`שעה ${slot}${isTaken ? ' — תפוסה' : ''}`}
+                              className={cn(
+                                'py-2 rounded-xl text-sm font-semibold border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                                isTaken
+                                  ? 'bg-brand-cream-dark text-brand-muted/50 border-brand-cream-dark cursor-not-allowed line-through'
+                                  : isSelected
+                                  ? 'bg-brand-rose text-white border-brand-rose shadow-rose cursor-pointer'
+                                  : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg cursor-pointer'
+                              )}
+                            >
+                              {slot}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
@@ -436,14 +562,16 @@ export default function BookingForm() {
 
       {/* Submit — mobile */}
       <div className="lg:hidden mt-8">
-        <SubmitButton form={form} />
+        <SubmitButton form={form} isMicroblading={isMicroblading} />
       </div>
     </form>
   )
 }
 
-function SubmitButton({ form }: { form: FormData }) {
-  const complete = form.name && form.phone && form.service && form.date && form.time
+function SubmitButton({ form, isMicroblading }: { form: FormData; isMicroblading: boolean }) {
+  const complete = isMicroblading
+    ? !!(form.name && form.phone && form.service)
+    : !!(form.name && form.phone && form.service && form.date && form.time)
   return (
     <button
       type="submit"

@@ -24,7 +24,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ['var(--font-playfair)', 'Georgia', 'serif'],
+        serif: ['var(--font-dancing)', 'cursive'],
         sans: ['var(--font-heebo)', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {

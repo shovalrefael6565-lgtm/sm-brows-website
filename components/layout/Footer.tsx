@@ -29,7 +29,7 @@ export default function Footer() {
               className="inline-flex flex-col gap-0.5 mb-5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
               aria-label="S.M BROWS דף הבית"
             >
-              <span className="font-serif text-2xl font-bold tracking-widest text-white group-hover:text-brand-gold transition-colors">
+              <span className="font-sans text-2xl font-bold tracking-widest text-white group-hover:text-brand-gold transition-colors">
                 S.M BROWS
               </span>
               <span className="text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase">
