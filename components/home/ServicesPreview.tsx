@@ -175,14 +175,16 @@ export default function ServicesPreview() {
                       <WhatsAppSmIcon />
                       וואצאפ
                     </a>
-                    <Link
-                      href="/booking"
-                      aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
-                      className="flex-1 flex items-center justify-center gap-1.5 border border-brand-rose-light text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
-                    >
-                      <CalendarIcon className="w-3.5 h-3.5 text-brand-rose" />
-                      ביומן
-                    </Link>
+                    {service.name === 'עיצוב גבות טבעי' && (
+                      <Link
+                        href="/booking"
+                        aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
+                        className="flex-1 flex items-center justify-center gap-1.5 border border-brand-rose-light text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+                      >
+                        <CalendarIcon className="w-3.5 h-3.5 text-brand-rose" />
+                        ביומן
+                      </Link>
+                    )}
                   </div>
                 </div>
               </article>

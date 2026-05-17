@@ -207,14 +207,16 @@ export default function ServiceCard({ service, index }: Props) {
             <WhatsAppIcon className="w-5 h-5" />
             קבעי תור בוואצאפ
           </a>
-          <Link
-            href="/booking"
-            aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
-            className="inline-flex items-center gap-2 text-brand-dark font-medium px-6 py-4 rounded-full border border-brand-rose-light hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
-          >
-            <Calendar className="w-4 h-4 text-brand-rose" />
-            קביעת תור ביומן
-          </Link>
+          {service.name === 'עיצוב גבות טבעי' && (
+            <Link
+              href="/booking"
+              aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
+              className="inline-flex items-center gap-2 text-brand-dark font-medium px-6 py-4 rounded-full border border-brand-rose-light hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+            >
+              <Calendar className="w-4 h-4 text-brand-rose" />
+              קביעת תור ביומן
+            </Link>
+          )}
         </div>
       </div>
     </motion.article>
