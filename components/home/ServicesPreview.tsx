@@ -173,7 +173,7 @@ export default function ServicesPreview() {
                       className="flex-1 flex items-center justify-center gap-1.5 bg-brand-gold text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-gold-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
                     >
                       <WhatsAppSmIcon />
-                      וואצאפ
+                      {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'וואצאפ'}
                     </a>
                     {service.name === 'עיצוב גבות טבעי' && (
                       <Link
