@@ -37,6 +37,10 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
   description:
     'סטודיו מקצועי לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
