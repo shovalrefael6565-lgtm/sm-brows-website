@@ -72,7 +72,7 @@ export default function BookingForm() {
   const [takenSlots, setTakenSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  const isMicroblading = form.service === 'מיקרובליידינג'
+  const isWhatsAppOnly = form.service !== '' && form.service !== 'עיצוב גבות טבעי'
   const timeSlots = buildTimeSlots(form.service)
   const cells = buildCalendar(viewYear, viewMonth)
 
@@ -133,7 +133,7 @@ export default function BookingForm() {
     if (!form.name.trim()) e.name = 'שדה חובה'
     if (!form.phone.trim()) e.phone = 'שדה חובה'
     if (!form.service) e.service = 'יש לבחור טיפול'
-    if (!isMicroblading) {
+    if (!isWhatsAppOnly) {
       if (!form.date) e.date = 'יש לבחור תאריך'
       if (!form.time) e.time = 'יש לבחור שעה'
     }
@@ -148,7 +148,7 @@ export default function BookingForm() {
       `👤 שם: ${form.name}`,
       `📞 טלפון: ${form.phone}`,
       `💆 טיפול: ${form.service}`,
-      ...(isMicroblading ? [] : [
+      ...(isWhatsAppOnly ? [] : [
         `📅 תאריך: ${form.date}`,
         `⏰ שעה: ${form.time}`,
       ]),
@@ -163,7 +163,7 @@ export default function BookingForm() {
     setSubmitted(true)
 
     // Add to Google Calendar (non-blocking — don't fail the UX if it errors)
-    if (!isMicroblading) {
+    if (!isWhatsAppOnly) {
       try {
         await fetch('/api/bookings', {
           method: 'POST',
@@ -211,7 +211,7 @@ export default function BookingForm() {
         </p>
         <p className="text-brand-muted text-sm mb-8">
           {form.name} | {form.service}
-          {!isMicroblading && ` | ${form.date} בשעה ${form.time}`}
+          {!isWhatsAppOnly && ` | ${form.date} בשעה ${form.time}`}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
@@ -352,7 +352,7 @@ export default function BookingForm() {
 
           {/* Submit — desktop */}
           <div className="hidden lg:block">
-            <SubmitButton form={form} isMicroblading={isMicroblading} />
+            <SubmitButton form={form} isWhatsAppOnly={isWhatsAppOnly} />
           </div>
         </div>
 
@@ -360,8 +360,8 @@ export default function BookingForm() {
         <div className="space-y-6">
 
           <AnimatePresence mode="wait">
-            {isMicroblading ? (
-              /* Microblading: WhatsApp only */
+            {isWhatsAppOnly ? (
+              /* WhatsApp only — all services except עיצוב גבות טבעי */
               <motion.div
                 key="whatsapp-only"
                 initial={{ opacity: 0, y: 12 }}
@@ -375,11 +375,11 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <p className="font-serif text-xl font-bold text-brand-dark mb-2">
-                    מיקרובליידינג — בוואצאפ בלבד
+                    {form.service} — בוואצאפ בלבד
                   </p>
                   <p className="text-brand-medium text-sm leading-relaxed max-w-xs mx-auto">
-                    תהליך מיקרובליידינג נמשך 2–3 שעות ודורש ייעוץ אישי לפני קביעת התור.
-                    מלאי את פרטייך ושלחי את הבקשה — אחזור אלייך בהקדם.
+                    טיפול זה דורש ייעוץ אישי לפני קביעת התור.
+                    מלאי את פרטייך ושלחי את הבקשה — אחזור אלייך בהקדם לתיאום.
                   </p>
                 </div>
               </motion.div>
@@ -562,14 +562,14 @@ export default function BookingForm() {
 
       {/* Submit — mobile */}
       <div className="lg:hidden mt-8">
-        <SubmitButton form={form} isMicroblading={isMicroblading} />
+        <SubmitButton form={form} isWhatsAppOnly={isWhatsAppOnly} />
       </div>
     </form>
   )
 }
 
-function SubmitButton({ form, isMicroblading }: { form: FormData; isMicroblading: boolean }) {
-  const complete = isMicroblading
+function SubmitButton({ form, isWhatsAppOnly }: { form: FormData; isWhatsAppOnly: boolean }) {
+  const complete = isWhatsAppOnly
     ? !!(form.name && form.phone && form.service)
     : !!(form.name && form.phone && form.service && form.date && form.time)
   return (
