@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Heebo, Dancing_Script, Playfair_Display } from 'next/font/google'
+import { Rubik, Dancing_Script, Playfair_Display, Frank_Ruhl_Libre } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -8,10 +8,17 @@ import WhatsAppButton from '@/components/ui/WhatsAppButton'
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
 
-const heebo = Heebo({
+const rubik = Rubik({
   subsets: ['latin', 'hebrew'],
-  weight: ['300', '400', '500', '600', '700', '800'],
-  variable: '--font-heebo',
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-rubik',
+  display: 'swap',
+})
+
+const frankRuhlLibre = Frank_Ruhl_Libre({
+  subsets: ['latin', 'hebrew'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-frank',
   display: 'swap',
 })
 
@@ -57,7 +64,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${dancingScript.variable} ${playfair.variable}`}>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${playfair.variable} ${frankRuhlLibre.variable}`}>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">
         <a
           href="#main-content"

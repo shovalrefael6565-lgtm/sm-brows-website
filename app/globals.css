@@ -4,7 +4,6 @@
 
 :root {
   --font-playfair: 'Playfair Display', Georgia, serif;
-  --font-heebo: 'Heebo', system-ui, sans-serif;
 }
 
 @layer base {
@@ -15,7 +14,7 @@
   body {
     background-color: #faf7f5;
     color: #2c1810;
-    font-family: var(--font-heebo);
+    font-family: var(--font-rubik);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -94,7 +93,7 @@ body.a11y-stop-animations *::after {
 
 /* ── Prose (Blog) ── */
 .prose-custom h2 {
-  font-family: var(--font-playfair);
+  font-family: var(--font-frank);
   font-size: 1.5rem;
   font-weight: 700;
   color: #2c1810;
@@ -104,7 +103,7 @@ body.a11y-stop-animations *::after {
 }
 
 .prose-custom h3 {
-  font-family: var(--font-playfair);
+  font-family: var(--font-frank);
   font-size: 1.125rem;
   font-weight: 700;
   color: #2c1810;

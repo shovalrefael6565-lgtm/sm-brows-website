@@ -24,8 +24,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ['var(--font-dancing)', 'Georgia', 'serif'],
-        sans: ['var(--font-heebo)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-dancing)', 'var(--font-frank)', 'Georgia', 'serif'],
+        sans: ['var(--font-rubik)', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
         'hero-gradient':
