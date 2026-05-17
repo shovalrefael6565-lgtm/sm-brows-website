@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { Phone, Mail, MapPin } from 'lucide-react'
 import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
@@ -26,15 +27,16 @@ export default function Footer() {
           <div>
             <Link
               href="/"
-              className="inline-flex flex-col gap-0.5 mb-5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
+              className="inline-flex mb-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-2xl"
               aria-label="S.M BROWS דף הבית"
             >
-              <span className="font-sans text-2xl font-bold tracking-widest text-white group-hover:text-brand-gold transition-colors">
-                S.M BROWS
-              </span>
-              <span className="text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase">
-                IT&apos;S ALL ABOUT YOUR EYEBROWS
-              </span>
+              <Image
+                src="/logo.png"
+                alt="S.M BROWS"
+                width={64}
+                height={64}
+                className="rounded-2xl opacity-90 hover:opacity-100 transition-opacity"
+              />
             </Link>
             <p className="text-white/55 text-sm leading-relaxed mb-6 max-w-[220px]">
               סטודיו מקצועי לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב טבעי, הרמת גבות וקורסים.
@@ -176,7 +178,7 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-white/35 text-xs text-center sm:text-start">
-            © 2025 S.M BROWS — כל הזכויות שמורות
+            © 2025 <span className="font-serif">S.M BROWS</span> — כל הזכויות שמורות
           </p>
           <p className="text-white/25 text-xs">
             עוצב ופותח בישראל

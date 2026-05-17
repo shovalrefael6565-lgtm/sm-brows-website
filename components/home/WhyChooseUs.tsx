@@ -61,7 +61,7 @@ export default function WhyChooseUs() {
           className="text-center mb-14"
         >
           <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
-            למה S.M BROWS
+            למה <span className="font-serif">S.M BROWS</span>
           </p>
           <h2
             id="why-heading"

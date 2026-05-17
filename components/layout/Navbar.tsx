@@ -167,10 +167,10 @@ export default function Navbar() {
                 priority
               />
               <div className="flex flex-col items-start gap-0.5">
-                <span style={{ fontFamily: 'var(--font-playfair)' }} className="text-xl sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
+                <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
                   S.M BROWS
                 </span>
-                <span className="text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase leading-none">
+                <span className="font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase leading-none">
                   IT&apos;S ALL ABOUT YOUR EYEBROWS
                 </span>
               </div>
@@ -187,7 +187,7 @@ export default function Navbar() {
                       className={cn(
                         'text-sm font-medium transition-colors duration-200 relative py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded',
                         special === 'sale'
-                          ? 'text-brand-gold font-bold hover:text-brand-gold-dark'
+                          ? 'font-serif text-brand-gold font-bold hover:text-brand-gold-dark'
                           : special === 'course'
                           ? 'text-brand-rose font-semibold hover:text-brand-rose/80'
                           : isActive
@@ -462,10 +462,10 @@ export default function Navbar() {
                 <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl">
                   <Image src="/logo.png" alt="S.M BROWS" width={48} height={48} />
                   <div className="flex flex-col items-start gap-0.5">
-                    <span style={{ fontFamily: 'var(--font-playfair)' }} className="text-lg font-bold tracking-widest text-brand-dark leading-none">
+                    <span className="font-serif text-lg font-bold tracking-widest text-brand-dark leading-none">
                       S.M BROWS
                     </span>
-                    <span className="text-[8px] tracking-[0.16em] text-brand-gold font-medium uppercase leading-none">
+                    <span className="font-serif text-[8px] tracking-[0.16em] text-brand-gold font-medium uppercase leading-none">
                       IT&apos;S ALL ABOUT YOUR EYEBROWS
                     </span>
                   </div>
@@ -540,7 +540,7 @@ export default function Navbar() {
                         className={cn(
                           'flex items-center px-4 py-3 rounded-xl text-base font-medium transition-colors cursor-pointer',
                           special === 'sale'
-                            ? 'text-brand-gold font-bold hover:bg-brand-gold/10'
+                            ? 'font-serif text-brand-gold font-bold hover:bg-brand-gold/10'
                             : special === 'course'
                             ? 'text-brand-rose font-semibold hover:bg-brand-rose-bg'
                             : pathname === href

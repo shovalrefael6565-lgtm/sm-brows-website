@@ -90,7 +90,7 @@ export default function Hero() {
             variants={fadeUp}
             initial="hidden"
             animate="visible"
-            className="text-xs sm:text-sm tracking-[0.25em] text-brand-gold font-medium uppercase mb-8 lg:mb-10"
+            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold font-medium uppercase mb-8 lg:mb-10"
             lang="en"
           >
             IT&apos;S ALL ABOUT YOUR EYEBROWS
@@ -225,6 +225,17 @@ export default function Hero() {
           transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.div style={{ y }} className="relative">
+            {/* Logo brand seal */}
+            <div className="absolute top-4 start-4 z-10 hidden sm:block">
+              <Image
+                src="/logo.png"
+                alt="S.M BROWS"
+                width={72}
+                height={72}
+                className="rounded-2xl shadow-soft opacity-90"
+              />
+            </div>
+
             {/* Main image container */}
             <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[540px] lg:h-[660px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
