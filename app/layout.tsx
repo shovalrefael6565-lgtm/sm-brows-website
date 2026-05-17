@@ -15,7 +15,7 @@ const heebo = Heebo({
   display: 'swap',
 })
 
-const dancing = Dancing_Script({
+const dancingScript = Dancing_Script({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-dancing',
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${dancing.variable}`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${dancingScript.variable}`}>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">
         <a
           href="#main-content"
