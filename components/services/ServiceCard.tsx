@@ -205,7 +205,7 @@ export default function ServiceCard({ service, index }: Props) {
             className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold px-8 py-4 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
           >
             <WhatsAppIcon className="w-5 h-5" />
-            קבעי תור בוואצאפ
+            לשיחת ייעוץ ללא התחייבות
           </a>
           {service.name === 'עיצוב גבות טבעי' && (
             <Link
