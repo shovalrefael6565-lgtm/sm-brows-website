@@ -17,7 +17,7 @@ const FRONTAL = {
 }
 
 const ONLINE = {
-  price: '₪1,000',
+  price: '₪150',
   priceLabel: 'קורס דיגיטלי',
   sessions: 'מפגש זום אישי',
   sessionIcon: 'video',
