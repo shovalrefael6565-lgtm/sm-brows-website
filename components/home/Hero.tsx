@@ -251,28 +251,6 @@ export default function Hero() {
                 aria-hidden="true"
               />
             </div>
-
-
-            {/* Bottom floating badge */}
-            <div
-              aria-hidden="true"
-              className="absolute -bottom-4 right-4 glass-card rounded-2xl px-4 py-3 shadow-soft z-10 hidden sm:block"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1 rtl:space-x-reverse">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-6 h-6 rounded-full bg-brand-rose-light border-2 border-white"
-                    />
-                  ))}
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-brand-dark">500+ לקוחות</p>
-                  <p className="text-[10px] text-brand-muted">מרוצות</p>
-                </div>
-              </div>
-            </div>
           </motion.div>
         </motion.div>
       </div>
