@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -156,14 +157,23 @@ export default function Navbar() {
             <Link
               href="/"
               aria-label="S.M BROWS – דף הבית"
-              className="flex flex-col items-start gap-0.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
+              className="flex items-center gap-2 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl"
             >
-              <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
-                S.M BROWS
-              </span>
-              <span className="text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase leading-none">
-                IT&apos;S ALL ABOUT YOUR EYEBROWS
-              </span>
+              <Image
+                src="/logo.png"
+                alt="S.M BROWS"
+                width={64}
+                height={64}
+                priority
+              />
+              <div className="flex flex-col items-start gap-0.5">
+                <span style={{ fontFamily: 'var(--font-playfair)' }} className="text-xl sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
+                  S.M BROWS
+                </span>
+                <span className="text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase leading-none">
+                  IT&apos;S ALL ABOUT YOUR EYEBROWS
+                </span>
+              </div>
             </Link>
 
             {/* Desktop nav links */}
@@ -449,13 +459,16 @@ export default function Navbar() {
               aria-modal="true"
             >
               <div className="flex items-center justify-between p-5 border-b border-brand-rose-light">
-                <Link href="/" className="flex flex-col gap-0.5" onClick={() => setMenuOpen(false)}>
-                  <span className="font-serif text-xl font-bold tracking-widest text-brand-dark">
-                    S.M BROWS
-                  </span>
-                  <span className="text-[9px] tracking-[0.15em] text-brand-gold font-medium uppercase">
-                    IT&apos;S ALL ABOUT YOUR EYEBROWS
-                  </span>
+                <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl">
+                  <Image src="/logo.png" alt="S.M BROWS" width={48} height={48} />
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span style={{ fontFamily: 'var(--font-playfair)' }} className="text-lg font-bold tracking-widest text-brand-dark leading-none">
+                      S.M BROWS
+                    </span>
+                    <span className="text-[8px] tracking-[0.16em] text-brand-gold font-medium uppercase leading-none">
+                      IT&apos;S ALL ABOUT YOUR EYEBROWS
+                    </span>
+                  </div>
                 </Link>
                 <button
                   type="button"
