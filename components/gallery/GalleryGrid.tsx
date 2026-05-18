@@ -156,8 +156,8 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           beforeSrc={item.beforeImage!}
           afterSrc={item.afterImage!}
           alt={item.alt}
-          leftLabel={item.category === 'microblading' ? '' : 'לפני'}
-          rightLabel={item.category === 'microblading' ? '' : 'אחרי'}
+          leftLabel=""
+          rightLabel=""
           leftObjectPosition={item.leftObjectPosition}
           rightObjectPosition={item.rightObjectPosition}
           rightScale={item.rightScale}
@@ -190,14 +190,6 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           aria-hidden="true"
         />
-        {item.caption && (
-          <div
-            className="absolute bottom-0 inset-x-0 p-4 text-white text-sm font-medium translate-y-full group-hover:translate-y-0 transition-transform duration-300"
-            aria-hidden="true"
-          >
-            {item.caption}
-          </div>
-        )}
       </button>
       <CategoryBadge category={item.category} />
     </article>

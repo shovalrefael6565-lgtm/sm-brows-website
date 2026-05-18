@@ -6,6 +6,7 @@ import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_UR
 const col2Links = [
   { href: '/contact', label: 'יצירת קשר', external: false },
   { href: '/faq', label: 'שאלות ותשובות', external: false },
+  { href: '/terms', label: 'תקנון ותנאי שימוש', external: false },
   { href: '/privacy', label: 'מדיניות פרטיות', external: false },
   { href: '/accessibility', label: 'הצהרת נגישות', external: false },
 ]

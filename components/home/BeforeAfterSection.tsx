@@ -18,29 +18,47 @@ const PAIRS: Pair[] = [
   {
     id: 'ba1',
     label: 'מיקרובליידינג',
-    beforeSrc: '/microblading-1.jpg',
-    afterSrc: '/microblading-2.jpg',
-    alt: 'השוואת זוויות מיקרובליידינג',
-    leftObjectPosition: '50% 24%',
-    rightObjectPosition: '50% 22%',
+    beforeSrc: '/microblading-10.webp',
+    afterSrc: '/microblading-11.webp',
+    alt: 'השוואת לפני ואחרי מיקרובליידינג',
+    leftObjectPosition: '50% 30%',
+    rightObjectPosition: '50% 30%',
   },
   {
     id: 'ba2',
-    label: 'עיצוב גבות טבעי',
-    beforeSrc:
-      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.3',
-    afterSrc:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=700&h=500&q=80&auto=format&fit=crop&fp-y=0.35',
-    alt: 'לפני ואחרי עיצוב גבות טבעי',
+    label: 'מיקרובליידינג',
+    beforeSrc: '/microblading-12.webp',
+    afterSrc: '/microblading-13.webp',
+    alt: 'השוואת לפני ואחרי מיקרובליידינג',
+    leftObjectPosition: '50% 25%',
+    rightObjectPosition: '50% 25%',
   },
   {
     id: 'ba3',
-    label: 'הרמת גבות',
-    beforeSrc: '/brow-lifting-before.jpg',
-    afterSrc: '/brow-lifting-after.jpg',
-    alt: 'לפני ואחרי הרמת גבות',
-    leftObjectPosition: '50% 14%',
-    rightObjectPosition: '50% 20%',
+    label: 'מיקרובליידינג',
+    beforeSrc: '/microblading-14.webp',
+    afterSrc: '/microblading-15.webp',
+    alt: 'השוואת לפני ואחרי מיקרובליידינג',
+    leftObjectPosition: '50% 25%',
+    rightObjectPosition: '50% 25%',
+  },
+  {
+    id: 'ba4',
+    label: 'מיקרובליידינג',
+    beforeSrc: '/microblading-16.webp',
+    afterSrc: '/microblading-17.webp',
+    alt: 'השוואת לפני ואחרי מיקרובליידינג',
+    leftObjectPosition: '50% 25%',
+    rightObjectPosition: '50% 25%',
+  },
+  {
+    id: 'ba5',
+    label: 'מיקרובליידינג',
+    beforeSrc: '/microblading-18.webp',
+    afterSrc: '/microblading-19.webp',
+    alt: 'השוואת לפני ואחרי מיקרובליידינג',
+    leftObjectPosition: '50% 25%',
+    rightObjectPosition: '50% 25%',
   },
 ]
 
@@ -95,11 +113,10 @@ export default function BeforeAfterSection() {
                     beforeSrc={pair.beforeSrc}
                     afterSrc={pair.afterSrc}
                     alt={pair.alt}
-                    leftLabel={pair.id === 'ba1' || pair.id === 'ba3' ? '' : 'לפני'}
-                    rightLabel={pair.id === 'ba1' || pair.id === 'ba3' ? '' : 'אחרי'}
+                    leftLabel=""
+                    rightLabel=""
                     leftObjectPosition={pair.leftObjectPosition}
                     rightObjectPosition={pair.rightObjectPosition}
-                    objectPosition={pair.id === 'ba2' ? 'center' : undefined}
                   />
                 </div>
                 <div className="px-4 py-3 bg-brand-cream flex items-center justify-between">
