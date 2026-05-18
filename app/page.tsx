@@ -1,13 +1,17 @@
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
 import Hero from '@/components/home/Hero'
-import ServicesPreview from '@/components/home/ServicesPreview'
-import BeforeAfterSection from '@/components/home/BeforeAfterSection'
-import GalleryPreview from '@/components/home/GalleryPreview'
-import WhyChooseUs from '@/components/home/WhyChooseUs'
-import CourseBanner from '@/components/home/CourseBanner'
-import OnlineCoursePromo from '@/components/home/OnlineCoursePromo'
-import BlogPreview from '@/components/home/BlogPreview'
-import BookingSection from '@/components/home/BookingSection'
+
+// כל הסקשנים מתחת ל-Hero נטענים רק כשמגיעים אליהם
+const ServicesPreview   = dynamic(() => import('@/components/home/ServicesPreview'))
+const BeforeAfterSection = dynamic(() => import('@/components/home/BeforeAfterSection'))
+const GalleryPreview    = dynamic(() => import('@/components/home/GalleryPreview'))
+const WhyChooseUs       = dynamic(() => import('@/components/home/WhyChooseUs'))
+const CourseBanner      = dynamic(() => import('@/components/home/CourseBanner'))
+const OnlineCoursePromo = dynamic(() => import('@/components/home/OnlineCoursePromo'))
+const BlogPreview       = dynamic(() => import('@/components/home/BlogPreview'))
+const BookingSection    = dynamic(() => import('@/components/home/BookingSection'))
+
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
   description:
