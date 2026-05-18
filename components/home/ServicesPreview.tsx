@@ -116,7 +116,7 @@ export default function ServicesPreview() {
                 {/* Auto-rotating image */}
                 <ServiceImageSlider
                   images={service.homeImages ?? service.images}
-                  imagePositions={service.imagePositions}
+                  imagePositions={service.homeImagePositions ?? service.imagePositions}
                   name={service.name}
                 />
 

@@ -9,6 +9,7 @@ export interface Service {
   images: string[]
   homeImages?: string[]
   imagePositions?: string[]
+  homeImagePositions?: string[]
   features: string[]
 }
 
@@ -69,13 +70,12 @@ export const services: Service[] = [
     images: [
       '/microblading-1.jpg',
       '/microblading-2.jpg',
-      '/microblading-5.webp',
-      '/microblading-6.webp',
     ],
     homeImages: [
       '/microblading-2.jpg',
-      '/microblading-5.webp',
-      '/microblading-6.webp',
+    ],
+    homeImagePositions: [
+      '50% 30%',
     ],
     features: [
       'תוצאות של 12–24 חודשים',
@@ -187,22 +187,14 @@ export const galleryItems: GalleryItem[] = [
     objectPosition: '50% 20%',
   },
   {
-    id: 'g15',
+    id: 'g17',
     category: 'microblading',
-    type: 'portrait',
-    image: '/microblading-5.webp',
-    alt: 'מיקרובליידינג – תוצאה טבעית ומוגדרת',
-    caption: 'מיקרובליידינג – תוצאה מרהיבה',
-    objectPosition: '50% 20%',
-  },
-  {
-    id: 'g16',
-    category: 'microblading',
-    type: 'portrait',
-    image: '/microblading-6.webp',
-    alt: 'מיקרובליידינג – גבות מושלמות',
-    caption: 'מיקרובליידינג – גבות מושלמות',
-    objectPosition: '50% 20%',
+    type: 'before-after',
+    beforeImage: '/microblading-7.webp',
+    afterImage: '/microblading-5.webp',
+    alt: 'לפני ואחרי מיקרובליידינג – שינוי מרהיב',
+    leftObjectPosition: '50% 20%',
+    rightObjectPosition: '50% 20%',
   },
   // ── עיצוב גבות טבעי ──
   {
