@@ -7,6 +7,7 @@ export interface Service {
   duration: string
   image: string
   images: string[]
+  homeImages?: string[]
   imagePositions?: string[]
   features: string[]
 }
@@ -68,6 +69,13 @@ export const services: Service[] = [
     images: [
       '/microblading-1.jpg',
       '/microblading-2.jpg',
+      '/microblading-5.webp',
+      '/microblading-6.webp',
+    ],
+    homeImages: [
+      '/microblading-2.jpg',
+      '/microblading-5.webp',
+      '/microblading-6.webp',
     ],
     features: [
       'תוצאות של 12–24 חודשים',
@@ -88,16 +96,20 @@ export const services: Service[] = [
     images: [
       '/natural-1.webp',
       '/natural-2.webp',
-      '/natural-3.jpg',
       '/natural-4.jpg',
       '/natural-5.webp',
+      '/natural-6.jpg',
+      '/natural-7.jpg',
+      '/natural-8.jpg',
     ],
     imagePositions: [
       '50% 15%',
-      '50% 15%',
+      '50% 5%',
       '50% 25%',
       '50% 25%',
-      '50% 25%',
+      '50% 20%',
+      '50% 5%',
+      '50% 20%',
     ],
     features: [
       'תוצאה מיידית',
@@ -174,6 +186,24 @@ export const galleryItems: GalleryItem[] = [
     caption: 'תוצאות מדהימות',
     objectPosition: '50% 20%',
   },
+  {
+    id: 'g15',
+    category: 'microblading',
+    type: 'portrait',
+    image: '/microblading-5.webp',
+    alt: 'מיקרובליידינג – תוצאה טבעית ומוגדרת',
+    caption: 'מיקרובליידינג – תוצאה מרהיבה',
+    objectPosition: '50% 20%',
+  },
+  {
+    id: 'g16',
+    category: 'microblading',
+    type: 'portrait',
+    image: '/microblading-6.webp',
+    alt: 'מיקרובליידינג – גבות מושלמות',
+    caption: 'מיקרובליידינג – גבות מושלמות',
+    objectPosition: '50% 20%',
+  },
   // ── עיצוב גבות טבעי ──
   {
     id: 'g3',
@@ -191,16 +221,16 @@ export const galleryItems: GalleryItem[] = [
     image: '/natural-2.webp',
     alt: 'לקוחה עם עיצוב גבות טבעי',
     caption: 'עיצוב טבעי – תוצאה טבעית',
-    objectPosition: '50% 0%',
+    objectPosition: '50% 5%',
   },
   {
-    id: 'g4',
+    id: 'g12',
     category: 'natural',
     type: 'portrait',
-    image: '/natural-3.jpg',
-    alt: 'לקוחה עם עיצוב גבות טבעי מושלם',
-    caption: 'עיצוב טבעי – הגדרה מושלמת',
-    objectPosition: '50% 12%',
+    image: '/natural-6.jpg',
+    alt: 'עיצוב גבות טבעי – גבות מוגדרות ומושלמות',
+    caption: 'עיצוב טבעי – גבות מוגדרות',
+    objectPosition: '50% 20%',
   },
   {
     id: 'g8',
@@ -219,6 +249,24 @@ export const galleryItems: GalleryItem[] = [
     alt: 'לקוחה עם עיצוב גבות טבעי',
     caption: 'עיצוב טבעי – חיוך מושלם',
     objectPosition: '50% 28%',
+  },
+  {
+    id: 'g13',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-7.jpg',
+    alt: 'עיצוב גבות טבעי – גבות מוגדרות',
+    caption: 'עיצוב טבעי – גבות מוגדרות',
+    objectPosition: '50% 5%',
+  },
+  {
+    id: 'g14',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-8.jpg',
+    alt: 'עיצוב גבות טבעי – תוצאה מושלמת',
+    caption: 'עיצוב טבעי – תוצאה מושלמת',
+    objectPosition: '50% 20%',
   },
   // ── הרמת גבות ──
   {

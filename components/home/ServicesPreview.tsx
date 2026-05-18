@@ -4,11 +4,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft, Clock, Sparkles } from 'lucide-react'
+import { ArrowLeft, Clock } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
-function ServiceImageSlider({ images, imagePositions, name, tagline }: { images: string[]; imagePositions?: string[]; name: string; tagline: string }) {
+function ServiceImageSlider({ images, imagePositions, name }: { images: string[]; imagePositions?: string[]; name: string }) {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
@@ -32,7 +32,7 @@ function ServiceImageSlider({ images, imagePositions, name, tagline }: { images:
         >
           <Image
             src={images[current]}
-            alt={`${name} – ${tagline}`}
+            alt={name}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
@@ -44,12 +44,6 @@ function ServiceImageSlider({ images, imagePositions, name, tagline }: { images:
         className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none"
         aria-hidden="true"
       />
-      <div className="absolute top-4 end-4">
-        <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur-sm text-brand-rose text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-          <Sparkles className="w-3 h-3" aria-hidden="true" />
-          {tagline}
-        </span>
-      </div>
       {/* Dots indicator */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5" aria-hidden="true">
         {images.map((_, i) => (
@@ -121,10 +115,9 @@ export default function ServicesPreview() {
               >
                 {/* Auto-rotating image */}
                 <ServiceImageSlider
-                  images={service.images}
+                  images={service.homeImages ?? service.images}
                   imagePositions={service.imagePositions}
                   name={service.name}
-                  tagline={service.tagline}
                 />
 
                 {/* Content */}
