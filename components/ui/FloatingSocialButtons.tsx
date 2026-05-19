@@ -24,10 +24,11 @@ const buttons = [
   },
 ]
 
+/** מקבץ רשתות צף — דסקטופ בלבד. במובייל הרשתות מופיעות בתפריט ובפוטר. */
 export default function FloatingSocialButtons() {
   return (
     <div
-      className="fixed bottom-24 left-6 z-40 flex flex-col gap-3 items-center"
+      className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center"
       aria-label="רשתות חברתיות"
     >
       {buttons.map(({ href, label, bg, icon }, i) => (

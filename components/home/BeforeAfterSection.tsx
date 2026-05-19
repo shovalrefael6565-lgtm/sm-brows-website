@@ -91,7 +91,7 @@ export default function BeforeAfterSection() {
             <span className="text-brand-rose"> ואחרי</span>
           </h2>
           <p className="text-brand-medium max-w-xl mx-auto leading-relaxed">
-            גררי את המחוון ותגלי את ההבדל. כל תמונה היא לקוחה אמיתית — תוצאות שמדברות בעד עצמן.
+            כל תמונה היא לקוחה אמיתית — תוצאות שמדברות בעד עצמן.
           </p>
         </motion.div>
 
@@ -119,9 +119,8 @@ export default function BeforeAfterSection() {
                     rightObjectPosition={pair.rightObjectPosition}
                   />
                 </div>
-                <div className="px-4 py-3 bg-brand-cream flex items-center justify-between">
+                <div className="px-4 py-3 bg-brand-cream flex items-center">
                   <span className="text-sm font-semibold text-brand-dark">{pair.label}</span>
-                  <span className="text-xs text-brand-muted">גרררי את המחוון</span>
                 </div>
               </div>
             </motion.li>
