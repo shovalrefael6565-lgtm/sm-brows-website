@@ -25,3 +25,7 @@ npm-debug.log*
 
 # claude internals
 .claude/
+
+# service account keys
+sm-brows-*.json
+*-service-account*.json

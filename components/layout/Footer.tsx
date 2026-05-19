@@ -12,7 +12,6 @@ const col2Links = [
 ]
 
 const col3Links = [
-  { href: '/about', label: 'הסיפור שלי' },
   { href: '/services', label: 'טיפולים' },
   { href: '/services#course', label: 'קורסים' },
   { href: '/blog', label: 'מאמרים' },

@@ -179,7 +179,9 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           src={item.image!}
           alt={item.alt}
           fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          loading="lazy"
+          decoding="async"
+          sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(50vw - 24px), calc(33vw - 24px)"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           style={{
             objectPosition: item.objectPosition ?? '50% 50%',

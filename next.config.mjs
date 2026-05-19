@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    formats: ['image/webp', 'image/avif'],
+    // AVIF first — ~50% smaller than WebP at same quality
+    formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
+    // Matches real device breakpoints to avoid generating unnecessary sizes
+    deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       {
         protocol: 'https',
@@ -11,9 +15,22 @@ const nextConfig = {
     ],
   },
   compress: true,
-  // טוען רק את האייקונים / אנימציות שבשימוש בפועל — מקטין bundle
+  poweredByHeader: false,
   experimental: {
     optimizePackageImports: ['framer-motion', 'lucide-react'],
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*\\.(jpg|jpeg|png|webp|avif|svg|ico|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ]
   },
 }
 

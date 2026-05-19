@@ -74,7 +74,9 @@ export default function GalleryPreview() {
                     src={item.image!}
                     alt={item.alt}
                     fill
-                    sizes="(max-width: 640px) 50vw, 33vw"
+                    loading="lazy"
+                    decoding="async"
+                    sizes="(max-width: 640px) calc(50vw - 12px), calc(33vw - 16px)"
                     className="object-cover transition-transform duration-500 group-hover:scale-107"
                     style={{ objectPosition: item.objectPosition ?? '50% 50%' }}
                   />

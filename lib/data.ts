@@ -97,12 +97,13 @@ export const services: Service[] = [
     tagline: 'ההגדרה המושלמת',
     description:
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. שיטות עיצוב ידניות מותאמות לצורת הפנים ולמבנה הגבה הטבעי שלך.',
-    price: '₪70 – ₪80',
+    price: '₪70 – ₪85',
     duration: '15–30 דקות',
     image: '/natural-1.webp',
     images: [
       '/natural-1.webp',
       '/natural-2.webp',
+      '/natural-8.png',
       '/natural-4.jpg',
       '/natural-5.webp',
       '/natural-6.webp',
@@ -112,6 +113,7 @@ export const services: Service[] = [
     imagePositions: [
       '50% 15%',
       '50% 5%',
+      '50% 18%',
       '50% 25%',
       '50% 25%',
       '50% 20%',
@@ -329,6 +331,15 @@ export const galleryItems: GalleryItem[] = [
     alt: 'עיצוב גבות טבעי – גבות מוגדרות ועיניים ירוקות',
     caption: 'עיצוב טבעי – תוצאה מרהיבה',
     objectPosition: '50% 35%',
+  },
+  {
+    id: 'g27',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-8.png',
+    alt: 'עיצוב גבות טבעי – גבות מושלמות ועדינות',
+    caption: 'עיצוב טבעי – הגדרה עדינה',
+    objectPosition: '50% 18%',
   },
   // ── הרמת גבות ──
   {

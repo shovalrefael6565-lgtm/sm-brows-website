@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Rubik, Dancing_Script, Playfair_Display, Noto_Serif_Hebrew } from 'next/font/google'
+import { Rubik, Dancing_Script, Noto_Serif_Hebrew } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -8,33 +8,31 @@ import WhatsAppButton from '@/components/ui/WhatsAppButton'
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
 
+// weight 300 (light) removed — no font-light class used in the codebase
 const rubik = Rubik({
   subsets: ['latin', 'hebrew'],
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700'],
   variable: '--font-rubik',
   display: 'swap',
 })
 
 const notoSerifHebrew = Noto_Serif_Hebrew({
   subsets: ['hebrew'],
-  weight: ['300', '400', '500', '700'],
+  weight: ['400', '500', '700'],
   variable: '--font-frank',
   display: 'swap',
 })
 
+// weight 600 (semibold) removed — no font-serif + font-semibold combination in codebase
 const dancingScript = Dancing_Script({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '700'],
   variable: '--font-dancing',
   display: 'swap',
 })
 
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-playfair',
-  display: 'swap',
-})
+// Playfair Display removed — --font-playfair was loaded but never referenced
+// in the Tailwind font stack or any component class
 
 export const metadata: Metadata = {
   icons: {
@@ -68,7 +66,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${playfair.variable} ${notoSerifHebrew.variable}`}>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">
         <a
           href="#main-content"

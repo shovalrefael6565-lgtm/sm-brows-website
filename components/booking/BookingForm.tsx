@@ -2,14 +2,37 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone, MessageSquare, Sparkles } from 'lucide-react'
+import {
+  ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
+  MessageSquare, Sparkles, ArrowRight, Pencil,
+} from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 
-const SERVICES = [
-  'מיקרובליידינג',
-  'עיצוב גבות טבעי',
-  'הרמת גבות',
-  'קורס מקצועי',
+const NATURAL = 'עיצוב גבות טבעי'
+
+interface ServiceOption {
+  name: string
+  online: boolean
+  desc: string
+}
+
+const SERVICES: ServiceOption[] = [
+  { name: NATURAL,          online: true,  desc: 'עיצוב מדויק המדגיש את יופי הפנים הטבעי' },
+  { name: 'מיקרובליידינג',  online: false, desc: 'קעקוע קוסמטי לגבות מושלמות לשנים' },
+  { name: 'הרמת גבות',      online: false, desc: 'הרמה ועיצוב הגבות ללא ניתוח' },
+  { name: 'קורס מקצועי',    online: false, desc: 'הכשרה מקצועית לאמניות גבות' },
+]
+
+interface Variant {
+  id: string
+  label: string
+  desc: string
+  price: number
+}
+
+const NATURAL_VARIANTS: Variant[] = [
+  { id: 'עיצוב גבות טבעי',     label: 'עיצוב גבות טבעי',     desc: 'עיצוב מדויק והגדרת הגבה',  price: 70 },
+  { id: 'עיצוב + שעווה וצבע',  label: 'עיצוב + שעווה וצבע',  desc: 'כולל שעווה וצביעת גבות',   price: 85 },
 ]
 
 const MONTHS = [
@@ -22,17 +45,11 @@ function pad(n: number) {
   return n.toString().padStart(2, '0')
 }
 
-function buildTimeSlots(service: string): string[] {
+/** Natural brow design — 20-minute slots, 09:00–17:40 */
+function buildTimeSlots(): string[] {
   const slots: string[] = []
-  if (service === 'עיצוב גבות טבעי') {
-    for (let m = 9 * 60; m <= 17 * 60 + 40; m += 20)
-      slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  } else if (service === 'הרמת גבות') {
-    for (let m = 9 * 60; m <= 17 * 60 + 15; m += 45)
-      slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  } else {
-    return ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00']
-  }
+  for (let m = 9 * 60; m <= 17 * 60 + 40; m += 20)
+    slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   return slots
 }
 
@@ -52,29 +69,39 @@ interface FormData {
   name: string
   phone: string
   service: string
+  variant: string
   date: string
   time: string
   notes: string
 }
 
+const EMPTY_FORM: FormData = {
+  name: '', phone: '', service: '', variant: '', date: '', time: '', notes: '',
+}
+
 export default function BookingForm() {
   const today = new Date()
+  const [step, setStep] = useState(1)
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<Partial<FormData>>({})
-
-  const [form, setForm] = useState<FormData>({
-    name: '', phone: '', service: '', date: '', time: '', notes: '',
-  })
-
+  const [form, setForm] = useState<FormData>(EMPTY_FORM)
   const [takenSlots, setTakenSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  const isWhatsAppOnly = form.service !== '' && form.service !== 'עיצוב גבות טבעי'
-  const timeSlots = buildTimeSlots(form.service)
+  const isNatural = form.service === NATURAL
+  const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
+
+  // שלבים: עיצוב טבעי → 3 שלבים | שאר הטיפולים → 2 שלבים
+  const stepLabels = isNatural
+    ? ['בחירת טיפול', 'בחירת מועד', 'פרטים ואישור']
+    : ['בחירת טיפול', 'פרטים ואישור']
+  const totalSteps = stepLabels.length
+
+  const selectedVariant = NATURAL_VARIANTS.find(v => v.id === form.variant)
 
   const fetchTakenSlots = useCallback(async (isoDate: string) => {
     setLoadingSlots(true)
@@ -94,10 +121,8 @@ export default function BookingForm() {
     const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     return d < t
   }
-
   const isSaturday = (day: number) =>
     new Date(viewYear, viewMonth, day).getDay() === 6
-
   const isDisabled = (day: number) => isPast(day) || isSaturday(day)
 
   const prevMonth = () => {
@@ -106,7 +131,6 @@ export default function BookingForm() {
     setSelectedDay(null)
     setForm(f => ({ ...f, date: '', time: '' }))
   }
-
   const nextMonth = () => {
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
     else setViewMonth(m => m + 1)
@@ -114,29 +138,55 @@ export default function BookingForm() {
     setForm(f => ({ ...f, date: '', time: '' }))
   }
 
-  const toIsoDate = (year: number, month: number, day: number) => {
-    const m = (month + 1).toString().padStart(2, '0')
-    const d = day.toString().padStart(2, '0')
-    return `${year}-${m}-${d}`
-  }
+  const toIsoDate = (year: number, month: number, day: number) =>
+    `${year}-${pad(month + 1)}-${pad(day)}`
 
   const selectDay = (day: number) => {
     if (isDisabled(day)) return
     setSelectedDay(day)
     setTakenSlots([])
     setForm(f => ({ ...f, date: fmtDate(viewYear, viewMonth, day), time: '' }))
+    setErrors(e => ({ ...e, date: undefined }))
     fetchTakenSlots(toIsoDate(viewYear, viewMonth, day))
   }
 
-  const validate = () => {
+  const selectService = (name: string) => {
+    setForm(f => ({
+      ...f,
+      service: name,
+      variant: name === NATURAL ? f.variant : '',
+      date: '', time: '',
+    }))
+    setSelectedDay(null)
+    setErrors({})
+  }
+
+  // ── ניווט בין שלבים ──
+  const validateStep = (s: number): boolean => {
     const e: Partial<FormData> = {}
-    if (!form.name.trim()) e.name = 'שדה חובה'
-    if (!form.phone.trim()) e.phone = 'שדה חובה'
-    if (!form.service) e.service = 'יש לבחור טיפול'
-    if (!isWhatsAppOnly) {
+    if (s === 1 && !form.service) e.service = 'יש לבחור טיפול'
+    if (s === 2 && isNatural) {
+      if (!form.variant) e.variant = 'יש לבחור סוג טיפול'
       if (!form.date) e.date = 'יש לבחור תאריך'
       if (!form.time) e.time = 'יש לבחור שעה'
     }
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const goNext = () => {
+    if (!validateStep(step)) return
+    setStep(s => Math.min(s + 1, totalSteps))
+  }
+  const goBack = () => {
+    setErrors({})
+    setStep(s => Math.max(s - 1, 1))
+  }
+
+  const validateFinal = () => {
+    const e: Partial<FormData> = {}
+    if (!form.name.trim()) e.name = 'שדה חובה'
+    if (!form.phone.trim()) e.phone = 'שדה חובה'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -147,72 +197,72 @@ export default function BookingForm() {
       '',
       `👤 שם: ${form.name}`,
       `📞 טלפון: ${form.phone}`,
-      `💆 טיפול: ${form.service}`,
-      ...(isWhatsAppOnly ? [] : [
+      `💆 טיפול: ${isNatural && form.variant ? form.variant : form.service}`,
+      ...(isNatural && selectedVariant ? [`💰 מחיר: ₪${selectedVariant.price}`] : []),
+      ...(isNatural ? [
         `📅 תאריך: ${form.date}`,
         `⏰ שעה: ${form.time}`,
-      ]),
+      ] : []),
       form.notes.trim() ? `📝 הערות: ${form.notes}` : '',
-    ].filter(l => l !== undefined)
+    ].filter(Boolean)
     return encodeURIComponent(lines.join('\n'))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validate()) return
+    if (!validateFinal()) return
     setSubmitted(true)
-
-    // Add to Google Calendar (non-blocking — don't fail the UX if it errors)
-    if (!isWhatsAppOnly) {
-      try {
-        await fetch('/api/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-      } catch {
-        // Silent — WhatsApp flow continues regardless
-      }
-    }
-
     const url = `${WHATSAPP_URL}?text=${buildWhatsAppMessage()}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  const set = (k: keyof FormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  const resetAll = () => {
+    setSubmitted(false)
+    setForm(EMPTY_FORM)
+    setSelectedDay(null)
+    setStep(1)
+    setErrors({})
+  }
+
+  const setField = (k: keyof FormData) => (
+    ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const value = e.target.value
-    setForm(f => ({
-      ...f,
-      [k]: value,
-      ...(k === 'service' ? { date: '', time: '' } : {}),
-    }))
-    if (k === 'service') setSelectedDay(null)
+    setForm(f => ({ ...f, [k]: ev.target.value }))
     setErrors(err => ({ ...err, [k]: undefined }))
   }
 
+  // ── מסך אישור ──
   if (submitted) {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center py-16 px-4"
+        className="text-center py-12 px-4"
       >
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-rose/10 mb-6">
-          <Check className="w-10 h-10 text-brand-rose" />
+        <div className="relative inline-flex items-center justify-center w-20 h-20 mb-6">
+          <span className="absolute inset-0 rounded-full bg-brand-rose/10 animate-ping" aria-hidden="true" />
+          <span className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-rose/15">
+            <Check className="w-10 h-10 text-brand-rose" />
+          </span>
         </div>
         <h2 className="font-serif text-3xl font-bold text-brand-dark mb-3">
-          תודה! הבקשה התקבלה 🌸
+          תודה! הבקשה מוכנה 🌸
         </h2>
-        <p className="text-brand-medium text-lg leading-relaxed mb-2 max-w-md mx-auto">
+        <p className="text-brand-medium text-base leading-relaxed mb-2 max-w-md mx-auto">
           פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
         </p>
-        <p className="text-brand-muted text-sm mb-8">
-          {form.name} | {form.service}
-          {!isWhatsAppOnly && ` | ${form.date} בשעה ${form.time}`}
-        </p>
+        <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-brand-muted text-sm mb-8 bg-brand-cream rounded-2xl px-4 py-2">
+          <span className="font-semibold text-brand-dark">{form.name}</span>
+          <span aria-hidden="true">·</span>
+          <span>{isNatural && form.variant ? form.variant : form.service}</span>
+          {isNatural && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{form.date} בשעה {form.time}</span>
+            </>
+          )}
+        </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
             href={`${WHATSAPP_URL}?text=${buildWhatsAppMessage()}`}
@@ -225,11 +275,7 @@ export default function BookingForm() {
           </a>
           <button
             type="button"
-            onClick={() => {
-              setSubmitted(false)
-              setForm({ name: '', phone: '', service: '', date: '', time: '', notes: '' })
-              setSelectedDay(null)
-            }}
+            onClick={resetAll}
             className="inline-flex items-center justify-center gap-2 border-2 border-brand-rose-light text-brand-dark font-medium px-8 py-4 rounded-full hover:bg-brand-rose-bg transition-colors cursor-pointer"
           >
             קביעת תור נוסף
@@ -240,352 +286,495 @@ export default function BookingForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-
-        {/* ── Right column: personal info ── */}
-        <div className="space-y-5">
-
-          {/* Name */}
-          <div>
-            <label htmlFor="booking-name" className="block text-sm font-semibold text-brand-dark mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <User className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                שם מלא
-                <span className="text-brand-rose" aria-hidden="true">*</span>
-              </span>
-            </label>
-            <input
-              id="booking-name"
-              type="text"
-              value={form.name}
-              onChange={set('name')}
-              placeholder="מה שמך?"
-              autoComplete="name"
-              aria-required="true"
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? 'err-name' : undefined}
-              className={cn(
-                'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold',
-                errors.name ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
+    <div>
+      {/* ── מחוון התקדמות ── */}
+      <ol className="flex items-center justify-center gap-2 sm:gap-3 mb-10" aria-label="שלבי קביעת התור">
+        {stepLabels.map((label, i) => {
+          const n = i + 1
+          const done = n < step
+          const active = n === step
+          return (
+            <li key={label} className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all duration-300 flex-shrink-0',
+                    done && 'bg-brand-rose text-white',
+                    active && 'bg-brand-gold text-brand-dark ring-4 ring-brand-gold/20',
+                    !done && !active && 'bg-brand-cream-dark text-brand-muted'
+                  )}
+                  aria-current={active ? 'step' : undefined}
+                >
+                  {done ? <Check className="w-4 h-4" /> : n}
+                </span>
+                <span className={cn(
+                  'text-xs sm:text-sm font-semibold transition-colors hidden sm:inline',
+                  active ? 'text-brand-dark' : 'text-brand-muted'
+                )}>
+                  {label}
+                </span>
+              </div>
+              {n < totalSteps && (
+                <span
+                  className={cn(
+                    'w-5 sm:w-10 h-px transition-colors duration-300',
+                    done ? 'bg-brand-rose' : 'bg-brand-cream-dark'
+                  )}
+                  aria-hidden="true"
+                />
               )}
-            />
-            {errors.name && <p id="err-name" className="text-red-500 text-xs mt-1">{errors.name}</p>}
-          </div>
+            </li>
+          )
+        })}
+      </ol>
 
-          {/* Phone */}
-          <div>
-            <label htmlFor="booking-phone" className="block text-sm font-semibold text-brand-dark mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                מספר טלפון
-                <span className="text-brand-rose" aria-hidden="true">*</span>
-              </span>
-            </label>
-            <input
-              id="booking-phone"
-              type="tel"
-              value={form.phone}
-              onChange={set('phone')}
-              placeholder="05X-XXXXXXX"
-              autoComplete="tel"
-              dir="ltr"
-              aria-required="true"
-              aria-invalid={!!errors.phone}
-              aria-describedby={errors.phone ? 'err-phone' : undefined}
-              className={cn(
-                'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold text-left',
-                errors.phone ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
-              )}
-            />
-            {errors.phone && <p id="err-phone" className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-          </div>
+      <form onSubmit={handleSubmit} noValidate>
+        <AnimatePresence mode="wait">
 
-          {/* Service */}
-          <div>
-            <label htmlFor="booking-service" className="block text-sm font-semibold text-brand-dark mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                טיפול מבוקש
-                <span className="text-brand-rose" aria-hidden="true">*</span>
-              </span>
-            </label>
-            <select
-              id="booking-service"
-              value={form.service}
-              onChange={set('service')}
-              aria-required="true"
-              aria-invalid={!!errors.service}
-              aria-describedby={errors.service ? 'err-service' : undefined}
-              className={cn(
-                'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold appearance-none cursor-pointer',
-                !form.service && 'text-brand-muted',
-                errors.service ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
-              )}
+          {/* ═══ שלב 1 — בחירת טיפול ═══ */}
+          {step === 1 && (
+            <motion.div
+              key="step-1"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
-              <option value="" disabled>בחרי טיפול...</option>
-              {SERVICES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            {errors.service && <p id="err-service" className="text-red-500 text-xs mt-1">{errors.service}</p>}
-          </div>
+              <h2 className="font-serif text-2xl font-bold text-brand-dark text-center mb-1">
+                איזה טיפול בא לך?
+              </h2>
+              <p className="text-brand-muted text-sm text-center mb-7">
+                בחרי את הטיפול המבוקש כדי להמשיך
+              </p>
 
-          {/* Notes */}
-          <div>
-            <label htmlFor="booking-notes" className="block text-sm font-semibold text-brand-dark mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <MessageSquare className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                הערות נוספות
-                <span className="text-brand-muted text-xs font-normal">(אופציונלי)</span>
-              </span>
-            </label>
-            <textarea
-              id="booking-notes"
-              value={form.notes}
-              onChange={set('notes')}
-              placeholder="רגישויות, בקשות מיוחדות, שאלות..."
-              rows={4}
-              className="w-full px-4 py-3 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold hover:border-brand-gold/50 resize-none"
-            />
-          </div>
-
-          {/* Submit — desktop */}
-          <div className="hidden lg:block">
-            <SubmitButton form={form} isWhatsAppOnly={isWhatsAppOnly} />
-          </div>
-        </div>
-
-        {/* ── Left column: calendar + time / WhatsApp-only ── */}
-        <div className="space-y-6">
-
-          <AnimatePresence mode="wait">
-            {isWhatsAppOnly ? (
-              /* WhatsApp only — all services except עיצוב גבות טבעי */
-              <motion.div
-                key="whatsapp-only"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 12 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-col items-center justify-center text-center bg-brand-rose-bg border border-brand-rose-light/60 rounded-3xl p-8 gap-5 min-h-[260px]"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#25D366]/10 flex items-center justify-center">
-                  <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
-                </div>
-                <div>
-                  <p className="font-serif text-xl font-bold text-brand-dark mb-2">
-                    {form.service} — בוואצאפ בלבד
-                  </p>
-                  <p className="text-brand-medium text-sm leading-relaxed max-w-xs mx-auto">
-                    טיפול זה דורש ייעוץ אישי לפני קביעת התור.
-                    מלאי את פרטייך ושלחי את הבקשה — אחזור אלייך בהקדם לתיאום.
-                  </p>
-                </div>
-              </motion.div>
-            ) : (
-              /* Calendar + time slots */
-              <motion.div
-                key="calendar"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 12 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
-              >
-                {/* Calendar */}
-                <div>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <Calendar className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                    <span className="text-sm font-semibold text-brand-dark">
-                      בחירת תאריך
-                      <span className="text-brand-rose me-1" aria-hidden="true">*</span>
-                    </span>
-                  </div>
-                  {errors.date && <p className="text-red-500 text-xs mb-2">{errors.date}</p>}
-
-                  <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
-                    {/* Month nav */}
-                    <div className="flex items-center justify-between mb-4">
-                      <button
-                        type="button"
-                        onClick={nextMonth}
-                        aria-label="חודש הבא"
-                        className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
-                      >
-                        <ChevronRight className="w-5 h-5 text-brand-dark" />
-                      </button>
-                      <span className="font-semibold text-brand-dark text-sm">
-                        {MONTHS[viewMonth]} {viewYear}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={prevMonth}
-                        aria-label="חודש קודם"
-                        className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
-                      >
-                        <ChevronLeft className="w-5 h-5 text-brand-dark" />
-                      </button>
-                    </div>
-
-                    {/* Day headers */}
-                    <div className="grid grid-cols-7 mb-1">
-                      {DAYS.map(d => (
-                        <div key={d} className={cn(
-                          'text-center text-xs font-semibold py-1',
-                          d === 'ש׳' ? 'text-brand-muted/40' : 'text-brand-muted'
-                        )}>
-                          {d}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {SERVICES.map(svc => {
+                  const selected = form.service === svc.name
+                  return (
+                    <button
+                      key={svc.name}
+                      type="button"
+                      onClick={() => selectService(svc.name)}
+                      aria-pressed={selected}
+                      className={cn(
+                        'relative text-right p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                        selected
+                          ? 'border-brand-rose bg-brand-rose-bg shadow-rose'
+                          : 'border-brand-cream-dark bg-white hover:border-brand-rose/40 hover:bg-brand-rose-bg/40'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-brand-dark text-base mb-1">
+                            {svc.name}
+                          </h3>
+                          <p className="text-brand-muted text-xs leading-relaxed">
+                            {svc.desc}
+                          </p>
                         </div>
-                      ))}
-                    </div>
+                        <span
+                          className={cn(
+                            'flex items-center justify-center w-6 h-6 rounded-full border-2 flex-shrink-0 transition-colors',
+                            selected ? 'border-brand-rose bg-brand-rose' : 'border-brand-cream-dark'
+                          )}
+                          aria-hidden="true"
+                        >
+                          {selected && <Check className="w-3.5 h-3.5 text-white" />}
+                        </span>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-brand-cream-dark/70">
+                        {svc.online ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-gold-dark">
+                            <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+                            קביעת תור אונליין
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-muted">
+                            <WhatsAppIcon className="w-3.5 h-3.5" />
+                            תיאום בוואצאפ
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              {errors.service && (
+                <p className="text-red-500 text-xs mt-3 text-center">{errors.service}</p>
+              )}
+            </motion.div>
+          )}
 
-                    {/* Day cells */}
-                    <div className="grid grid-cols-7 gap-0.5">
-                      {cells.map((day, i) => {
-                        if (!day) return <div key={`empty-${i}`} />
-                        const disabled = isDisabled(day)
-                        const selected = selectedDay === day
-                        const isToday =
-                          day === today.getDate() &&
-                          viewMonth === today.getMonth() &&
-                          viewYear === today.getFullYear()
+          {/* ═══ שלב 2 (עיצוב טבעי) — בחירת מועד ═══ */}
+          {step === 2 && isNatural && (
+            <motion.div
+              key="step-2-natural"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-7"
+            >
+              {/* בחירת סוג טיפול + מחיר */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-brand-dark">
+                    סוג הטיפול
+                    <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {NATURAL_VARIANTS.map(v => {
+                    const selected = form.variant === v.id
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, variant: v.id }))
+                          setErrors(e => ({ ...e, variant: undefined }))
+                        }}
+                        aria-pressed={selected}
+                        className={cn(
+                          'text-right p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                          selected
+                            ? 'border-brand-rose bg-brand-rose-bg shadow-rose'
+                            : 'border-brand-cream-dark bg-white hover:border-brand-rose/40'
+                        )}
+                      >
+                        <div className="flex items-baseline justify-between gap-2 mb-1">
+                          <h3 className="font-bold text-brand-dark text-sm">{v.label}</h3>
+                          <span className="font-serif text-lg font-bold text-brand-rose whitespace-nowrap">
+                            ₪{v.price}
+                          </span>
+                        </div>
+                        <p className="text-brand-muted text-xs">{v.desc}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+                {errors.variant && (
+                  <p className="text-red-500 text-xs mt-2">{errors.variant}</p>
+                )}
+              </div>
+
+              {/* לוח שנה */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Calendar className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-brand-dark">
+                    בחירת תאריך
+                    <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+                  </span>
+                </div>
+                {errors.date && <p className="text-red-500 text-xs mb-2">{errors.date}</p>}
+
+                <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      type="button"
+                      onClick={nextMonth}
+                      aria-label="חודש הבא"
+                      className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
+                    >
+                      <ChevronRight className="w-5 h-5 text-brand-dark" />
+                    </button>
+                    <span className="font-semibold text-brand-dark text-sm">
+                      {MONTHS[viewMonth]} {viewYear}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={prevMonth}
+                      aria-label="חודש קודם"
+                      className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-brand-dark" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 mb-1">
+                    {DAYS.map(d => (
+                      <div key={d} className={cn(
+                        'text-center text-xs font-semibold py-1',
+                        d === 'ש׳' ? 'text-brand-muted/40' : 'text-brand-muted'
+                      )}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {cells.map((day, i) => {
+                      if (!day) return <div key={`empty-${i}`} />
+                      const disabled = isDisabled(day)
+                      const selected = selectedDay === day
+                      const isToday =
+                        day === today.getDate() &&
+                        viewMonth === today.getMonth() &&
+                        viewYear === today.getFullYear()
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => selectDay(day)}
+                          disabled={disabled}
+                          aria-label={`${fmtDate(viewYear, viewMonth, day)}${disabled ? ' — לא זמין' : ''}`}
+                          aria-pressed={selected}
+                          className={cn(
+                            'relative aspect-square flex items-center justify-center text-sm rounded-xl transition-all duration-150',
+                            disabled
+                              ? 'text-brand-muted/30 cursor-not-allowed'
+                              : selected
+                              ? 'bg-brand-rose text-white font-bold shadow-rose cursor-pointer'
+                              : isToday
+                              ? 'bg-brand-gold/15 text-brand-dark font-semibold hover:bg-brand-rose hover:text-white cursor-pointer'
+                              : 'text-brand-dark hover:bg-brand-rose/10 hover:text-brand-rose cursor-pointer'
+                          )}
+                        >
+                          {day}
+                          {isToday && !selected && (
+                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-gold" aria-hidden="true" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {form.date && (
+                    <p className="text-center text-xs text-brand-rose font-semibold mt-3 pt-3 border-t border-brand-cream-dark">
+                      {form.date}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* שעות */}
+              <AnimatePresence>
+                {form.date && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <Clock className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                      <span className="text-sm font-semibold text-brand-dark">
+                        בחירת שעה
+                        <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+                      </span>
+                      <span className="text-xs text-brand-muted">(כל 20 דקות)</span>
+                    </div>
+                    {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
+
+                    {loadingSlots && (
+                      <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
+                    )}
+
+                    <div
+                      className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-56 overflow-y-auto pr-1"
+                      role="group"
+                      aria-label="בחירת שעת הפגישה"
+                    >
+                      {timeSlots.map(slot => {
+                        const isTaken = takenSlots.includes(slot)
+                        const isSelected = form.time === slot
                         return (
                           <button
-                            key={day}
+                            key={slot}
                             type="button"
-                            onClick={() => selectDay(day)}
-                            disabled={disabled}
-                            aria-label={`${fmtDate(viewYear, viewMonth, day)}${disabled ? ' — לא זמין' : ''}`}
-                            aria-pressed={selected}
+                            disabled={isTaken || loadingSlots}
+                            onClick={() => {
+                              if (isTaken) return
+                              setForm(f => ({ ...f, time: slot }))
+                              setErrors(e => ({ ...e, time: undefined }))
+                            }}
+                            aria-pressed={isSelected}
+                            aria-label={`שעה ${slot}${isTaken ? ' — תפוסה' : ''}`}
                             className={cn(
-                              'relative aspect-square flex items-center justify-center text-sm rounded-xl transition-all duration-150 cursor-pointer',
-                              disabled
-                                ? 'text-brand-muted/30 cursor-not-allowed'
-                                : selected
-                                ? 'bg-brand-rose text-white font-bold shadow-rose'
-                                : isToday
-                                ? 'bg-brand-gold/15 text-brand-dark font-semibold hover:bg-brand-rose hover:text-white'
-                                : 'text-brand-dark hover:bg-brand-rose/10 hover:text-brand-rose'
+                              'py-2 rounded-xl text-sm font-semibold border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                              isTaken
+                                ? 'bg-brand-cream-dark text-brand-muted/50 border-brand-cream-dark cursor-not-allowed line-through'
+                                : isSelected
+                                ? 'bg-brand-rose text-white border-brand-rose shadow-rose cursor-pointer'
+                                : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg cursor-pointer'
                             )}
                           >
-                            {day}
-                            {isToday && !selected && (
-                              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-gold" aria-hidden="true" />
-                            )}
+                            {slot}
                           </button>
                         )
                       })}
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
 
-                    {form.date && (
-                      <p className="text-center text-xs text-brand-rose font-semibold mt-3 pt-3 border-t border-brand-cream-dark">
-                        {form.date}
-                      </p>
-                    )}
-                  </div>
+          {/* ═══ שלב אחרון — פרטים ואישור ═══ */}
+          {step === totalSteps && step > 1 && (
+            <motion.div
+              key="step-details"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-5"
+            >
+              {/* סיכום הבחירה */}
+              <div className="bg-brand-cream rounded-2xl border border-brand-cream-dark p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-brand-dark">סיכום הבקשה</h3>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="inline-flex items-center gap-1 text-xs text-brand-rose font-semibold hover:underline cursor-pointer"
+                  >
+                    <Pencil className="w-3 h-3" aria-hidden="true" />
+                    שינוי
+                  </button>
                 </div>
-
-                {/* Time slots */}
-                <AnimatePresence>
-                  {form.date && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 12 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <Clock className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                        <span className="text-sm font-semibold text-brand-dark">
-                          בחירת שעה
-                          <span className="text-brand-rose me-1" aria-hidden="true">*</span>
-                        </span>
-                        {form.service === 'עיצוב גבות טבעי' && (
-                          <span className="text-xs text-brand-muted">(כל 20 דקות)</span>
-                        )}
-                        {form.service === 'הרמת גבות' && (
-                          <span className="text-xs text-brand-muted">(כל 45 דקות)</span>
-                        )}
-                      </div>
-                      {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
-
-                      {loadingSlots && (
-                        <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
-                      )}
-
-                      <div
-                        className={cn(
-                          'grid gap-2',
-                          timeSlots.length > 15 ? 'grid-cols-4 max-h-52 overflow-y-auto pr-1' : 'grid-cols-4'
-                        )}
-                        role="group"
-                        aria-label="בחירת שעת הפגישה"
-                      >
-                        {timeSlots.map(slot => {
-                          const isTaken = takenSlots.includes(slot)
-                          const isSelected = form.time === slot
-                          return (
-                            <button
-                              key={slot}
-                              type="button"
-                              disabled={isTaken || loadingSlots}
-                              onClick={() => {
-                                if (isTaken) return
-                                setForm(f => ({ ...f, time: slot }))
-                                setErrors(e => ({ ...e, time: undefined }))
-                              }}
-                              aria-pressed={isSelected}
-                              aria-label={`שעה ${slot}${isTaken ? ' — תפוסה' : ''}`}
-                              className={cn(
-                                'py-2 rounded-xl text-sm font-semibold border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
-                                isTaken
-                                  ? 'bg-brand-cream-dark text-brand-muted/50 border-brand-cream-dark cursor-not-allowed line-through'
-                                  : isSelected
-                                  ? 'bg-brand-rose text-white border-brand-rose shadow-rose cursor-pointer'
-                                  : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg cursor-pointer'
-                              )}
-                            >
-                              {slot}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </motion.div>
+                <dl className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-brand-muted">טיפול</dt>
+                    <dd className="font-semibold text-brand-dark">
+                      {isNatural && form.variant ? form.variant : form.service}
+                    </dd>
+                  </div>
+                  {isNatural && selectedVariant && (
+                    <div className="flex justify-between">
+                      <dt className="text-brand-muted">מחיר</dt>
+                      <dd className="font-semibold text-brand-dark">₪{selectedVariant.price}</dd>
+                    </div>
                   )}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  {isNatural && (
+                    <div className="flex justify-between">
+                      <dt className="text-brand-muted">מועד</dt>
+                      <dd className="font-semibold text-brand-dark">{form.date} · {form.time}</dd>
+                    </div>
+                  )}
+                </dl>
+                {!isNatural && (
+                  <p className="text-xs text-brand-muted mt-2 pt-2 border-t border-brand-cream-dark">
+                    טיפול זה דורש ייעוץ אישי — אחזור אלייך לתיאום מדויק.
+                  </p>
+                )}
+              </div>
+
+              {/* שם */}
+              <div>
+                <label htmlFor="booking-name" className="block text-sm font-semibold text-brand-dark mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                    שם מלא
+                    <span className="text-brand-rose" aria-hidden="true">*</span>
+                  </span>
+                </label>
+                <input
+                  id="booking-name"
+                  type="text"
+                  value={form.name}
+                  onChange={setField('name')}
+                  placeholder="מה שמך?"
+                  autoComplete="name"
+                  aria-required="true"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'err-name' : undefined}
+                  className={cn(
+                    'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold',
+                    errors.name ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
+                  )}
+                />
+                {errors.name && <p id="err-name" className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              </div>
+
+              {/* טלפון */}
+              <div>
+                <label htmlFor="booking-phone" className="block text-sm font-semibold text-brand-dark mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                    מספר טלפון
+                    <span className="text-brand-rose" aria-hidden="true">*</span>
+                  </span>
+                </label>
+                <input
+                  id="booking-phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={setField('phone')}
+                  placeholder="05X-XXXXXXX"
+                  autoComplete="tel"
+                  dir="ltr"
+                  aria-required="true"
+                  aria-invalid={!!errors.phone}
+                  aria-describedby={errors.phone ? 'err-phone' : undefined}
+                  className={cn(
+                    'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold text-left',
+                    errors.phone ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
+                  )}
+                />
+                {errors.phone && <p id="err-phone" className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+              </div>
+
+              {/* הערות */}
+              <div>
+                <label htmlFor="booking-notes" className="block text-sm font-semibold text-brand-dark mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <MessageSquare className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                    הערות נוספות
+                    <span className="text-brand-muted text-xs font-normal">(אופציונלי)</span>
+                  </span>
+                </label>
+                <textarea
+                  id="booking-notes"
+                  value={form.notes}
+                  onChange={setField('notes')}
+                  placeholder="רגישויות, בקשות מיוחדות, שאלות..."
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold hover:border-brand-gold/50 resize-none"
+                />
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+
+        {/* ── ניווט ── */}
+        <div className="flex items-center gap-3 mt-9 pt-6 border-t border-brand-cream-dark">
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="inline-flex items-center gap-1.5 px-5 py-3.5 rounded-full border-2 border-brand-cream-dark text-brand-dark font-semibold text-sm hover:bg-brand-cream transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+            >
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              חזרה
+            </button>
+          )}
+
+          {step < totalSteps ? (
+            <button
+              type="button"
+              onClick={goNext}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+            >
+              המשך
+              <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="שליחת בקשה לתור"
+              className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+            >
+              <WhatsAppIcon className="w-5 h-5" />
+              שליחת בקשה לתור
+            </button>
+          )}
         </div>
-      </div>
-
-      {/* Submit — mobile */}
-      <div className="lg:hidden mt-8">
-        <SubmitButton form={form} isWhatsAppOnly={isWhatsAppOnly} />
-      </div>
-    </form>
-  )
-}
-
-function SubmitButton({ form, isWhatsAppOnly }: { form: FormData; isWhatsAppOnly: boolean }) {
-  const complete = isWhatsAppOnly
-    ? !!(form.name && form.phone && form.service)
-    : !!(form.name && form.phone && form.service && form.date && form.time)
-  return (
-    <button
-      type="submit"
-      aria-label="שליחת בקשה לתור"
-      className={cn(
-        'w-full flex items-center justify-center gap-3 font-bold text-base px-8 py-4 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2',
-        complete
-          ? 'bg-brand-gold text-brand-dark shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 cursor-pointer'
-          : 'bg-brand-cream-dark text-brand-muted cursor-not-allowed'
-      )}
-    >
-      <WhatsAppIcon className="w-5 h-5" />
-      שליחת בקשה לתור
-    </button>
+      </form>
+    </div>
   )
 }
 

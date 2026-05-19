@@ -8,16 +8,16 @@ import { ArrowLeft, Clock } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
-function ServiceImageSlider({ images, imagePositions, name }: { images: string[]; imagePositions?: string[]; name: string }) {
+function ServiceImageSlider({ images, imagePositions, name, active }: { images: string[]; imagePositions?: string[]; name: string; active?: boolean }) {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
-    if (images.length <= 1) return
+    if (!active || images.length <= 1) return
     const interval = setInterval(() => {
       setCurrent((i) => (i + 1) % images.length)
     }, 3000)
     return () => clearInterval(interval)
-  }, [images.length])
+  }, [images.length, active])
 
   return (
     <div className="relative h-52 overflow-hidden flex-shrink-0">
@@ -113,11 +113,12 @@ export default function ServicesPreview() {
                 className="h-full bg-white rounded-3xl overflow-hidden shadow-soft hover:shadow-soft-lg transition-all duration-300 border border-brand-cream-dark/50 hover:-translate-y-1 flex flex-col"
                 aria-label={`טיפול: ${service.name}`}
               >
-                {/* Auto-rotating image */}
+                {/* Auto-rotating image — paused when section is not in viewport */}
                 <ServiceImageSlider
                   images={service.homeImages ?? service.images}
                   imagePositions={service.homeImagePositions ?? service.imagePositions}
                   name={service.name}
+                  active={isInView}
                 />
 
                 {/* Content */}

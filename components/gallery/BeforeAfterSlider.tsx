@@ -94,7 +94,9 @@ export default function BeforeAfterSlider({
           src={afterSrc}
           alt={`${rightLabel}: ${alt}`}
           fill
-          sizes="(max-width: 768px) 100vw, 50vw"
+          loading="lazy"
+          decoding="async"
+          sizes="(max-width: 768px) calc(100vw - 32px), calc(50vw - 32px)"
           className="object-cover"
           style={{ objectPosition: rightPos }}
           draggable={false}
@@ -111,7 +113,9 @@ export default function BeforeAfterSlider({
           src={beforeSrc}
           alt={`${leftLabel}: ${alt}`}
           fill
-          sizes="(max-width: 768px) 100vw, 50vw"
+          loading="lazy"
+          decoding="async"
+          sizes="(max-width: 768px) calc(100vw - 32px), calc(50vw - 32px)"
           className="object-cover"
           style={{ objectPosition: leftPos }}
           draggable={false}

@@ -15,7 +15,6 @@ const navLinks = [
   { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
-  { href: '/shop', label: 'ON SALE', special: 'sale' },
   { href: '/services#course', label: 'קורסים', special: 'course' },
 ]
 
@@ -24,7 +23,6 @@ const mobileNavLinks = [
   { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
-  { href: '/shop', label: 'ON SALE 🔥', special: 'sale' },
   { href: '/services#course', label: 'קורסים', special: 'course' },
 ]
 
