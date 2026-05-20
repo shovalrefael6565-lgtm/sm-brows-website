@@ -296,15 +296,14 @@ export default function BookingForm() {
     }))
     setSelectedDay(null)
     setErrors({})
-    // Scroll the continue button into view after selection
-    requestAnimationFrame(() => {
-      const el = ctaRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      if (rect.bottom > window.innerHeight - 12) {
-        window.scrollTo({ top: window.scrollY + rect.bottom - window.innerHeight + 24, behavior: 'smooth' })
-      }
-    })
+    // Scroll the continue button into view after React commits the selection.
+    // setTimeout(100) outlasts React 18's batched commit + the AnimatePresence
+    // exit animation so getBoundingClientRect() returns the settled position.
+    // scrollIntoView block:'nearest' scrolls only when needed and exactly
+    // enough to fully reveal the element — imperceptible when already visible.
+    setTimeout(() => {
+      ctaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 100)
   }
 
   // ── ניווט בין שלבים ──
