@@ -22,7 +22,7 @@ const PAIRS: Pair[] = [
     afterSrc: '/natural-after-1.webp',
     alt: 'השוואת לפני ואחרי עיצוב גבות טבעי',
     leftObjectPosition: '50% 32%',
-    rightObjectPosition: '50% 40%',
+    rightObjectPosition: '50% 50%',
   },
   {
     id: 'ba1',

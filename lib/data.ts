@@ -200,7 +200,7 @@ export const galleryItems: GalleryItem[] = [
     afterImage: '/natural-after-1.webp',
     alt: 'לפני ואחרי עיצוב גבות טבעי – שינוי מרהיב',
     leftObjectPosition: '50% 32%',
-    rightObjectPosition: '50% 40%',
+    rightObjectPosition: '50% 50%',
   },
   // ── מיקרובליידינג ──
   {
@@ -211,7 +211,7 @@ export const galleryItems: GalleryItem[] = [
     afterImage: '/natural-after-1.webp',
     alt: 'לפני ואחרי עיצוב גבות – שינוי טבעי ומרהיב',
     leftObjectPosition: '50% 32%',
-    rightObjectPosition: '50% 40%',
+    rightObjectPosition: '50% 50%',
   },
   {
     id: 'g1',
