@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** כתובת בסיס לאתר — משמשת ל-SEO, sitemap, canonical, OG */
+/** תקשורת חברתית — עדכון אחרון: 2026-05-20 */
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://smbrows.co.il'
 
 export const WHATSAPP_URL = 'https://wa.me/9720547261564'
