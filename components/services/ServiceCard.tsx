@@ -14,7 +14,7 @@ interface Props {
   index: number
 }
 
-function ImageSlider({ images, alt, duration }: { images: string[]; alt: string; duration: string }) {
+function ImageSlider({ images, alt, duration, objectPositions }: { images: string[]; alt: string; duration: string; objectPositions?: string[] }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
 
@@ -55,8 +55,11 @@ function ImageSlider({ images, alt, duration }: { images: string[]; alt: string;
             alt={i === 0 ? `${alt} – תמונה 1` : ''}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover object-top"
-            style={{ filter: 'brightness(1.04) contrast(1.03) saturate(1.06)' }}
+            className="object-cover"
+            style={{
+              filter: 'brightness(1.04) contrast(1.03) saturate(1.06)',
+              objectPosition: objectPositions?.[i] ?? 'top',
+            }}
             loading="eager"
             priority={i === 0}
           />
@@ -158,6 +161,7 @@ export default function ServiceCard({ service, index }: Props) {
           images={service.images}
           alt={service.name}
           duration={service.duration}
+          objectPositions={service.id === 'natural-design' ? service.imagePositions : undefined}
         />
       )}
 
