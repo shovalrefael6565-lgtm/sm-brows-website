@@ -31,7 +31,7 @@ function ImageSlider({ images, alt, duration }: { images: string[]; alt: string;
 
   return (
     <div
-      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/3] group bg-brand-cream"
+      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/2.55] group bg-brand-cream"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
@@ -142,7 +142,7 @@ export default function ServiceCard({ service, index }: Props) {
     >
       {/* Image — comparison slider for microblading & brow-lifting, auto carousel for others */}
       {service.id === 'microblading' ? (
-        <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-soft-lg">
+        <div className="relative rounded-3xl overflow-hidden aspect-[4/2.55] shadow-soft-lg">
           <BeforeAfterSlider
             beforeSrc="/microblading-10.webp"
             afterSrc="/microblading-11.webp"
