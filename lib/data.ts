@@ -144,7 +144,7 @@ export const services: Service[] = [
       '/lifting-3.webp',
     ],
     imagePositions: [
-      '65% 55%',
+      '65% 75%',
       '50% 22%',
       '50% 15%',
     ],
