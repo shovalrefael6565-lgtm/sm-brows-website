@@ -4,9 +4,10 @@ import BlogCard from '@/components/blog/BlogCard'
 import { blogPosts } from '@/lib/data'
 
 export const metadata: Metadata = {
-  title: 'מאמרים | S.M BROWS',
+  title: 'מאמרים',
   description:
     'מאמרים וטיפים מקצועיים על עיצוב גבות, מיקרובליידינג, הרמת גבות, וטיפוח מ-S.M BROWS.',
+  alternates: { canonical: '/blog' },
 }
 
 const CATEGORIES = ['הכל', 'מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות']

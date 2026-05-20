@@ -3,9 +3,10 @@ import GalleryGrid from '@/components/gallery/GalleryGrid'
 import PageHero from '@/components/ui/PageHero'
 
 export const metadata: Metadata = {
-  title: 'גלריה | S.M BROWS',
+  title: 'גלריה',
   description:
     'גלריית עבודות של S.M BROWS – תמונות לפני ואחרי מיקרובליידינג, עיצוב גבות טבעי והרמת גבות באשקלון.',
+  alternates: { canonical: '/gallery' },
 }
 
 export default function GalleryPage() {

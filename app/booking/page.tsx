@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import BookingForm from '@/components/booking/BookingForm'
 
 export const metadata: Metadata = {
-  title: 'קביעת תור | S.M BROWS',
+  title: 'קביעת תור',
   description: 'קבעי תור לטיפול גבות מקצועי — מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות וקורס מקצועי. S.M BROWS אשקלון.',
+  alternates: { canonical: '/booking' },
 }
 
 export default function BookingPage() {

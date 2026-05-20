@@ -3,8 +3,9 @@ import PageHero from '@/components/ui/PageHero'
 import AccessibilityContent from '@/components/accessibility/AccessibilityContent'
 
 export const metadata: Metadata = {
-  title: 'הצהרת נגישות | S.M BROWS',
+  title: 'הצהרת נגישות',
   description: 'הצהרת הנגישות של אתר S.M BROWS בהתאם לתקן הישראלי 5568 וחוק שוויון זכויות לאנשים עם מוגבלות.',
+  alternates: { canonical: '/accessibility' },
 }
 
 export default function AccessibilityPage() {

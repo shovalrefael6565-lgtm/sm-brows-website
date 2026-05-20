@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Clock, Calendar } from 'lucide-react'
 import { blogPosts } from '@/lib/data'
-import { WHATSAPP_URL } from '@/lib/utils'
+import { WHATSAPP_URL, SITE_URL } from '@/lib/utils'
 
 interface Props {
   params: { slug: string }
@@ -18,14 +18,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = blogPosts.find((p) => p.slug === params.slug)
   if (!post) return {}
   return {
-    title: `${post.title} | S.M BROWS`,
+    title: post.title,
     description: post.excerpt,
+    alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {
       title: post.title,
       description: post.excerpt,
       images: [{ url: post.image }],
       type: 'article',
       locale: 'he_IL',
+      publishedTime: post.date,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.excerpt,
+      images: [post.image],
     },
   }
 }
@@ -43,8 +51,33 @@ export default function BlogPostPage({ params }: Props) {
   const relatedPosts = blogPosts.filter((p) => p.slug !== post.slug).slice(0, 2)
   const html = renderMarkdown(post.content)
 
+  const blogPostingJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    image: `${SITE_URL}${post.image}`,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: { '@type': 'Organization', name: 'S.M BROWS' },
+    publisher: {
+      '@type': 'Organization',
+      name: 'S.M BROWS',
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${SITE_URL}/blog/${post.slug}`,
+    },
+    articleSection: post.category,
+  }
+
   return (
     <article lang="he" dir="rtl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd) }}
+      />
       {/* Hero */}
       <div className="relative h-64 sm:h-80 lg:h-96">
         <Image

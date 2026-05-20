@@ -3,8 +3,9 @@ import PageHero from '@/components/ui/PageHero'
 import TermsContent from '@/components/terms/TermsContent'
 
 export const metadata: Metadata = {
-  title: 'תקנון ותנאי שימוש | S.M BROWS',
+  title: 'תקנון ותנאי שימוש',
   description: 'תקנון ותנאי שימוש של S.M BROWS – מדיניות ביטול, אחריות, הצהרות בריאות ותנאים כלליים.',
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {
