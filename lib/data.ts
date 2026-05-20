@@ -101,6 +101,7 @@ export const services: Service[] = [
     duration: '15–30 דקות',
     image: '/natural-1.webp',
     images: [
+      '/natural-10.webp',
       '/natural-1.webp',
       '/natural-2.webp',
       '/natural-8.webp',
@@ -111,6 +112,7 @@ export const services: Service[] = [
       '/natural-9.webp',
     ],
     imagePositions: [
+      '50% 25%',
       '50% 15%',
       '50% 5%',
       '50% 18%',
@@ -289,6 +291,15 @@ export const galleryItems: GalleryItem[] = [
     rightObjectPosition: '50% 25%',
   },
   // ── עיצוב גבות טבעי ──
+  {
+    id: 'g29',
+    category: 'natural',
+    type: 'portrait',
+    image: '/natural-10.webp',
+    alt: 'לקוחה עם עיצוב גבות טבעי – גבות מושלמות',
+    caption: 'עיצוב טבעי – תוצאה מדהימה',
+    objectPosition: '50% 25%',
+  },
   {
     id: 'g3',
     category: 'natural',
