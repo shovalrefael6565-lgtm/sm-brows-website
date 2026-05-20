@@ -45,10 +45,10 @@ function pad(n: number) {
   return n.toString().padStart(2, '0')
 }
 
-/** Natural brow design — 20-minute slots, 09:00–17:40 */
+/** Natural brow design — 20-minute slots, 10:00–18:40 (last appointment ends 19:00) */
 function buildTimeSlots(): string[] {
   const slots: string[] = []
-  for (let m = 9 * 60; m <= 17 * 60 + 40; m += 20)
+  for (let m = 10 * 60; m <= 18 * 60 + 40; m += 20)
     slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   return slots
 }
@@ -121,9 +121,12 @@ export default function BookingForm() {
     const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     return d < t
   }
-  const isSaturday = (day: number) =>
-    new Date(viewYear, viewMonth, day).getDay() === 6
-  const isDisabled = (day: number) => isPast(day) || isSaturday(day)
+  /** ימי שישי (5) ושבת (6) — האשה לא עובדת */
+  const isClosedDay = (day: number) => {
+    const dow = new Date(viewYear, viewMonth, day).getDay()
+    return dow === 5 || dow === 6
+  }
+  const isDisabled = (day: number) => isPast(day) || isClosedDay(day)
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -497,7 +500,7 @@ export default function BookingForm() {
                     {DAYS.map(d => (
                       <div key={d} className={cn(
                         'text-center text-xs font-semibold py-1',
-                        d === 'ש׳' ? 'text-brand-muted/40' : 'text-brand-muted'
+                        d === 'ש׳' || d === 'ו׳' ? 'text-brand-muted/40' : 'text-brand-muted'
                       )}>
                         {d}
                       </div>
