@@ -65,6 +65,48 @@ function fmtDate(year: number, month: number, day: number) {
   return `${day} ${MONTHS[month]} ${year}`
 }
 
+/** הופך תאריך לזרע מספרי (כל יום מקבל זרע יציב משלו) */
+function dateSeed(year: number, month: number, day: number): number {
+  return ((year * 31 + (month + 1)) * 31 + day) >>> 0
+}
+
+/** מחזיר מספר ימי עסקים מהיום עד התאריך הנבחר (פוסחים על שישי+שבת) */
+function businessDayOffset(year: number, month: number, day: number): number {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(year, month, day)
+  target.setHours(0, 0, 0, 0)
+  if (target.getTime() <= today.getTime()) return 0
+  let count = 0
+  const d = new Date(today)
+  while (d.getTime() < target.getTime()) {
+    d.setDate(d.getDate() + 1)
+    const dow = d.getDay()
+    if (dow !== 5 && dow !== 6) count++
+  }
+  return count
+}
+
+/** כמה משבצות להציג ביום הזה (3 היום, 5 מחר, 6-7 בהמשך השבוע, מעבר ל-4 ימי עסקים — אין) */
+function slotsForOffset(offset: number, seed: number): number {
+  if (offset === 0) return 3
+  if (offset === 1) return 5
+  if (offset <= 4) return 6 + (seed % 2) // 6 או 7, יציב לתאריך
+  return 0 // מעבר ל-5 ימי עסקים — לא זמין
+}
+
+/** ערבוב פסאודו-אקראי מבוסס זרע — אותו תאריך תמיד חוזר עם אותה תוצאה */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr]
+  let s = seed || 1
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280
+    const j = Math.floor((s / 233280) * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 interface FormData {
   name: string
   phone: string
@@ -88,12 +130,71 @@ export default function BookingForm() {
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<Partial<FormData>>({})
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
-  const [takenSlots, setTakenSlots] = useState<string[]>([])
+  const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+
+  // משך טיפול לעיצוב גבות טבעי = 20 דקות. בודקים חפיפה מלאה — לא רק התחלה מדויקת
+  const SLOT_DURATION = 20
+  const toMin = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number)
+    return h * 60 + m
+  }
+  const isSlotTaken = (slot: string) => {
+    const slotStart = toMin(slot)
+    const slotEnd = slotStart + SLOT_DURATION
+    return busyRanges.some(({ start, end }) => {
+      const eStart = toMin(start)
+      const eEnd = toMin(end)
+      return eStart < slotEnd && eEnd > slotStart
+    })
+  }
 
   const isNatural = form.service === NATURAL
   const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
+
+  const EVENING_FROM = 16 * 60 // 16:00 — משם נחשב "ערב"
+
+  /** בוחר את הזמינות המוצגות: כמות לפי מרחק ביום-עסקים, בעיקר ערב, גיוון יומי. */
+  const visibleSlots = (() => {
+    if (selectedDay === null) return []
+    const seed = dateSeed(viewYear, viewMonth, selectedDay)
+    const offset = businessDayOffset(viewYear, viewMonth, selectedDay)
+    const maxSlots = slotsForOffset(offset, seed)
+    if (maxSlots === 0) return []
+
+    const now = new Date()
+    const isViewingToday =
+      selectedDay === now.getDate() &&
+      viewMonth === now.getMonth() &&
+      viewYear === now.getFullYear()
+    // בהיום — להציג רק שעות לפחות שעה מעכשיו (חלון להכנה)
+    const minStartMin = isViewingToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0
+
+    const free = timeSlots
+      .filter(slot => toMin(slot) >= minStartMin)
+      .filter(slot => !isSlotTaken(slot))
+
+    // ערבוב יציב לפי תאריך — ריענון לא משנה, אבל כל יום שונה
+    const evening = seededShuffle(free.filter(s => toMin(s) >= EVENING_FROM), seed)
+    const morning = seededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
+
+    const targetMorning = maxSlots <= 5 ? 1 : 2
+    const targetEvening = maxSlots - targetMorning
+
+    const picked = [
+      ...morning.slice(0, targetMorning),
+      ...evening.slice(0, targetEvening),
+    ]
+
+    // אם בקבוצה אחת אין מספיק — לאכלס מהשנייה
+    if (picked.length < maxSlots) {
+      const remaining = free.filter(s => !picked.includes(s))
+      picked.push(...remaining.slice(0, maxSlots - picked.length))
+    }
+
+    return picked.sort((a, b) => toMin(a) - toMin(b))
+  })()
 
   // שלבים: עיצוב טבעי → 3 שלבים | שאר הטיפולים → 2 שלבים
   const stepLabels = isNatural
@@ -108,9 +209,9 @@ export default function BookingForm() {
     try {
       const res = await fetch(`/api/bookings/slots?date=${isoDate}`)
       const data = await res.json()
-      setTakenSlots(data.taken ?? [])
+      setBusyRanges(data.busy ?? [])
     } catch {
-      setTakenSlots([])
+      setBusyRanges([])
     } finally {
       setLoadingSlots(false)
     }
@@ -126,7 +227,11 @@ export default function BookingForm() {
     const dow = new Date(viewYear, viewMonth, day).getDay()
     return dow === 5 || dow === 6
   }
-  const isDisabled = (day: number) => isPast(day) || isClosedDay(day)
+  /** מעבר ל-5 ימי עסקים מהיום — לא ניתן להזמין דרך האתר */
+  const isBeyondWindow = (day: number) =>
+    businessDayOffset(viewYear, viewMonth, day) > 4
+  const isDisabled = (day: number) =>
+    isPast(day) || isClosedDay(day) || isBeyondWindow(day)
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -147,7 +252,7 @@ export default function BookingForm() {
   const selectDay = (day: number) => {
     if (isDisabled(day)) return
     setSelectedDay(day)
-    setTakenSlots([])
+    setBusyRanges([])
     setForm(f => ({ ...f, date: fmtDate(viewYear, viewMonth, day), time: '' }))
     setErrors(e => ({ ...e, date: undefined }))
     fetchTakenSlots(toIsoDate(viewYear, viewMonth, day))
@@ -567,48 +672,54 @@ export default function BookingForm() {
                         בחירת שעה
                         <span className="text-brand-rose me-1" aria-hidden="true">*</span>
                       </span>
-                      <span className="text-xs text-brand-muted">(כל 20 דקות)</span>
+                      {!loadingSlots && visibleSlots.length > 0 && (
+                        <span className="text-xs text-brand-muted">(זמינות פנויה)</span>
+                      )}
                     </div>
                     {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
 
-                    {loadingSlots && (
+                    {loadingSlots ? (
                       <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
+                    ) : visibleSlots.length === 0 ? (
+                      <div className="bg-brand-cream border border-brand-cream-dark rounded-2xl p-5 text-center">
+                        <p className="text-sm text-brand-medium mb-1">
+                          אין זמינות פנויה בתאריך זה
+                        </p>
+                        <p className="text-xs text-brand-muted">
+                          בחרי תאריך אחר או צרי קשר ישירות בוואצאפ
+                        </p>
+                      </div>
+                    ) : (
+                      <div
+                        className="grid grid-cols-3 sm:grid-cols-5 gap-2"
+                        role="group"
+                        aria-label="בחירת שעת הפגישה"
+                      >
+                        {visibleSlots.map(slot => {
+                          const isSelected = form.time === slot
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => {
+                                setForm(f => ({ ...f, time: slot }))
+                                setErrors(e => ({ ...e, time: undefined }))
+                              }}
+                              aria-pressed={isSelected}
+                              aria-label={`שעה ${slot}`}
+                              className={cn(
+                                'py-2.5 rounded-xl text-sm font-semibold border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                                isSelected
+                                  ? 'bg-brand-rose text-white border-brand-rose shadow-rose'
+                                  : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg'
+                              )}
+                            >
+                              {slot}
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-
-                    <div
-                      className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-56 overflow-y-auto pr-1"
-                      role="group"
-                      aria-label="בחירת שעת הפגישה"
-                    >
-                      {timeSlots.map(slot => {
-                        const isTaken = takenSlots.includes(slot)
-                        const isSelected = form.time === slot
-                        return (
-                          <button
-                            key={slot}
-                            type="button"
-                            disabled={isTaken || loadingSlots}
-                            onClick={() => {
-                              if (isTaken) return
-                              setForm(f => ({ ...f, time: slot }))
-                              setErrors(e => ({ ...e, time: undefined }))
-                            }}
-                            aria-pressed={isSelected}
-                            aria-label={`שעה ${slot}${isTaken ? ' — תפוסה' : ''}`}
-                            className={cn(
-                              'py-2 rounded-xl text-sm font-semibold border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
-                              isTaken
-                                ? 'bg-brand-cream-dark text-brand-muted/50 border-brand-cream-dark cursor-not-allowed line-through'
-                                : isSelected
-                                ? 'bg-brand-rose text-white border-brand-rose shadow-rose cursor-pointer'
-                                : 'bg-white text-brand-dark border-brand-cream-dark hover:border-brand-rose hover:text-brand-rose hover:bg-brand-rose-bg cursor-pointer'
-                            )}
-                          >
-                            {slot}
-                          </button>
-                        )
-                      })}
-                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

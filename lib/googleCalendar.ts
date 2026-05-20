@@ -23,6 +23,38 @@ function getCalendarId() {
   return id
 }
 
+/** Returns busy time ranges (HH:MM start/end) for a given date — every event in the calendar */
+export async function getBusyRanges(date: string): Promise<{ start: string; end: string }[]> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  const dayStart = new Date(`${date}T00:00:00`)
+  const dayEnd = new Date(`${date}T23:59:59`)
+
+  const res = await calendar.events.list({
+    calendarId,
+    timeMin: dayStart.toISOString(),
+    timeMax: dayEnd.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+  })
+
+  const events = res.data.items ?? []
+  const ranges: { start: string; end: string }[] = []
+  const fmt = (d: Date) =>
+    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+
+  for (const event of events) {
+    const startStr = event.start?.dateTime
+    const endStr = event.end?.dateTime
+    if (!startStr || !endStr) continue // ignore all-day events
+    ranges.push({ start: fmt(new Date(startStr)), end: fmt(new Date(endStr)) })
+  }
+
+  return ranges
+}
+
 /** Returns the list of start times (HH:MM) already booked on a given date (YYYY-MM-DD) */
 export async function getTakenSlots(date: string): Promise<string[]> {
   const auth = getAuth()

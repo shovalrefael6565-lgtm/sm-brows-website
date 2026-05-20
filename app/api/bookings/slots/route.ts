@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTakenSlots } from '@/lib/googleCalendar'
+import { getBusyRanges } from '@/lib/googleCalendar'
 
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date')
@@ -8,10 +8,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const taken = await getTakenSlots(date)
-    return NextResponse.json({ taken })
+    const busy = await getBusyRanges(date)
+    return NextResponse.json({ busy })
   } catch (err) {
     console.error('[slots]', err)
-    return NextResponse.json({ taken: [] })
+    return NextResponse.json({ busy: [] })
   }
 }
