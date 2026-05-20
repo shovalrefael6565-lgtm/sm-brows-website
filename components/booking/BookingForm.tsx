@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
@@ -133,7 +133,8 @@ const EMPTY_FORM: FormData = {
 }
 
 export default function BookingForm() {
-  const today = getIsraelToday()
+  const today  = getIsraelToday()
+  const ctaRef = useRef<HTMLDivElement>(null)
   const [step, setStep] = useState(1)
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -295,6 +296,15 @@ export default function BookingForm() {
     }))
     setSelectedDay(null)
     setErrors({})
+    // Scroll the continue button into view after selection
+    requestAnimationFrame(() => {
+      const el = ctaRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      if (rect.bottom > window.innerHeight - 12) {
+        window.scrollTo({ top: window.scrollY + rect.bottom - window.innerHeight + 24, behavior: 'smooth' })
+      }
+    })
   }
 
   // ── ניווט בין שלבים ──
@@ -883,7 +893,7 @@ export default function BookingForm() {
         </AnimatePresence>
 
         {/* ── ניווט ── */}
-        <div className="flex items-center gap-3 mt-9 pt-6 border-t border-brand-cream-dark">
+        <div ref={ctaRef} className="flex items-center gap-3 mt-9 pt-6 border-t border-brand-cream-dark">
           {step > 1 && (
             <button
               type="button"
