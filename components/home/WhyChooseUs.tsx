@@ -13,7 +13,7 @@ const FEATURES = [
   {
     icon: <Award className="w-6 h-6" aria-hidden="true" />,
     title: '5+ שנות ניסיון',
-    description: 'מאות לקוחות מרוצות ועשרות קורסים וטיפולים מוצלחים בחגורה.',
+    description: 'מאות לקוחות מרוצות וטיפולים מוצלחים לאורך השנים.',
   },
   {
     icon: <ShieldCheck className="w-6 h-6" aria-hidden="true" />,

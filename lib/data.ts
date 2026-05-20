@@ -135,13 +135,24 @@ export const services: Service[] = [
       'טיפול מתקדם להרמה ועיצוב הגבות ללא פולשנות. מעניק מראה מורם ופתוח לעיניים, גבות מוגדרות ומאורגנות לתוצאה דרמטית ורעננה.',
     price: '₪250',
     duration: '45 דקות',
-    image:
-      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&q=80&auto=format&fit=crop',
+    image: '/lifting-1.png',
     images: [
+      '/lifting-1.png',
       '/lifting-2.webp',
       '/lifting-3.webp',
     ],
     imagePositions: [
+      '65% 55%',
+      '50% 22%',
+      '50% 15%',
+    ],
+    homeImages: [
+      '/lifting-1.png',
+      '/lifting-2.webp',
+      '/lifting-3.webp',
+    ],
+    homeImagePositions: [
+      '65% 55%',
       '50% 22%',
       '50% 15%',
     ],
@@ -207,6 +218,15 @@ export const galleryItems: GalleryItem[] = [
     alt: 'מיקרובליידינג – תוצאה טבעית ומוגדרת',
     caption: 'מיקרובליידינג – תוצאה מרהיבה',
     objectPosition: '50% 25%',
+  },
+  {
+    id: 'g28',
+    category: 'lifting',
+    type: 'portrait',
+    image: '/lifting-1.png',
+    alt: 'לקוחה לאחר הרמת גבות – גבות מורמות וסדורות',
+    caption: 'הרמת גבות – תוצאה מושלמת',
+    objectPosition: '65% 55%',
   },
   {
     id: 'g17',

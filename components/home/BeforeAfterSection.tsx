@@ -81,7 +81,7 @@ export default function BeforeAfterSection() {
           className="text-center mb-12"
         >
           <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
-            התוצאות מדברות
+            מיקרובליידינג
           </p>
           <h2
             id="ba-heading"
@@ -90,6 +90,11 @@ export default function BeforeAfterSection() {
             לפני
             <span className="text-brand-rose"> ואחרי</span>
           </h2>
+          <div className="flex items-center justify-center gap-2 mb-4" aria-hidden="true">
+            <span className="w-10 h-px bg-brand-rose-light" />
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
+            <span className="w-10 h-px bg-brand-rose-light" />
+          </div>
           <p className="text-brand-medium max-w-xl mx-auto leading-relaxed">
             כל תמונה היא לקוחה אמיתית — תוצאות שמדברות בעד עצמן.
           </p>
@@ -118,9 +123,6 @@ export default function BeforeAfterSection() {
                     leftObjectPosition={pair.leftObjectPosition}
                     rightObjectPosition={pair.rightObjectPosition}
                   />
-                </div>
-                <div className="px-4 py-3 bg-brand-cream flex items-center">
-                  <span className="text-sm font-semibold text-brand-dark">{pair.label}</span>
                 </div>
               </div>
             </motion.li>

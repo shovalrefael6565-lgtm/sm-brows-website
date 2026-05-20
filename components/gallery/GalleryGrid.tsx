@@ -84,12 +84,22 @@ export default function GalleryGrid() {
             const items = galleryItems.filter((g) => g.category === cat)
             return (
               <section key={cat} aria-labelledby={`gallery-section-${cat}`}>
-                <h3
-                  id={`gallery-section-${cat}`}
-                  className="font-serif text-lg font-bold text-brand-dark mb-4 pb-2 border-b border-brand-cream-dark"
-                >
-                  {CATEGORY_LABELS[cat]}
-                </h3>
+                <div className="text-center mb-7 mt-4">
+                  <h3
+                    id={`gallery-section-${cat}`}
+                    className="font-serif text-2xl sm:text-3xl font-bold text-brand-dark mb-3"
+                  >
+                    {CATEGORY_LABELS[cat]}
+                  </h3>
+                  <div
+                    className="flex items-center justify-center gap-2"
+                    aria-hidden="true"
+                  >
+                    <span className="w-10 h-px bg-brand-rose-light" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
+                    <span className="w-10 h-px bg-brand-rose-light" />
+                  </div>
+                </div>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4" role="list">
                   {items.map((item) => (
                     <li key={item.id}>
@@ -162,7 +172,6 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           rightObjectPosition={item.rightObjectPosition}
           rightScale={item.rightScale}
         />
-        <CategoryBadge category={item.category} />
       </article>
     )
   }
@@ -193,18 +202,6 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           aria-hidden="true"
         />
       </button>
-      <CategoryBadge category={item.category} />
     </article>
-  )
-}
-
-function CategoryBadge({ category }: { category: GalleryItem['category'] }) {
-  return (
-    <span
-      className="absolute top-3 start-3 bg-white/85 backdrop-blur-sm text-brand-rose text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none"
-      aria-hidden="true"
-    >
-      {CATEGORY_LABELS[category]}
-    </span>
   )
 }

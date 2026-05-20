@@ -123,9 +123,13 @@ export default function ServicesPreview() {
 
                 {/* Content */}
                 <div className="p-6 flex flex-col flex-1">
-                  <h3 className="font-serif text-xl font-bold text-brand-dark mb-2">
+                  <h3 className="font-serif text-2xl font-bold text-brand-dark tracking-wide">
                     {service.name}
                   </h3>
+                  <div className="flex items-center gap-2 mb-3 mt-2" aria-hidden="true">
+                    <span className="w-8 h-px bg-brand-rose-light" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
+                  </div>
                   <p className="text-brand-medium text-sm leading-relaxed mb-4 flex-1">
                     {service.description}
                   </p>
