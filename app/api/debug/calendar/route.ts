@@ -21,12 +21,24 @@ function israelTimeStr(): string {
 export async function GET() {
   const now = new Date()
   const calendarId = process.env.GOOGLE_CALENDAR_ID ?? null
+  const b64Key     = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 ?? null
   const rawKey     = process.env.GOOGLE_SERVICE_ACCOUNT_KEY ?? null
+  const hasKey     = !!(b64Key || rawKey)
+  const keySource  = b64Key ? 'GOOGLE_SERVICE_ACCOUNT_KEY_BASE64' : rawKey ? 'GOOGLE_SERVICE_ACCOUNT_KEY' : '(not set)'
 
-  let serviceAccountEmail: string = '(GOOGLE_SERVICE_ACCOUNT_KEY not set)'
-  if (rawKey) {
+  let serviceAccountEmail: string = '(key not set)'
+  let credentials: Record<string, unknown> | null = null
+  if (b64Key) {
     try {
-      serviceAccountEmail = JSON.parse(rawKey).client_email ?? '(client_email missing in key JSON)'
+      credentials = JSON.parse(Buffer.from(b64Key, 'base64').toString('utf8'))
+      serviceAccountEmail = (credentials?.client_email as string) ?? '(client_email missing)'
+    } catch {
+      serviceAccountEmail = '(base64 decode / JSON parse error)'
+    }
+  } else if (rawKey) {
+    try {
+      credentials = JSON.parse(rawKey)
+      serviceAccountEmail = (credentials?.client_email as string) ?? '(client_email missing)'
     } catch {
       serviceAccountEmail = '(GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON)'
     }
@@ -36,19 +48,19 @@ export async function GET() {
     utcTime:             now.toISOString(),
     israelTime:          israelTimeStr(),
     calendarId:          calendarId ?? '(GOOGLE_CALENDAR_ID not set)',
+    keySource,
     serviceAccountEmail,
     instruction:         `Share the calendar "${calendarId}" with the service account email above (Editor or Reader role) in Google Calendar settings.`,
   }
 
-  if (!calendarId || !rawKey) {
+  if (!calendarId || !hasKey || !credentials) {
     return NextResponse.json(
-      { ...base, error: 'One or more required env vars are missing.', events: [] },
+      { ...base, error: 'One or more required env vars are missing or invalid.', events: [] },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   }
 
   try {
-    const credentials = JSON.parse(rawKey)
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/calendar.readonly'],

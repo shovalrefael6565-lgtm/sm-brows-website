@@ -67,12 +67,17 @@ const SERVICE_DURATIONS: Record<string, number> = {
   'מיקרובליידינג': 150,
 }
 
+function getCredentials() {
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64
+  if (b64) return JSON.parse(Buffer.from(b64, 'base64').toString('utf8'))
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+  if (raw) return JSON.parse(raw)
+  throw new Error('Neither GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 nor GOOGLE_SERVICE_ACCOUNT_KEY is set')
+}
+
 function getAuth() {
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
-  if (!key) throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not set')
-  const credentials = JSON.parse(key)
   return new google.auth.GoogleAuth({
-    credentials,
+    credentials: getCredentials(),
     scopes: ['https://www.googleapis.com/auth/calendar'],
   })
 }
