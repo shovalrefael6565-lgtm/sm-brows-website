@@ -1,14 +1,41 @@
 'use client'
 
 import Link from 'next/link'
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { useRef, useState } from 'react'
 import { MapPin, Monitor, Sparkles } from 'lucide-react'
 import { WHATSAPP_URL } from '@/lib/utils'
+
+const FRONTAL = {
+  price: '₪2,500',
+  priceAriaLabel: 'מחיר 2,500 שקלים',
+  priceLabel: 'כולל ערכת כלים מקצועית',
+  badge: 'מקומות מוגבלים',
+  description: '2 מפגשים אישיים שיהפכו אותך לאמנית גבות מקצועית. תיאוריה, פרקטיקה, ערכת כלים מקצועית והסמכה מוכרת — הכל כלול.',
+  features: ['2 מפגשים אישיים', 'תיאוריה ופרקטיקה', 'הסמכה מוכרת', 'ליווי לאחר הקורס'],
+  ctaLabel: 'לפרטים ורישום',
+  secondaryHref: '/services' as const,
+  secondaryLabel: 'פרטים נוספים',
+}
+
+const ONLINE = {
+  price: '₪150',
+  priceAriaLabel: 'מחיר 150 שקלים',
+  priceLabel: 'קורס דיגיטלי',
+  badge: 'זמין מכל מקום',
+  description: 'קורס אונליין ממוקד לבנות שרוצות לחדד את הטכניקה ולהגיע לתוצאות מקצועיות יותר. מועבר בזום, בנוחות מוחלטת, בזמן שמתאים לך.',
+  features: ['חוברת קורס מקצועית', 'מפגש זום אישי', 'חומר לימוד דיגיטלי', 'ליווי לאחר הקורס'],
+  ctaLabel: 'לרכישה בוואצאפ',
+  secondaryHref: '/shop' as const,
+  secondaryLabel: 'לחנות',
+}
 
 export default function CourseBanner() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-60px' })
+  const [format, setFormat] = useState<'frontal' | 'online'>('frontal')
+
+  const data = format === 'frontal' ? FRONTAL : ONLINE
 
   return (
     <section
@@ -50,50 +77,73 @@ export default function CourseBanner() {
               <span className="text-brand-gold">מקצועי</span>
             </h2>
 
-            <p className="text-white/65 text-base sm:text-lg leading-relaxed mb-6 max-w-lg">
-              2 מפגשים אישיים שיהפכו אותך לאמנית גבות מקצועית. תיאוריה, פרקטיקה, ערכת כלים
-              מקצועית והסמכה מוכרת — הכל כלול.
-            </p>
+            {/* Description — switches per format */}
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={format + '-desc'}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.22 }}
+                className="text-white/65 text-base sm:text-lg leading-relaxed mb-6 max-w-lg"
+              >
+                {data.description}
+              </motion.p>
+            </AnimatePresence>
 
-            {/* Format badges */}
-            <div className="flex items-center gap-3 mb-8">
-              <span className="inline-flex items-center gap-1.5 bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-sm font-semibold px-4 py-2 rounded-full">
+            {/* Format toggle buttons */}
+            <div className="flex items-center gap-3 mb-8" role="group" aria-label="בחרי פורמט קורס">
+              <button
+                type="button"
+                onClick={() => setFormat('frontal')}
+                aria-pressed={format === 'frontal'}
+                className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
+                  format === 'frontal'
+                    ? 'bg-brand-gold/15 border-brand-gold/30 text-brand-gold'
+                    : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white'
+                }`}
+              >
                 <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
                 פרונטלי
-              </span>
-              <a
-                href="#online-course-section"
-                aria-label="לקורס האונליין"
-                className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/20 hover:text-white transition-colors duration-200 cursor-pointer"
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormat('online')}
+                aria-pressed={format === 'online'}
+                className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
+                  format === 'online'
+                    ? 'bg-brand-gold/15 border-brand-gold/30 text-brand-gold'
+                    : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white'
+                }`}
               >
                 <Monitor className="w-3.5 h-3.5" aria-hidden="true" />
                 אונליין
-              </a>
+              </button>
             </div>
 
-            {/* CTAs */}
+            {/* CTAs — switch per format */}
             <div className="flex flex-wrap gap-3">
               <a
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="לפרטים ורישום לקורס עיצוב גבות בוואצאפ"
+                aria-label={`${data.ctaLabel} לקורס עיצוב גבות בוואצאפ`}
                 className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-7 py-3.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
               >
                 <WhatsAppIcon className="w-5 h-5" />
-                לפרטים ורישום
+                {data.ctaLabel}
               </a>
               <Link
-                href="/services"
-                aria-label="פרטים נוספים על הקורס בדף הטיפולים"
+                href={data.secondaryHref}
+                aria-label={data.secondaryLabel}
                 className="inline-flex items-center gap-2 text-white/70 font-medium text-base px-5 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:text-white transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               >
-                פרטים נוספים
+                {data.secondaryLabel}
               </Link>
             </div>
           </motion.div>
 
-          {/* Price card */}
+          {/* Price card — content switches per format */}
           <motion.div
             initial={{ opacity: 0, x: -32 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
@@ -107,31 +157,44 @@ export default function CourseBanner() {
               <div className="relative bg-white/5 border border-white/10 rounded-3xl p-8 text-center backdrop-blur-sm">
                 <div className="inline-flex items-center gap-1.5 bg-brand-rose/20 border border-brand-rose/30 text-brand-rose text-xs font-bold px-3 py-1 rounded-full mb-5">
                   <Sparkles className="w-3 h-3" aria-hidden="true" />
-                  מקומות מוגבלים
+                  {data.badge}
                 </div>
 
                 <p className="text-white/50 text-xs uppercase tracking-widest mb-1">מחיר הקורס</p>
-                <p
-                  className="font-serif text-6xl font-bold text-brand-gold leading-none mb-1"
-                  aria-label="מחיר 2,500 שקלים"
-                >
-                  ₪2,500
-                </p>
-                <p className="text-white/40 text-xs mb-6">כולל ערכת כלים מקצועית</p>
 
-                <div className="space-y-3 text-sm">
-                  {[
-                    '2 מפגשים אישיים',
-                    'תיאוריה ופרקטיקה',
-                    'הסמכה מוכרת',
-                    'ליווי לאחר הקורס',
-                  ].map((item) => (
-                    <div key={item} className="flex items-center gap-2 text-white/60">
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-gold flex-shrink-0" aria-hidden="true" />
-                      {item}
-                    </div>
-                  ))}
-                </div>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={format + '-price'}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-serif text-6xl font-bold text-brand-gold leading-none mb-1"
+                    aria-label={data.priceAriaLabel}
+                  >
+                    {data.price}
+                  </motion.p>
+                </AnimatePresence>
+
+                <p className="text-white/40 text-xs mb-6">{data.priceLabel}</p>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={format + '-features'}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.22 }}
+                    className="space-y-3 text-sm"
+                  >
+                    {data.features.map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-white/60">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-gold flex-shrink-0" aria-hidden="true" />
+                        {item}
+                      </div>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>

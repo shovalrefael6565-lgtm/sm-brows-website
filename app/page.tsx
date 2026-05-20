@@ -8,7 +8,6 @@ const BeforeAfterSection = dynamic(() => import('@/components/home/BeforeAfterSe
 const GalleryPreview    = dynamic(() => import('@/components/home/GalleryPreview'))
 const WhyChooseUs       = dynamic(() => import('@/components/home/WhyChooseUs'))
 const CourseBanner      = dynamic(() => import('@/components/home/CourseBanner'))
-const OnlineCoursePromo = dynamic(() => import('@/components/home/OnlineCoursePromo'))
 const BlogPreview       = dynamic(() => import('@/components/home/BlogPreview'))
 const BookingSection    = dynamic(() => import('@/components/home/BookingSection'))
 
@@ -27,7 +26,6 @@ export default function HomePage() {
       <GalleryPreview />
       <WhyChooseUs />
       <CourseBanner />
-      <OnlineCoursePromo />
       <BlogPreview />
       <BookingSection />
     </>
