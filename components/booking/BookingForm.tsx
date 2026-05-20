@@ -65,15 +65,26 @@ function fmtDate(year: number, month: number, day: number) {
   return `${day} ${MONTHS[month]} ${year}`
 }
 
+/** מחזיר את "היום" לפי שעון ישראל — נכון גם בחצות ובשינויי שעון */
+function getIsraelToday(): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric', month: 'numeric', day: 'numeric',
+  }).formatToParts(new Date())
+  const y = parseInt(parts.find(p => p.type === 'year')!.value)
+  const m = parseInt(parts.find(p => p.type === 'month')!.value) - 1
+  const d = parseInt(parts.find(p => p.type === 'day')!.value)
+  return new Date(y, m, d, 0, 0, 0, 0)
+}
+
 /** הופך תאריך לזרע מספרי (כל יום מקבל זרע יציב משלו) */
 function dateSeed(year: number, month: number, day: number): number {
   return ((year * 31 + (month + 1)) * 31 + day) >>> 0
 }
 
-/** מחזיר מספר ימי עסקים מהיום עד התאריך הנבחר (פוסחים על שישי+שבת) */
+/** מחזיר מספר ימי עסקים מהיום (ישראל) עד התאריך הנבחר (פוסחים על שישי+שבת) */
 function businessDayOffset(year: number, month: number, day: number): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = getIsraelToday()
   const target = new Date(year, month, day)
   target.setHours(0, 0, 0, 0)
   if (target.getTime() <= today.getTime()) return 0
@@ -122,7 +133,7 @@ const EMPTY_FORM: FormData = {
 }
 
 export default function BookingForm() {
-  const today = new Date()
+  const today = getIsraelToday()
   const [step, setStep] = useState(1)
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -163,13 +174,22 @@ export default function BookingForm() {
     const maxSlots = slotsForOffset(offset, seed)
     if (maxSlots === 0) return []
 
-    const now = new Date()
+    const nowParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Jerusalem',
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric', hour12: false,
+    }).formatToParts(new Date())
+    const nowYear  = parseInt(nowParts.find(p => p.type === 'year')!.value)
+    const nowMonth = parseInt(nowParts.find(p => p.type === 'month')!.value) - 1
+    const nowDay   = parseInt(nowParts.find(p => p.type === 'day')!.value)
+    const nowHour  = parseInt(nowParts.find(p => p.type === 'hour')!.value)
+    const nowMin   = parseInt(nowParts.find(p => p.type === 'minute')!.value)
     const isViewingToday =
-      selectedDay === now.getDate() &&
-      viewMonth === now.getMonth() &&
-      viewYear === now.getFullYear()
+      selectedDay === nowDay &&
+      viewMonth === nowMonth &&
+      viewYear === nowYear
     // בהיום — להציג רק שעות לפחות שעה מעכשיו (חלון להכנה)
-    const minStartMin = isViewingToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0
+    const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 60 : 0
 
     const free = timeSlots
       .filter(slot => toMin(slot) >= minStartMin)
@@ -216,6 +236,14 @@ export default function BookingForm() {
       setLoadingSlots(false)
     }
   }, [])
+
+  // ריענון אוטומטי של הזמינות — פעם בשעה כשיום נבחר
+  useEffect(() => {
+    if (selectedDay === null) return
+    const isoDate = `${viewYear}-${pad(viewMonth + 1)}-${pad(selectedDay)}`
+    const id = setInterval(() => fetchTakenSlots(isoDate), 60 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [selectedDay, viewYear, viewMonth, fetchTakenSlots])
 
   const isPast = (day: number) => {
     const d = new Date(viewYear, viewMonth, day)

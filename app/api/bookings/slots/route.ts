@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const busy = await getBusyRanges(date)
-    return NextResponse.json({ busy })
+    return NextResponse.json({ busy }, {
+      headers: { 'Cache-Control': 'no-store' },
+    })
   } catch (err) {
     console.error('[slots]', err)
     return NextResponse.json({ busy: [] })
