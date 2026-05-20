@@ -191,17 +191,6 @@ export const courseService = {
 // ── Gallery ───────────────────────────────────────────────────────────────────
 
 export const galleryItems: GalleryItem[] = [
-  // ── עיצוב גבות טבעי — לפני ואחרי ──
-  {
-    id: 'g30',
-    category: 'natural',
-    type: 'before-after',
-    beforeImage: '/natural-before-1.webp',
-    afterImage: '/natural-after-1.webp',
-    alt: 'לפני ואחרי עיצוב גבות טבעי – שינוי מרהיב',
-    leftObjectPosition: '50% 32%',
-    rightObjectPosition: '50% 50%',
-  },
   // ── מיקרובליידינג ──
   {
     id: 'g31',
@@ -209,7 +198,7 @@ export const galleryItems: GalleryItem[] = [
     type: 'before-after',
     beforeImage: '/natural-before-1.webp',
     afterImage: '/natural-after-1.webp',
-    alt: 'לפני ואחרי עיצוב גבות – שינוי טבעי ומרהיב',
+    alt: 'לפני ואחרי מיקרובליידינג – שינוי מרהיב',
     leftObjectPosition: '50% 32%',
     rightObjectPosition: '50% 50%',
   },
