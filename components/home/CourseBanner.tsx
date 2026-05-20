@@ -61,10 +61,14 @@ export default function CourseBanner() {
                 <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
                 פרונטלי
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-sm font-semibold px-4 py-2 rounded-full">
+              <a
+                href="#online-course-section"
+                aria-label="לקורס האונליין"
+                className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/20 hover:text-white transition-colors duration-200 cursor-pointer"
+              >
                 <Monitor className="w-3.5 h-3.5" aria-hidden="true" />
                 אונליין
-              </span>
+              </a>
             </div>
 
             {/* CTAs */}

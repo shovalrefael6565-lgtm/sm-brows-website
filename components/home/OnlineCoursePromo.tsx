@@ -18,6 +18,7 @@ export default function OnlineCoursePromo() {
 
   return (
     <section
+      id="online-course-section"
       ref={ref}
       aria-labelledby="online-course-heading"
       className="section-padding bg-brand-cream"
