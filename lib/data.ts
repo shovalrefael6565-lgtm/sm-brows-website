@@ -112,7 +112,7 @@ export const services: Service[] = [
       '/natural-9.webp',
     ],
     imagePositions: [
-      '50% 25%',
+      '50% 35%',
       '50% 15%',
       '50% 5%',
       '50% 18%',
@@ -298,7 +298,7 @@ export const galleryItems: GalleryItem[] = [
     image: '/natural-10.webp',
     alt: 'לקוחה עם עיצוב גבות טבעי – גבות מושלמות',
     caption: 'עיצוב טבעי – תוצאה מדהימה',
-    objectPosition: '50% 25%',
+    objectPosition: '50% 35%',
   },
   {
     id: 'g3',
