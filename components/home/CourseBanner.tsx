@@ -25,9 +25,9 @@ const ONLINE = {
   badge: 'זמין מכל מקום',
   description: 'קורס אונליין ממוקד לבנות שרוצות לחדד את הטכניקה ולהגיע לתוצאות מקצועיות יותר. מועבר בזום, בנוחות מוחלטת, בזמן שמתאים לך.',
   features: ['חוברת קורס מקצועית', 'מפגש זום אישי', 'חומר לימוד דיגיטלי', 'ליווי לאחר הקורס'],
-  ctaLabel: 'לרכישה בוואצאפ',
-  secondaryHref: '/shop' as const,
-  secondaryLabel: 'לחנות',
+  ctaLabel: 'לפרטים ורישום',
+  secondaryHref: '/services' as const,
+  secondaryLabel: 'פרטים נוספים',
 }
 
 export default function CourseBanner() {

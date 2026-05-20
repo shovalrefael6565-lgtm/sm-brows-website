@@ -1,5 +1,27 @@
 import { google } from 'googleapis'
 
+const BUSINESS_START = 10  // 10:00 Israel time
+const BUSINESS_END   = 19  // 19:00 Israel time
+
+/** Format a UTC Date as HH:MM in Israel timezone (Asia/Jerusalem) */
+function fmtIsrael(d: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d)
+  const h = (parts.find(p => p.type === 'hour')?.value  ?? '00').padStart(2, '0')
+  const m = (parts.find(p => p.type === 'minute')?.value ?? '00').padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/** Returns true if a HH:MM Israel-time string falls within business hours */
+function inBusinessHours(timeStr: string): boolean {
+  const h = parseInt(timeStr.slice(0, 2), 10)
+  return h >= BUSINESS_START && h < BUSINESS_END
+}
+
 const SERVICE_DURATIONS: Record<string, number> = {
   'עיצוב גבות טבעי': 20,
   'הרמת גבות': 45,
@@ -23,14 +45,15 @@ function getCalendarId() {
   return id
 }
 
-/** Returns busy time ranges (HH:MM start/end) for a given date — every event in the calendar */
+/** Returns busy time ranges (HH:MM start/end in Israel time) for a given date — business hours only */
 export async function getBusyRanges(date: string): Promise<{ start: string; end: string }[]> {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
 
-  const dayStart = new Date(`${date}T00:00:00`)
-  const dayEnd = new Date(`${date}T23:59:59`)
+  // Use explicit UTC bounds to avoid server-timezone ambiguity
+  const dayStart = new Date(`${date}T00:00:00Z`)
+  const dayEnd   = new Date(`${date}T23:59:59Z`)
 
   const res = await calendar.events.list({
     calendarId,
@@ -42,27 +65,32 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
 
   const events = res.data.items ?? []
   const ranges: { start: string; end: string }[] = []
-  const fmt = (d: Date) =>
-    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 
   for (const event of events) {
     const startStr = event.start?.dateTime
-    const endStr = event.end?.dateTime
+    const endStr   = event.end?.dateTime
     if (!startStr || !endStr) continue // ignore all-day events
-    ranges.push({ start: fmt(new Date(startStr)), end: fmt(new Date(endStr)) })
+
+    const start = fmtIsrael(new Date(startStr))
+    const end   = fmtIsrael(new Date(endStr))
+
+    // Skip events outside business hours (catches AM/PM mistakes)
+    if (!inBusinessHours(start)) continue
+
+    ranges.push({ start, end })
   }
 
   return ranges
 }
 
-/** Returns the list of start times (HH:MM) already booked on a given date (YYYY-MM-DD) */
+/** Returns the list of start times (HH:MM in Israel time) already booked on a given date (YYYY-MM-DD) */
 export async function getTakenSlots(date: string): Promise<string[]> {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
 
-  const dayStart = new Date(`${date}T00:00:00`)
-  const dayEnd = new Date(`${date}T23:59:59`)
+  const dayStart = new Date(`${date}T00:00:00Z`)
+  const dayEnd   = new Date(`${date}T23:59:59Z`)
 
   const res = await calendar.events.list({
     calendarId,
@@ -78,10 +106,9 @@ export async function getTakenSlots(date: string): Promise<string[]> {
   for (const event of events) {
     const start = event.start?.dateTime
     if (!start) continue
-    const d = new Date(start)
-    const hh = d.getHours().toString().padStart(2, '0')
-    const mm = d.getMinutes().toString().padStart(2, '0')
-    taken.push(`${hh}:${mm}`)
+    const timeStr = fmtIsrael(new Date(start))
+    if (!inBusinessHours(timeStr)) continue
+    taken.push(timeStr)
   }
 
   return taken

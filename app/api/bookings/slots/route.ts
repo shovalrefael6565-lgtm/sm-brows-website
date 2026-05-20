@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusyRanges } from '@/lib/googleCalendar'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date')
   if (!date) {
