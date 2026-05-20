@@ -142,24 +142,28 @@ export const services: Service[] = [
       '/lifting-2.webp',
       '/lifting-3.webp',
       '/lifting-4.jpg',
+      '/lifting-5.png',
     ],
     imagePositions: [
       '65% 75%',
       '50% 22%',
       '50% 15%',
       '50% 20%',
+      '50% 25%',
     ],
     homeImages: [
       '/lifting-1.webp',
       '/lifting-2.webp',
       '/lifting-3.webp',
       '/lifting-4.jpg',
+      '/lifting-5.png',
     ],
     homeImagePositions: [
       '65% 55%',
       '50% 22%',
       '50% 15%',
       '50% 20%',
+      '50% 25%',
     ],
     features: [
       'אפקט הרמה מיידי',
@@ -412,6 +416,15 @@ export const galleryItems: GalleryItem[] = [
     alt: 'לקוחה לאחר הרמת גבות – גבות מוגדרות ומורמות',
     caption: 'הרמת גבות – תוצאה מדהימה',
     objectPosition: '50% 20%',
+  },
+  {
+    id: 'g33',
+    category: 'lifting',
+    type: 'portrait',
+    image: '/lifting-5.png',
+    alt: 'לקוחה לאחר הרמת גבות – גבות מורמות וסדורות',
+    caption: 'הרמת גבות – תוצאה טבעית',
+    objectPosition: '50% 25%',
   },
 ]
 
