@@ -22,6 +22,44 @@ function inBusinessHours(timeStr: string): boolean {
   return h >= BUSINESS_START && h < BUSINESS_END
 }
 
+/**
+ * Handle AM/PM calendar mistakes: if an event start falls outside business hours,
+ * shift it ±12 hours to see if that lands inside business hours.
+ * Example: event at 22:00 Israel → shift -12h → 10:00 Israel (valid).
+ * Both start and end are shifted by the same offset so duration is preserved.
+ * Returns null if neither shift puts the event inside business hours (genuine off-hours event).
+ */
+function normalizeAmPm(
+  startDate: Date,
+  endDate: Date
+): { start: Date; end: Date } | null {
+  const startStr = fmtIsrael(startDate)
+  if (inBusinessHours(startStr)) return { start: startDate, end: endDate }
+
+  const h = parseInt(startStr.slice(0, 2), 10)
+  const TWELVE_H = 12 * 60 * 60 * 1000
+
+  // Try PM → AM (subtract 12 h)
+  const hMinus = h - 12
+  if (hMinus >= BUSINESS_START && hMinus < BUSINESS_END) {
+    return {
+      start: new Date(startDate.getTime() - TWELVE_H),
+      end:   new Date(endDate.getTime()   - TWELVE_H),
+    }
+  }
+
+  // Try AM → PM (add 12 h)
+  const hPlus = h + 12
+  if (hPlus >= BUSINESS_START && hPlus < BUSINESS_END) {
+    return {
+      start: new Date(startDate.getTime() + TWELVE_H),
+      end:   new Date(endDate.getTime()   + TWELVE_H),
+    }
+  }
+
+  return null  // genuinely outside business hours — ignore
+}
+
 const SERVICE_DURATIONS: Record<string, number> = {
   'עיצוב גבות טבעי': 20,
   'הרמת גבות': 45,
@@ -45,20 +83,30 @@ function getCalendarId() {
   return id
 }
 
-/** Returns busy time ranges (HH:MM start/end in Israel time) for a given date — business hours only */
+/**
+ * Build query bounds for a calendar date.
+ * We query a 30-hour window (21:00 UTC day-before to 03:00 UTC day-after)
+ * to fully cover the Israel day regardless of DST (UTC+2 / UTC+3).
+ * Business-hour filtering ensures only relevant events survive.
+ */
+function dayBounds(date: string): { timeMin: string; timeMax: string } {
+  const base = new Date(`${date}T00:00:00Z`)
+  const timeMin = new Date(base.getTime() - 3 * 60 * 60 * 1000)  // 21:00 UTC prev day
+  const timeMax = new Date(base.getTime() + 27 * 60 * 60 * 1000) // 03:00 UTC next day
+  return { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() }
+}
+
+/** Returns busy time ranges (HH:MM start/end in Israel time) for a given date */
 export async function getBusyRanges(date: string): Promise<{ start: string; end: string }[]> {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
-
-  // Use explicit UTC bounds to avoid server-timezone ambiguity
-  const dayStart = new Date(`${date}T00:00:00Z`)
-  const dayEnd   = new Date(`${date}T23:59:59Z`)
+  const { timeMin, timeMax } = dayBounds(date)
 
   const res = await calendar.events.list({
     calendarId,
-    timeMin: dayStart.toISOString(),
-    timeMax: dayEnd.toISOString(),
+    timeMin,
+    timeMax,
     singleEvents: true,
     orderBy: 'startTime',
   })
@@ -69,33 +117,31 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
   for (const event of events) {
     const startStr = event.start?.dateTime
     const endStr   = event.end?.dateTime
-    if (!startStr || !endStr) continue // ignore all-day events
+    if (!startStr || !endStr) continue  // skip all-day events
 
-    const start = fmtIsrael(new Date(startStr))
-    const end   = fmtIsrael(new Date(endStr))
+    const normalized = normalizeAmPm(new Date(startStr), new Date(endStr))
+    if (!normalized) continue  // outside business hours even after ±12h — ignore
 
-    // Skip events outside business hours (catches AM/PM mistakes)
-    if (!inBusinessHours(start)) continue
-
-    ranges.push({ start, end })
+    ranges.push({
+      start: fmtIsrael(normalized.start),
+      end:   fmtIsrael(normalized.end),
+    })
   }
 
   return ranges
 }
 
-/** Returns the list of start times (HH:MM in Israel time) already booked on a given date (YYYY-MM-DD) */
+/** Returns the list of start times (HH:MM in Israel time) already booked on a given date */
 export async function getTakenSlots(date: string): Promise<string[]> {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
-
-  const dayStart = new Date(`${date}T00:00:00Z`)
-  const dayEnd   = new Date(`${date}T23:59:59Z`)
+  const { timeMin, timeMax } = dayBounds(date)
 
   const res = await calendar.events.list({
     calendarId,
-    timeMin: dayStart.toISOString(),
-    timeMax: dayEnd.toISOString(),
+    timeMin,
+    timeMax,
     singleEvents: true,
     orderBy: 'startTime',
   })
@@ -104,11 +150,15 @@ export async function getTakenSlots(date: string): Promise<string[]> {
   const taken: string[] = []
 
   for (const event of events) {
-    const start = event.start?.dateTime
-    if (!start) continue
-    const timeStr = fmtIsrael(new Date(start))
-    if (!inBusinessHours(timeStr)) continue
-    taken.push(timeStr)
+    const startStr = event.start?.dateTime
+    const endStr   = event.end?.dateTime
+    if (!startStr) continue
+
+    const endDate = endStr ? new Date(endStr) : new Date(new Date(startStr).getTime() + 60 * 60 * 1000)
+    const normalized = normalizeAmPm(new Date(startStr), endDate)
+    if (!normalized) continue
+
+    taken.push(fmtIsrael(normalized.start))
   }
 
   return taken
@@ -127,13 +177,11 @@ export async function createBookingEvent(params: {
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
 
-  // Parse the Hebrew date string back to ISO
   const isoDate = parseHebrewDate(params.date)
-  const [hours, minutes] = params.time.split(':').map(Number)
+  const durationMinutes = SERVICE_DURATIONS[params.service] ?? 60
 
   const startDate = new Date(`${isoDate}T${params.time}:00`)
-  const durationMinutes = SERVICE_DURATIONS[params.service] ?? 60
-  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
+  const endDate   = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
 
   const description = [
     `📞 טלפון: ${params.phone}`,
@@ -146,7 +194,7 @@ export async function createBookingEvent(params: {
       summary: `🌸 ${params.service} — ${params.name}`,
       description,
       start: { dateTime: startDate.toISOString(), timeZone: 'Asia/Jerusalem' },
-      end: { dateTime: endDate.toISOString(), timeZone: 'Asia/Jerusalem' },
+      end:   { dateTime: endDate.toISOString(),   timeZone: 'Asia/Jerusalem' },
     },
   })
 }
