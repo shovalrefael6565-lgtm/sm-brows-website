@@ -201,9 +201,19 @@ export const galleryItems: GalleryItem[] = [
     afterImage: '/natural-after-1.webp',
     alt: 'לפני ואחרי עיצוב גבות טבעי – שינוי מרהיב',
     leftObjectPosition: '50% 20%',
-    rightObjectPosition: '50% 15%',
+    rightObjectPosition: '50% 30%',
   },
   // ── מיקרובליידינג ──
+  {
+    id: 'g31',
+    category: 'microblading',
+    type: 'before-after',
+    beforeImage: '/natural-before-1.webp',
+    afterImage: '/natural-after-1.webp',
+    alt: 'לפני ואחרי עיצוב גבות – שינוי טבעי ומרהיב',
+    leftObjectPosition: '50% 20%',
+    rightObjectPosition: '50% 30%',
+  },
   {
     id: 'g1',
     category: 'microblading',
