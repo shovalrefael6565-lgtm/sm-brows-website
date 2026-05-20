@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, useInView } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import { ArrowLeft, Clock } from 'lucide-react'
 import { services } from '@/lib/data'
@@ -15,37 +15,40 @@ function ServiceImageSlider({ images, imagePositions, name, active }: { images: 
     if (!active || images.length <= 1) return
     const interval = setInterval(() => {
       setCurrent((i) => (i + 1) % images.length)
-    }, 3000)
+    }, 3500)
     return () => clearInterval(interval)
   }, [images.length, active])
 
   return (
-    <div className="relative h-52 overflow-hidden flex-shrink-0">
-      <AnimatePresence>
-        <motion.div
-          key={current}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeInOut' }}
+    <div className="relative h-52 overflow-hidden flex-shrink-0 bg-brand-cream">
+      {images.map((src, i) => (
+        <div
+          key={src}
           className="absolute inset-0"
+          style={{
+            opacity: i === current ? 1 : 0,
+            transition: 'opacity 380ms ease-in-out',
+            willChange: 'opacity',
+            transform: 'translateZ(0)',
+          }}
+          aria-hidden={i !== current}
         >
           <Image
-            src={images[current]}
-            alt={name}
+            src={src}
+            alt={i === 0 ? name : ''}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
-            style={{ objectPosition: imagePositions?.[current] ?? '50% 50%' }}
+            style={{ objectPosition: imagePositions?.[i] ?? '50% 50%' }}
+            loading="eager"
           />
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      ))}
       <div
-        className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none"
+        className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none z-10"
         aria-hidden="true"
       />
-      {/* Dots indicator */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5" aria-hidden="true">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10" aria-hidden="true">
         {images.map((_, i) => (
           <span
             key={i}

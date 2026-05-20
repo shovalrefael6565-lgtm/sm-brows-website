@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
 import { Clock, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
@@ -17,58 +17,61 @@ interface Props {
 function ImageSlider({ images, alt, duration }: { images: string[]; alt: string; duration: string }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
-  const [direction, setDirection] = useState(1)
 
-  const go = useCallback((idx: number, dir: number) => {
-    setDirection(dir)
-    setCurrent(idx)
-  }, [])
+  const go = useCallback((idx: number) => setCurrent(idx), [])
 
-  const prev = () => go((current - 1 + images.length) % images.length, -1)
-  const next = useCallback(() => go((current + 1) % images.length, 1), [current, images.length, go])
+  const prev = () => go((current - 1 + images.length) % images.length)
+  const next = useCallback(() => go((current + 1) % images.length), [current, images.length, go])
 
   useEffect(() => {
     if (paused) return
-    const timer = setInterval(next, 3000)
+    const timer = setInterval(next, 3500)
     return () => clearInterval(timer)
   }, [paused, next])
 
   return (
     <div
-      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/3] group"
+      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/3] group bg-brand-cream"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
       aria-label={`תמונות של ${alt}`}
     >
-      {/* Images */}
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={current}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: 'easeInOut' }}
+      {/* All images rendered simultaneously — opacity crossfade only */}
+      {images.map((src, i) => (
+        <div
+          key={src}
           className="absolute inset-0"
+          style={{
+            opacity: i === current ? 1 : 0,
+            transition: 'opacity 380ms ease-in-out',
+            willChange: 'opacity',
+            transform: 'translateZ(0)',
+          }}
+          aria-hidden={i !== current}
         >
           <Image
-            src={images[current]}
-            alt={`${alt} – תמונה ${current + 1}`}
+            src={src}
+            alt={i === 0 ? `${alt} – תמונה 1` : ''}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover object-top"
             style={{ filter: 'brightness(1.04) contrast(1.03) saturate(1.06)' }}
+            loading="eager"
+            priority={i === 0}
           />
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-dark/20"
-            aria-hidden="true"
-          />
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-brand-rose/8 via-transparent to-brand-gold/5"
-            aria-hidden="true"
-          />
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      ))}
+
+      {/* Gradients sit above all images */}
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-dark/20 pointer-events-none z-10"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-brand-rose/8 via-transparent to-brand-gold/5 pointer-events-none z-10"
+        aria-hidden="true"
+      />
 
       {/* Duration badge */}
       <div
@@ -110,7 +113,7 @@ function ImageSlider({ images, alt, duration }: { images: string[]; alt: string;
             role="tab"
             aria-selected={i === current}
             aria-label={`תמונה ${i + 1}`}
-            onClick={() => go(i, i > current ? 1 : -1)}
+            onClick={() => go(i)}
             className={`transition-all duration-300 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${
               i === current
                 ? 'w-4 h-1.5 bg-brand-gold'
