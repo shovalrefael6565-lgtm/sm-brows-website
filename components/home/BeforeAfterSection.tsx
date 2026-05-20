@@ -16,6 +16,15 @@ interface Pair {
 
 const PAIRS: Pair[] = [
   {
+    id: 'ba6',
+    label: 'עיצוב גבות טבעי',
+    beforeSrc: '/natural-before-1.webp',
+    afterSrc: '/natural-after-1.webp',
+    alt: 'השוואת לפני ואחרי עיצוב גבות טבעי',
+    leftObjectPosition: '50% 20%',
+    rightObjectPosition: '50% 15%',
+  },
+  {
     id: 'ba1',
     label: 'מיקרובליידינג',
     beforeSrc: '/microblading-10.webp',
