@@ -153,7 +153,7 @@ export const services: Service[] = [
       '/lifting-2.webp',
       '/lifting-3.webp',
       '/lifting-4.jpg',
-      '/lifting-5.png',
+      '/lifting-5.webp',
     ],
     imagePositions: [
       '65% 50%',
@@ -167,7 +167,7 @@ export const services: Service[] = [
       '/lifting-2.webp',
       '/lifting-3.webp',
       '/lifting-4.jpg',
-      '/lifting-5.png',
+      '/lifting-5.webp',
     ],
     homeImagePositions: [
       '65% 55%',
@@ -432,7 +432,7 @@ export const galleryItems: GalleryItem[] = [
     id: 'g33',
     category: 'lifting',
     type: 'portrait',
-    image: '/lifting-5.png',
+    image: '/lifting-5.webp',
     alt: 'לקוחה לאחר הרמת גבות – גבות מורמות וסדורות',
     caption: 'הרמת גבות – תוצאה טבעית',
     objectPosition: '50% 25%',

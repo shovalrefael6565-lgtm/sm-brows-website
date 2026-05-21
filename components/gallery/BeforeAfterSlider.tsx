@@ -13,6 +13,7 @@ interface Props {
   leftObjectPosition?: string
   rightObjectPosition?: string
   rightScale?: number
+  sizes?: string
 }
 
 export default function BeforeAfterSlider({
@@ -25,6 +26,7 @@ export default function BeforeAfterSlider({
   leftObjectPosition,
   rightObjectPosition,
   rightScale,
+  sizes = '(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) 50vw, 33vw',
 }: Props) {
   const leftPos = leftObjectPosition ?? objectPosition
   const rightPos = rightObjectPosition ?? objectPosition
@@ -96,7 +98,7 @@ export default function BeforeAfterSlider({
           fill
           loading="lazy"
           decoding="async"
-          sizes="(max-width: 768px) calc(100vw - 32px), calc(50vw - 32px)"
+          sizes={sizes}
           className="object-cover"
           style={{ objectPosition: rightPos }}
           draggable={false}
@@ -115,7 +117,7 @@ export default function BeforeAfterSlider({
           fill
           loading="lazy"
           decoding="async"
-          sizes="(max-width: 768px) calc(100vw - 32px), calc(50vw - 32px)"
+          sizes={sizes}
           className="object-cover"
           style={{ objectPosition: leftPos }}
           draggable={false}

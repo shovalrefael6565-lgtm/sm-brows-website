@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Rubik, Dancing_Script, Noto_Serif_Hebrew } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
@@ -37,6 +37,12 @@ const dancingScript = Dancing_Script({
 
 // Playfair Display removed — --font-playfair was loaded but never referenced
 // in the Tailwind font stack or any component class
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#faf7f5',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -136,6 +142,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
       <head>
+        <link rel="preconnect" href="https://images.unsplash.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}

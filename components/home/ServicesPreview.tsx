@@ -40,7 +40,7 @@ function ServiceImageSlider({ images, imagePositions, name, active }: { images: 
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
             style={{ objectPosition: imagePositions?.[i] ?? '50% 50%' }}
-            loading="eager"
+            loading="lazy"
           />
         </div>
       ))}

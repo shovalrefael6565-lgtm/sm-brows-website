@@ -131,6 +131,7 @@ export default function BeforeAfterSection() {
                     rightLabel=""
                     leftObjectPosition={pair.leftObjectPosition}
                     rightObjectPosition={pair.rightObjectPosition}
+                    sizes="(max-width: 768px) calc(100vw - 32px), 33vw"
                   />
                 </div>
               </div>
