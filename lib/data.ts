@@ -160,7 +160,7 @@ export const services: Service[] = [
       '50% 0%',
       '50% 0%',
       '50% 0%',
-      '50% 30%',
+      '50% 0%',
     ],
     homeImages: [
       '/lifting-1.webp',
