@@ -161,7 +161,7 @@ export default function ServiceCard({ service, index }: Props) {
           images={service.images}
           alt={service.name}
           duration={service.duration}
-          objectPositions={service.id === 'natural-design' ? service.imagePositions : undefined}
+          objectPositions={service.imagePositions}
         />
       )}
 

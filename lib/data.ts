@@ -156,11 +156,11 @@ export const services: Service[] = [
       '/lifting-5.png',
     ],
     imagePositions: [
-      '65% 75%',
-      '50% 22%',
-      '50% 15%',
-      '50% 20%',
-      '50% 25%',
+      '65% 0%',
+      '50% 0%',
+      '50% 0%',
+      '50% 0%',
+      '50% 30%',
     ],
     homeImages: [
       '/lifting-1.webp',
