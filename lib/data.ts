@@ -153,11 +153,9 @@ export const services: Service[] = [
       '/lifting-2.webp',
       '/lifting-3.webp',
       '/lifting-4.jpg',
-      '/lifting-5.png',
     ],
     imagePositions: [
       '65% 0%',
-      '50% 0%',
       '50% 0%',
       '50% 0%',
       '50% 0%',
