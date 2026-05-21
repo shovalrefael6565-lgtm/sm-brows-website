@@ -156,7 +156,7 @@ export const services: Service[] = [
       '/lifting-5.png',
     ],
     imagePositions: [
-      '65% 30%',
+      '65% 50%',
       '50% 0%',
       '50% 0%',
       '50% 0%',
