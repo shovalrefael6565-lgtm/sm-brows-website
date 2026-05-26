@@ -150,7 +150,8 @@ export default function ServiceCard({ service, index }: Props) {
             src="/microblading-9.webp"
             alt="מיקרובליידינג – תוצאה מקצועית"
             fill
-            className="object-cover object-top"
+            className="object-cover"
+            style={{ objectPosition: '50% 20%' }}
             sizes="(max-width: 1024px) 100vw, 50vw"
             priority
           />
