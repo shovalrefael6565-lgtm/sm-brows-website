@@ -151,7 +151,7 @@ export default function ServiceCard({ service, index }: Props) {
             alt="מיקרובליידינג – תוצאה מקצועית"
             fill
             className="object-cover"
-            style={{ objectPosition: '55% 30%' }}
+            style={{ objectPosition: '5% 30%' }}
             sizes="(max-width: 1024px) 100vw, 50vw"
             priority
           />
