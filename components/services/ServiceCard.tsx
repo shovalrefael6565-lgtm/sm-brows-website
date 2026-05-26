@@ -143,17 +143,16 @@ export default function ServiceCard({ service, index }: Props) {
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}
     >
-      {/* Image — comparison slider for microblading & brow-lifting, auto carousel for others */}
+      {/* Image */}
       {service.id === 'microblading' ? (
         <div className="relative rounded-3xl overflow-hidden aspect-[4/2.04] shadow-soft-lg">
-          <BeforeAfterSlider
-            beforeSrc="/microblading-10.webp"
-            afterSrc="/microblading-11.webp"
-            alt={service.name}
-            leftLabel="לפני"
-            rightLabel="אחרי"
-            leftObjectPosition="50% 30%"
-            rightObjectPosition="50% 25%"
+          <Image
+            src="/microblading-9.webp"
+            alt="מיקרובליידינג – תוצאה מקצועית"
+            fill
+            className="object-cover object-top"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            priority
           />
         </div>
       ) : (
