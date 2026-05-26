@@ -64,7 +64,7 @@ export const services: Service[] = [
     tagline: 'גבות מושלמות לשנים',
     description:
       'טכניקה מתקדמת של קעקוע קוסמטי ידני ליצירת גבות טבעיות ומוגדרות. כל שיערה מצוירת בנפרד לאפקט ריאליסטי מרהיב. תוצאות המחזיקות 12–24 חודשים.',
-    price: 'החל מ-₪1,800',
+    price: '',
     duration: '2–3 שעות',
     image: '/microblading-1.jpg',
     images: [
@@ -97,7 +97,7 @@ export const services: Service[] = [
     tagline: 'ההגדרה המושלמת',
     description:
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. הגדרה מותאמת אישית לצורת הפנים ולמבנה הגבה הטבעי שלך.',
-    price: '₪85',
+    price: '₪70',
     duration: '15–30 דקות',
     image: '/natural-1.webp',
     images: [

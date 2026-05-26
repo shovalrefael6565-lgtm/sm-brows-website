@@ -192,11 +192,15 @@ export default function ServiceCard({ service, index }: Props) {
 
         {/* Price */}
         <div className="flex items-center gap-4 mb-6 p-4 bg-brand-rose-bg rounded-2xl border border-brand-rose-light/50">
-          <div>
-            <p className="text-xs text-brand-muted">מחיר הטיפול</p>
-            <p className="font-serif text-2xl font-bold text-brand-dark">{service.price}</p>
-          </div>
-          <div className="h-10 w-px bg-brand-rose-light" aria-hidden="true" />
+          {service.price && (
+            <>
+              <div>
+                <p className="text-xs text-brand-muted">מחיר הטיפול</p>
+                <p className="font-serif text-2xl font-bold text-brand-dark">{service.price}</p>
+              </div>
+              <div className="h-10 w-px bg-brand-rose-light" aria-hidden="true" />
+            </>
+          )}
           <div>
             <p className="text-xs text-brand-muted">משך הטיפול</p>
             <p className="font-semibold text-brand-dark">{service.duration}</p>

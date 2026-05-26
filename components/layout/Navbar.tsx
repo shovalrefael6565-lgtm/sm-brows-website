@@ -13,7 +13,6 @@ import SocialIcons from '@/components/ui/SocialIcons'
 
 const navLinks = [
   { href: '/services', label: 'טיפולים', special: null },
-  { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
   { href: '/services#course', label: 'קורסים', special: 'course' },
@@ -21,7 +20,6 @@ const navLinks = [
 
 const mobileNavLinks = [
   { href: '/services', label: 'טיפולים', special: null },
-  { href: '/gallery', label: 'גלריה', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
   { href: '/services#course', label: 'קורסים', special: 'course' },
@@ -173,33 +171,33 @@ export default function Navbar() {
             </Link>
 
             {/* Social circles — mobile only, beside the business name */}
-            <div className="flex lg:hidden items-center gap-1.5" aria-label="רשתות חברתיות">
+            <div className="flex lg:hidden items-center gap-1" aria-label="רשתות חברתיות">
               <a
                 href={TIKTOK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS בטיקטוק"
-                className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
-                <TikTokIcon className="w-3 h-3" />
+                <TikTokIcon className="w-2.5 h-2.5" />
               </a>
               <a
                 href={FACEBOOK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS בפייסבוק"
-                className="w-7 h-7 rounded-full bg-[#1877F2] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className="w-5 h-5 rounded-full bg-[#1877F2] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
-                <FacebookIcon className="w-3 h-3" />
+                <FacebookIcon className="w-2.5 h-2.5" />
               </a>
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS באינסטגרם"
-                className="w-7 h-7 rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className="w-5 h-5 rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
-                <InstagramIcon className="w-3 h-3" />
+                <InstagramIcon className="w-2.5 h-2.5" />
               </a>
             </div>
             </div>
@@ -430,7 +428,7 @@ export default function Navbar() {
                 aria-expanded={menuOpen}
                 aria-controls="mobile-menu"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="lg:hidden p-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className="lg:hidden p-2 ms-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
