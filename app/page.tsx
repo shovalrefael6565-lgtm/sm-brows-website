@@ -21,8 +21,8 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <ServicesPreview />
       <BeforeAfterSection />
+      <ServicesPreview />
       <GalleryPreview />
       <WhyChooseUs />
       <CourseBanner />
