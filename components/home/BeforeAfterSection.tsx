@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 
@@ -13,22 +13,34 @@ const IMAGES = [
   { src: '/ba-new-6.jpg', alt: 'מיקרובליידינג לפני ואחרי 6' },
 ]
 
+const INTERVAL = 4000
+
 export default function BeforeAfterSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-80px' })
   const [current, setCurrent] = useState(0)
-  const [direction, setDirection] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const go = useCallback((dir: number) => {
-    setDirection(dir)
-    setCurrent((prev) => (prev + dir + IMAGES.length) % IMAGES.length)
+  const startTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setCurrent((p) => (p + 1) % IMAGES.length)
+    }, INTERVAL)
+  }
+
+  useEffect(() => {
+    startTimer()
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const variants = {
-    enter: (d: number) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d > 0 ? '-100%' : '100%', opacity: 0 }),
+  const goTo = (i: number) => {
+    setCurrent(i)
+    startTimer()
   }
+
+  const prev = () => goTo((current - 1 + IMAGES.length) % IMAGES.length)
+  const next = () => goTo((current + 1) % IMAGES.length)
 
   return (
     <section
@@ -70,33 +82,32 @@ export default function BeforeAfterSection() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="relative"
         >
-          {/* Image container */}
-          <div className="relative overflow-hidden rounded-3xl shadow-soft aspect-[16/9] bg-brand-cream">
-            <AnimatePresence initial={false} custom={direction} mode="popLayout">
-              <motion.div
-                key={current}
-                custom={direction}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-0"
-              >
-                <Image
-                  src={IMAGES[current].src}
-                  alt={IMAGES[current].alt}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 896px"
-                  priority={current === 0}
-                />
-              </motion.div>
-            </AnimatePresence>
+          {/* Carousel — crossfade, no background gap */}
+          <div className="relative rounded-3xl shadow-soft overflow-hidden aspect-[16/9]">
+            {/* All images stacked; only current is visible */}
+            {IMAGES.map((img, i) => (
+              <div key={img.src} className="absolute inset-0">
+                <motion.div
+                  className="absolute inset-0"
+                  animate={{ opacity: i === current ? 1 : 0 }}
+                  transition={{ duration: 0.6, ease: 'easeInOut' }}
+                >
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 896px"
+                    priority={i === 0}
+                    quality={90}
+                  />
+                </motion.div>
+              </div>
+            ))}
 
-            {/* Prev arrow */}
+            {/* Prev arrow (RTL: right side) */}
             <button
-              onClick={() => go(-1)}
+              onClick={prev}
               aria-label="תמונה קודמת"
               className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow-soft flex items-center justify-center transition-colors"
             >
@@ -107,7 +118,7 @@ export default function BeforeAfterSection() {
 
             {/* Next arrow */}
             <button
-              onClick={() => go(1)}
+              onClick={next}
               aria-label="תמונה הבאה"
               className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow-soft flex items-center justify-center transition-colors"
             >
@@ -125,7 +136,7 @@ export default function BeforeAfterSection() {
                 role="tab"
                 aria-selected={i === current}
                 aria-label={`תמונה ${i + 1}`}
-                onClick={() => { setDirection(i > current ? 1 : -1); setCurrent(i) }}
+                onClick={() => goTo(i)}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   i === current ? 'w-6 bg-brand-rose' : 'w-2 bg-brand-rose-light'
                 }`}
