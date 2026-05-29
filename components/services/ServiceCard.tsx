@@ -60,7 +60,7 @@ function ImageSlider({ images, alt, duration, objectPositions }: { images: strin
               objectPosition: objectPositions?.[i] ?? 'top',
             }}
             loading="eager"
-            priority={i === 0}
+            priority
           />
         </div>
       ))}

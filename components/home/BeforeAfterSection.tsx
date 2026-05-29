@@ -87,22 +87,25 @@ export default function BeforeAfterSection() {
           <div className="relative rounded-3xl shadow-soft overflow-hidden aspect-[16/9]">
             {/* All images stacked; only current is visible */}
             {IMAGES.map((img, i) => (
-              <div key={img.src} className="absolute inset-0">
-                <motion.div
-                  className="absolute inset-0"
-                  animate={{ opacity: i === current ? 1 : 0 }}
-                  transition={{ duration: 0.6, ease: 'easeInOut' }}
-                >
-                  <Image
-                    src={img.src}
-                    alt={img.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 896px"
-                    priority={i === 0}
-                    quality={90}
-                  />
-                </motion.div>
+              <div
+                key={img.src}
+                className="absolute inset-0"
+                style={{
+                  opacity: i === current ? 1 : 0,
+                  transition: 'opacity 0.7s ease-in-out',
+                  willChange: 'opacity',
+                }}
+              >
+                <Image
+                  src={img.src}
+                  alt={img.alt}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 896px"
+                  priority
+                  loading="eager"
+                  quality={85}
+                />
               </div>
             ))}
 
