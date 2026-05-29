@@ -7,6 +7,7 @@ import Providers from '@/components/layout/Providers'
 import WhatsAppButton from '@/components/ui/WhatsAppButton'
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
+import ScrollToTop from '@/components/ui/ScrollToTop'
 import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
@@ -142,7 +143,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
       <head>
-        <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preload" href="/hero.jpg" as="image" fetchPriority="high" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
@@ -164,6 +167,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Providers>
         <FloatingSocialButtons />
         <WhatsAppButton />
+        <ScrollToTop />
         <AccessibilityWidget />
       </body>
     </html>

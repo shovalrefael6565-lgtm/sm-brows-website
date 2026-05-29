@@ -7,7 +7,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { Clock, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
-import BeforeAfterSlider from '@/components/gallery/BeforeAfterSlider'
 
 interface Props {
   service: Service

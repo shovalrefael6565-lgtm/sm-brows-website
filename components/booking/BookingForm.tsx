@@ -98,12 +98,12 @@ function businessDayOffset(year: number, month: number, day: number): number {
   return count
 }
 
-/** כמה משבצות להציג ביום הזה (3 היום, 5 מחר, 6-7 בהמשך השבוע, מעבר ל-4 ימי עסקים — אין) */
+/** כמה משבצות להציג ביום הזה (3 היום, 5 מחר, 6-7 בהמשך השבוע, מעבר ל-6 ימי עסקים — אין) */
 function slotsForOffset(offset: number, seed: number): number {
   if (offset === 0) return 3
   if (offset === 1) return 5
-  if (offset <= 4) return 6 + (seed % 2) // 6 או 7, יציב לתאריך
-  return 0 // מעבר ל-5 ימי עסקים — לא זמין
+  if (offset <= 6) return 6 + (seed % 2) // 6 או 7, יציב לתאריך
+  return 0 // מעבר ל-6 ימי עסקים — לא זמין
 }
 
 /** ערבוב פסאודו-אקראי מבוסס זרע — אותו תאריך תמיד חוזר עם אותה תוצאה */
@@ -238,6 +238,33 @@ export default function BookingForm() {
     }
   }, [])
 
+  // אם בחודש הנוכחי אין ימים זמינים (חלון עבר לחודש הבא) — עבור אוטומטית
+  useEffect(() => {
+    const t = getIsraelToday()
+    const viewingCurrentOrPast =
+      viewYear < t.getFullYear() ||
+      (viewYear === t.getFullYear() && viewMonth <= t.getMonth())
+    if (!viewingCurrentOrPast) return // משתמש גלל ידנית לעתיד — לא לגעת
+
+    const lastDay = new Date(viewYear, viewMonth + 1, 0).getDate()
+    let hasAvailable = false
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(viewYear, viewMonth, d)
+      if (date < t) continue
+      const dow = date.getDay()
+      if (dow === 5 || dow === 6) continue
+      if (businessDayOffset(viewYear, viewMonth, d) <= 6) {
+        hasAvailable = true
+        break
+      }
+    }
+    if (!hasAvailable) {
+      setSelectedDay(null)
+      if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+      else setViewMonth(m => m + 1)
+    }
+  }, [viewYear, viewMonth])
+
   // ריענון אוטומטי של הזמינות — פעם בשעה כשיום נבחר
   useEffect(() => {
     if (selectedDay === null) return
@@ -256,9 +283,9 @@ export default function BookingForm() {
     const dow = new Date(viewYear, viewMonth, day).getDay()
     return dow === 5 || dow === 6
   }
-  /** מעבר ל-5 ימי עסקים מהיום — לא ניתן להזמין דרך האתר */
+  /** מעבר ל-6 ימי עסקים מהיום — לא ניתן להזמין דרך האתר */
   const isBeyondWindow = (day: number) =>
-    businessDayOffset(viewYear, viewMonth, day) > 4
+    businessDayOffset(viewYear, viewMonth, day) > 6
   const isDisabled = (day: number) =>
     isPast(day) || isClosedDay(day) || isBeyondWindow(day)
 

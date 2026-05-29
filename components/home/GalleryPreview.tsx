@@ -40,12 +40,12 @@ export default function GalleryPreview() {
             </h2>
           </div>
           <Link
-            href="/gallery"
-            aria-label="לגלריה המלאה"
+            href="/services"
+            aria-label="לעמוד הטיפולים"
             className="inline-flex items-center gap-1.5 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            לכל הגלריה
+            לעמוד הטיפולים
           </Link>
         </motion.div>
 
@@ -64,7 +64,7 @@ export default function GalleryPreview() {
               className={i === 0 ? 'col-span-2 sm:col-span-1 sm:row-span-2' : ''}
             >
               <Link
-                href="/gallery"
+                href="/services"
                 aria-label={`פתח גלריה – ${item.alt}`}
                 className="group relative block rounded-2xl overflow-hidden focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold"
                 style={{ height: i === 0 ? '100%' : undefined }}
