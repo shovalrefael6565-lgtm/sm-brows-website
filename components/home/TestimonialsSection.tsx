@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 
 const REVIEWS = [
-  '/wa-review-1.png',
-  '/wa-review-2.png',
-  '/wa-review-3.png',
-  '/wa-review-4.png',
-  '/wa-review-5.png',
-  '/wa-review-6.png',
-  '/wa-review-7.png',
+  '/wa-review-1.webp',
+  '/wa-review-2.webp',
+  '/wa-review-3.webp',
+  '/wa-review-4.webp',
+  '/wa-review-5.webp',
+  '/wa-review-6.webp',
+  '/wa-review-7.webp',
 ]
 
 export default function TestimonialsSection() {
@@ -31,7 +31,7 @@ export default function TestimonialsSection() {
       {/* Tools background — 40% opacity */}
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
-        style={{ backgroundImage: "url('/tools-bg.png')", opacity: 0.4 }}
+        style={{ backgroundImage: "url('/tools-bg.webp')", opacity: 0.4 }}
         aria-hidden="true"
       />
 
