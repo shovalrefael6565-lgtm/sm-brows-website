@@ -15,7 +15,6 @@ const TESTIMONIALS = [
       'אין לך מושג איזה מרוצה אני 😍',
     ],
     time: '17:10',
-    service: 'עיצוב גבות טבעי',
   },
   {
     id: 2,
@@ -26,7 +25,6 @@ const TESTIMONIALS = [
       'והגל החדש נדיר — תזמני לי 2 שיהיה לי גם לבסיס',
     ],
     time: '15:21',
-    service: 'מיקרובליידינג',
   },
   {
     id: 3,
@@ -35,7 +33,6 @@ const TESTIMONIALS = [
       'אלופה שלי אין כמוך ❤️',
     ],
     time: '10:50',
-    service: 'הרמת גבות',
   },
   {
     id: 4,
@@ -45,7 +42,6 @@ const TESTIMONIALS = [
       'אין גבות מושלם כזה בעולם ❤️❤️❤️❤️',
     ],
     time: '21:28',
-    service: 'הרמת גבות',
   },
   {
     id: 5,
@@ -54,13 +50,12 @@ const TESTIMONIALS = [
       'אמאלה שרטוט 🤩',
     ],
     time: '9:20',
-    service: 'עיצוב גבות',
   },
 ]
 
-/* ────────────────────────────────────────────────
-   Simple chat-style card — plain beige, no WA header
-   ──────────────────────────────────────────────── */
+/* ─────────────────────────────────────────
+   Chat card — plain WA beige + white bubbles
+   ───────────────────────────────────────── */
 function ChatCard({ bubbles, time }: { bubbles: string[]; time: string }) {
   return (
     <div
@@ -76,9 +71,7 @@ function ChatCard({ bubbles, time }: { bubbles: string[]; time: string }) {
           <div key={i} className="flex justify-start">
             <div
               className="bg-white px-4 py-2.5 max-w-[90%] shadow-sm"
-              style={{
-                borderRadius: i === 0 ? '0 1rem 1rem 1rem' : '1rem',
-              }}
+              style={{ borderRadius: i === 0 ? '0 1rem 1rem 1rem' : '1rem' }}
             >
               <p className="text-gray-800 text-sm leading-relaxed">{bubble}</p>
               {i === bubbles.length - 1 && (
@@ -92,9 +85,9 @@ function ChatCard({ bubbles, time }: { bubbles: string[]; time: string }) {
   )
 }
 
-/* ────────────────────────────────────────────────
-   Main section
-   ──────────────────────────────────────────────── */
+/* ─────────────────────────────────────────
+   Section
+   ───────────────────────────────────────── */
 export default function TestimonialsSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-80px' })
@@ -107,8 +100,6 @@ export default function TestimonialsSection() {
     return () => clearInterval(timer)
   }, [next])
 
-  const t = TESTIMONIALS[current]
-
   return (
     <section
       ref={ref}
@@ -116,10 +107,10 @@ export default function TestimonialsSection() {
       aria-labelledby="testimonials-heading"
       className="section-padding relative overflow-hidden"
     >
-      {/* Base background */}
+      {/* Base */}
       <div className="absolute inset-0 bg-brand-rose-bg" aria-hidden="true" />
 
-      {/* Tools background image — 20 % opacity, no blur */}
+      {/* Section background image — 20% opacity, no blur */}
       <div className="absolute inset-0" aria-hidden="true">
         <Image
           src="/tools-bg.png"
@@ -133,9 +124,9 @@ export default function TestimonialsSection() {
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-          {/* ── Column 1 (RTL = RIGHT): Text content ── */}
+          {/* Column 1 (RTL = RIGHT): heading only */}
           <motion.div
-            initial={{ opacity: 0, y: 32 }}
+            initial={{ opacity: 0, y: 28 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7 }}
           >
@@ -149,68 +140,15 @@ export default function TestimonialsSection() {
               לקוחות{' '}
               <span className="text-brand-rose">ממליצות</span>
             </h2>
-            <div className="flex items-center gap-3 mb-8">
+            <div className="flex items-center gap-3">
               <div className="w-14 h-1 rounded-full bg-brand-gold" />
               <span className="text-brand-gold font-serif text-xl select-none" aria-hidden="true">✦</span>
             </div>
-
-            {/* Animated testimonial body */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={current}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ duration: 0.35 }}
-                className="mb-8"
-              >
-                <span className="inline-block bg-white/70 backdrop-blur-sm border border-brand-rose-light text-brand-rose text-xs font-semibold px-3 py-1 rounded-full mb-5">
-                  {t.service}
-                </span>
-
-                <blockquote
-                  className="text-brand-dark text-lg sm:text-xl leading-relaxed font-medium mb-5"
-                  lang="he"
-                >
-                  ״{t.bubbles.join(' ')}״
-                </blockquote>
-
-                {/* Stars */}
-                <div className="flex gap-1" aria-label="דירוג 5 מתוך 5 כוכבים" role="img">
-                  {[...Array(5)].map((_, i) => (
-                    <svg
-                      key={i}
-                      className="w-5 h-5 text-brand-gold"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      aria-hidden="true"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Progress bar — thin animated line, resets every 3s */}
-            <div
-              className="w-24 h-0.5 rounded-full overflow-hidden"
-              style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-              aria-hidden="true"
-            >
-              <motion.div
-                key={`progress-${current}`}
-                className="h-full bg-brand-rose rounded-full"
-                initial={{ width: '0%' }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 3, ease: 'linear' }}
-              />
-            </div>
           </motion.div>
 
-          {/* ── Column 2 (RTL = LEFT): Chat card ── */}
+          {/* Column 2 (RTL = LEFT): chat card */}
           <motion.div
-            initial={{ opacity: 0, y: 32 }}
+            initial={{ opacity: 0, y: 28 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.18 }}
             className="max-w-sm mx-auto lg:mx-0 w-full"
@@ -223,7 +161,7 @@ export default function TestimonialsSection() {
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.35 }}
               >
-                <ChatCard bubbles={t.bubbles} time={t.time} />
+                <ChatCard bubbles={TESTIMONIALS[current].bubbles} time={TESTIMONIALS[current].time} />
               </motion.div>
             </AnimatePresence>
           </motion.div>
