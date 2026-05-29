@@ -6,8 +6,9 @@ import Hero from '@/components/home/Hero'
 const ServicesPreview   = dynamic(() => import('@/components/home/ServicesPreview'))
 const BeforeAfterSection = dynamic(() => import('@/components/home/BeforeAfterSection'))
 const GalleryPreview    = dynamic(() => import('@/components/home/GalleryPreview'))
-const WhyChooseUs       = dynamic(() => import('@/components/home/WhyChooseUs'))
-const CourseBanner      = dynamic(() => import('@/components/home/CourseBanner'))
+const WhyChooseUs          = dynamic(() => import('@/components/home/WhyChooseUs'))
+const TestimonialsSection  = dynamic(() => import('@/components/home/TestimonialsSection'))
+const CourseBanner         = dynamic(() => import('@/components/home/CourseBanner'))
 const BlogPreview       = dynamic(() => import('@/components/home/BlogPreview'))
 const BookingSection    = dynamic(() => import('@/components/home/BookingSection'))
 
@@ -25,6 +26,7 @@ export default function HomePage() {
       <ServicesPreview />
       <GalleryPreview />
       <WhyChooseUs />
+      <TestimonialsSection />
       <CourseBanner />
       <BlogPreview />
       <BookingSection />
