@@ -73,14 +73,14 @@ export const metadata: Metadata = {
     locale: 'he_IL',
     siteName: 'S.M BROWS',
     images: [
-      { url: '/hero.jpg', width: 1200, height: 630, alt: 'S.M BROWS — עיצוב גבות מקצועי באשקלון' },
+      { url: '/hero.webp', width: 1200, height: 630, alt: 'S.M BROWS — עיצוב גבות מקצועי באשקלון' },
     ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'S.M BROWS | עיצוב גבות מקצועי',
     description: 'סטודיו מקצועי לעיצוב גבות באשקלון',
-    images: ['/hero.jpg'],
+    images: ['/hero.webp'],
   },
   robots: {
     index: true,
@@ -109,7 +109,7 @@ const localBusinessJsonLd = {
   url: SITE_URL,
   telephone: PHONE_NUMBER,
   email: EMAIL,
-  image: `${SITE_URL}/hero.jpg`,
+  image: `${SITE_URL}/hero.webp`,
   logo: `${SITE_URL}/logo.png`,
   priceRange: '₪₪',
   address: {
@@ -145,7 +145,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preload" href="/hero.jpg" as="image" fetchPriority="high" />
+        <link rel="preload" href="/hero.webp" as="image" fetchPriority="high" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
