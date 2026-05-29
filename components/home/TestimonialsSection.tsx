@@ -57,7 +57,7 @@ export default function TestimonialsSection() {
 
         {/* Crossfade screenshots */}
         <div className="flex justify-center">
-          <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-xl" style={{ display: 'grid' }}>
+          <div className="w-full max-w-sm" style={{ display: 'grid' }}>
             {REVIEWS.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
