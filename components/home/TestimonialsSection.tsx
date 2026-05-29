@@ -12,6 +12,7 @@ const REVIEWS = [
   '/wa-review-4.png',
   '/wa-review-5.png',
   '/wa-review-6.png',
+  '/wa-review-7.png',
 ]
 
 export default function TestimonialsSection() {
@@ -55,34 +56,39 @@ export default function TestimonialsSection() {
         aria-hidden="true"
       />
 
-      <div style={{ position: 'relative', zIndex: 1 }} className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <div style={{ position: 'relative', zIndex: 1 }} className="max-w-4xl mx-auto px-4 sm:px-6">
 
-          {/* ── Column 1 (RTL = RIGHT): heading ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.7 }}
+        {/* ── Centered heading ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7 }}
+          className="text-center mb-12"
+        >
+          <p className="text-xs tracking-[0.25em] text-brand-gold font-semibold uppercase mb-3">
+            מה אומרות עלינו
+          </p>
+          <h2
+            id="testimonials-heading"
+            className="font-serif text-4xl sm:text-5xl font-bold text-brand-dark mb-4"
           >
-            <h2
-              id="testimonials-heading"
-              className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-3"
-            >
-              לקוחות{' '}
-              <span className="text-brand-rose">ממליצות</span>
-            </h2>
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-1 rounded-full bg-brand-gold" />
-              <span className="text-brand-gold font-serif text-xl select-none" aria-hidden="true">✦</span>
-            </div>
-          </motion.div>
+            לקוחות{' '}
+            <span className="text-brand-rose">ממליצות</span>
+          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-px bg-brand-gold/50" />
+            <span className="text-brand-gold font-serif text-2xl select-none" aria-hidden="true">✦</span>
+            <div className="w-10 h-px bg-brand-gold/50" />
+          </div>
+        </motion.div>
 
-          {/* ── Column 2 (RTL = LEFT): real WA screenshot ── */}
+        {/* ── Screenshot card — centered ── */}
+        <div className="flex justify-center">
           <motion.div
             initial={{ opacity: 0, y: 28 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.18 }}
-            className="max-w-sm mx-auto lg:mx-0 w-full"
+            className="w-full max-w-sm"
           >
             <AnimatePresence mode="wait">
               <motion.div
