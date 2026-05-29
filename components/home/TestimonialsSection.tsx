@@ -122,7 +122,7 @@ export default function TestimonialsSection() {
       {/* Tools background image — 20 % opacity, no blur */}
       <div className="absolute inset-0" aria-hidden="true">
         <Image
-          src="/tools-bg.jpg"
+          src="/tools-bg.png"
           alt=""
           fill
           className="object-cover"
