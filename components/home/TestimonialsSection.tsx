@@ -32,23 +32,14 @@ export default function TestimonialsSection() {
       {/* Tools background — 20% opacity, no blur */}
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
-        style={{
-          backgroundImage: "url('/tools-bg.png')",
-          opacity: 0.2,
-        }}
+        style={{ backgroundImage: "url('/tools-bg.png')", opacity: 0.2 }}
         aria-hidden="true"
       />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6">
 
-        {/* Heading */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
+        {/* Heading — always visible, no scroll gate */}
+        <div className="text-center mb-12">
           <p className="text-xs tracking-[0.25em] text-brand-gold font-semibold uppercase mb-3">
             מה אומרות עלינו
           </p>
@@ -63,16 +54,10 @@ export default function TestimonialsSection() {
             <span className="text-brand-gold font-serif text-2xl select-none" aria-hidden="true">✦</span>
             <div className="w-10 h-px bg-brand-gold/50" />
           </div>
-        </motion.div>
+        </div>
 
-        {/* Screenshot card */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="flex justify-center"
-        >
+        {/* Screenshot — always visible, only crossfade animated */}
+        <div className="flex justify-center">
           <div className="w-full max-w-sm">
             <AnimatePresence mode="wait">
               <motion.div
@@ -80,7 +65,7 @@ export default function TestimonialsSection() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.4 }}
                 className="rounded-[2rem] overflow-hidden shadow-xl"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -88,12 +73,12 @@ export default function TestimonialsSection() {
                   src={REVIEWS[current]}
                   alt={`ביקורת לקוחה ${current + 1}`}
                   className="w-full h-auto block"
-                  loading="lazy"
+                  loading="eager"
                 />
               </motion.div>
             </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
 
       </div>
     </section>
