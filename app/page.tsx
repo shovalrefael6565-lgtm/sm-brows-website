@@ -23,10 +23,10 @@ export default function HomePage() {
     <>
       <Hero />
       <BeforeAfterSection />
+      <TestimonialsSection />
       <ServicesPreview />
       <GalleryPreview />
       <WhyChooseUs />
-      <TestimonialsSection />
       <CourseBanner />
       <BlogPreview />
       <BookingSection />
