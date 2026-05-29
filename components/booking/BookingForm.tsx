@@ -644,10 +644,11 @@ export default function BookingForm() {
 
                 <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
                   <div className="flex items-center justify-between mb-4">
+                    {/* RTL: first child appears on RIGHT → right = back = prev month */}
                     <button
                       type="button"
-                      onClick={nextMonth}
-                      aria-label="חודש הבא"
+                      onClick={prevMonth}
+                      aria-label="חודש קודם"
                       className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
                     >
                       <ChevronRight className="w-5 h-5 text-brand-dark" />
@@ -655,10 +656,11 @@ export default function BookingForm() {
                     <span className="font-semibold text-brand-dark text-sm">
                       {MONTHS[viewMonth]} {viewYear}
                     </span>
+                    {/* RTL: last child appears on LEFT → left = forward = next month */}
                     <button
                       type="button"
-                      onClick={prevMonth}
-                      aria-label="חודש קודם"
+                      onClick={nextMonth}
+                      aria-label="חודש הבא"
                       className="p-1.5 rounded-lg hover:bg-brand-rose-bg transition-colors cursor-pointer"
                     >
                       <ChevronLeft className="w-5 h-5 text-brand-dark" />
