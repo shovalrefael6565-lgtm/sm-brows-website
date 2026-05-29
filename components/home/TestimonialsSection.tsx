@@ -1,6 +1,5 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
 
 const REVIEWS = [
@@ -15,8 +14,15 @@ const REVIEWS = [
 
 export default function TestimonialsSection() {
   const [current, setCurrent] = useState(0)
+  const [fading, setFading] = useState(false)
 
-  const next = useCallback(() => setCurrent((c) => (c + 1) % REVIEWS.length), [])
+  const next = useCallback(() => {
+    setFading(true)
+    setTimeout(() => {
+      setCurrent((c) => (c + 1) % REVIEWS.length)
+      setFading(false)
+    }, 300)
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(next, 3000)
@@ -29,7 +35,7 @@ export default function TestimonialsSection() {
       aria-labelledby="testimonials-heading"
       className="section-padding bg-brand-rose-bg relative overflow-hidden"
     >
-      {/* Tools background — 20% opacity, no blur */}
+      {/* Tools background — 20% opacity */}
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
         style={{ backgroundImage: "url('/tools-bg.png')", opacity: 0.2 }}
@@ -38,7 +44,7 @@ export default function TestimonialsSection() {
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6">
 
-        {/* Heading — always visible, no scroll gate */}
+        {/* Heading */}
         <div className="text-center mb-12">
           <p className="text-xs tracking-[0.25em] text-brand-gold font-semibold uppercase mb-3">
             מה אומרות עלינו
@@ -56,27 +62,21 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Screenshot — always visible, only crossfade animated */}
+        {/* Screenshot */}
         <div className="flex justify-center">
-          <div className="w-full max-w-sm">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={current}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                className="rounded-[2rem] overflow-hidden shadow-xl"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={REVIEWS[current]}
-                  alt={`ביקורת לקוחה ${current + 1}`}
-                  className="w-full h-auto block"
-                  loading="eager"
-                />
-              </motion.div>
-            </AnimatePresence>
+          <div className="w-full max-w-sm rounded-[2rem] overflow-hidden shadow-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={current}
+              src={REVIEWS[current]}
+              alt={`ביקורת לקוחה ${current + 1}`}
+              className="w-full h-auto block"
+              style={{
+                opacity: fading ? 0 : 1,
+                transition: 'opacity 0.3s ease-in-out',
+              }}
+              loading="eager"
+            />
           </div>
         </div>
 
