@@ -55,59 +55,26 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Phone frame + crossfade screenshots */}
+        {/* Crossfade screenshots */}
         <div className="flex justify-center">
-          {/* Phone outer shell */}
-          <div
-            className="relative rounded-[2.8rem] shadow-2xl p-2"
-            style={{
-              background: 'linear-gradient(145deg, #2a2a2a, #1a1a1a)',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.08)',
-              width: '100%',
-              maxWidth: '320px',
-            }}
-          >
-            {/* Side buttons (decoration) */}
-            <div className="absolute -end-1 top-24 w-1 h-10 rounded-e-sm" style={{ background: '#333' }} aria-hidden="true" />
-            <div className="absolute -start-1 top-20 w-1 h-7 rounded-s-sm" style={{ background: '#333' }} aria-hidden="true" />
-            <div className="absolute -start-1 top-32 w-1 h-7 rounded-s-sm" style={{ background: '#333' }} aria-hidden="true" />
-
-            {/* Screen bezel */}
-            <div className="rounded-[2.2rem] overflow-hidden bg-black">
-              {/* Notch / dynamic island */}
-              <div className="flex justify-center pt-3 pb-1 bg-black" aria-hidden="true">
-                <div className="w-24 h-5 rounded-full bg-black border border-gray-800" />
-              </div>
-
-              {/* All screenshots stacked — CSS crossfade */}
-              <div
-                className="relative w-full"
-                style={{ display: 'grid' }}
-              >
-                {REVIEWS.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={src}
-                    src={src}
-                    alt={i === current ? `ביקורת לקוחה ${i + 1}` : ''}
-                    aria-hidden={i !== current}
-                    className="w-full h-auto block"
-                    style={{
-                      gridColumn: 1,
-                      gridRow: 1,
-                      opacity: i === current ? 1 : 0,
-                      transition: 'opacity 0.9s ease-in-out',
-                    }}
-                    loading={i === 0 ? 'eager' : 'lazy'}
-                  />
-                ))}
-              </div>
-
-              {/* Home bar */}
-              <div className="flex justify-center py-2 bg-black" aria-hidden="true">
-                <div className="w-28 h-1 rounded-full bg-gray-600" />
-              </div>
-            </div>
+          <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-xl" style={{ display: 'grid' }}>
+            {REVIEWS.map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={src}
+                src={src}
+                alt={i === current ? `ביקורת לקוחה ${i + 1}` : ''}
+                aria-hidden={i !== current}
+                className="w-full h-auto block"
+                style={{
+                  gridColumn: 1,
+                  gridRow: 1,
+                  opacity: i === current ? 1 : 0,
+                  transition: 'opacity 0.9s ease-in-out',
+                }}
+                loading={i === 0 ? 'eager' : 'lazy'}
+              />
+            ))}
           </div>
         </div>
 
