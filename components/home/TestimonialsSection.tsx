@@ -78,25 +78,6 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Dots indicator */}
-        <div className="flex justify-center gap-1.5 mt-8" role="tablist" aria-label="ביקורות">
-          {REVIEWS.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === current}
-              aria-label={`ביקורת ${i + 1}`}
-              onClick={() => setCurrent(i)}
-              className="transition-all duration-300 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
-              style={{
-                width: i === current ? '1.5rem' : '0.5rem',
-                height: '0.5rem',
-                backgroundColor: i === current ? '#C4847A' : 'rgba(196,132,122,0.35)',
-              }}
-            />
-          ))}
-        </div>
 
       </div>
     </section>
