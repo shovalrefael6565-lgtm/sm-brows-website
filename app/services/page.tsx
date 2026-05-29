@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import PageHero from '@/components/ui/PageHero'
 import ServiceCard from '@/components/services/ServiceCard'
 import CourseCard from '@/components/services/CourseCard'
+import ServiceFaqSection from '@/components/services/ServiceFaqSection'
 import BookingSection from '@/components/home/BookingSection'
 import { services } from '@/lib/data'
 
@@ -59,6 +60,7 @@ export default function ServicesPage() {
         </div>
       </section>
 
+      <ServiceFaqSection />
       <BookingSection />
     </>
   )
