@@ -251,6 +251,28 @@ export default function Hero() {
                 aria-hidden="true"
               />
             </div>
+
+            {/* Bio card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-4 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-soft border border-brand-rose-light/40 text-center"
+            >
+              <p className="font-serif text-lg font-bold text-brand-dark leading-snug">
+                שובל מאירה
+                <span className="text-brand-muted font-sans text-sm font-normal"> · אמא של לוי משה</span>
+              </p>
+              <p className="text-xs text-brand-gold font-semibold tracking-widest uppercase mt-0.5 mb-3">
+                מומחית גבות | 5 שנות ניסיון
+              </p>
+              <p className="text-brand-medium text-sm leading-relaxed">
+                תמיד הייתה לי משהו עם גבות — שלי תמיד היו עבות, טבעיות, מסודרות. אנשים היו עוצרים אותי ברחוב ושואלים מה עשיתי להן. מתישהו הבנתי שזה לא סתם מחמאה — זו התשוקה שלי.
+              </p>
+              <p className="text-brand-medium text-sm leading-relaxed mt-2 font-medium">
+                כל טיפול הוא עבורי שילוב של דיוק, טבעיות וקלאסיות — גבות שמדברות בעד עצמן.
+              </p>
+            </motion.div>
           </motion.div>
         </motion.div>
       </div>
