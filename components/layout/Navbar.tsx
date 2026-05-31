@@ -16,6 +16,7 @@ const navLinks = [
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
   { href: '/services#course', label: 'קורסים', special: 'course' },
+  { href: '/contact', label: 'יצירת קשר', special: null },
 ]
 
 const mobileNavLinks = [
@@ -23,6 +24,7 @@ const mobileNavLinks = [
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
   { href: '/services#course', label: 'קורסים', special: 'course' },
+  { href: '/contact', label: 'יצירת קשר', special: null },
 ]
 
 const SECTIONS = [
