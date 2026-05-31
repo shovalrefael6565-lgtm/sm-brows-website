@@ -14,6 +14,7 @@ const IMAGES = [
   { src: '/ba-new-7.webp', alt: 'מיקרובליידינג לפני ואחרי 7' },
   { src: '/ba-new-8.webp', alt: 'מיקרובליידינג לפני ואחרי 8' },
   { src: '/ba-new-9.webp', alt: 'מיקרובליידינג לפני ואחרי 9' },
+  { src: '/ba-new-10.webp', alt: 'מיקרובליידינג לפני ואחרי 10' },
 ]
 
 const INTERVAL = 4000
