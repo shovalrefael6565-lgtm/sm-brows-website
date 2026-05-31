@@ -1,28 +1,22 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
 import Link from 'next/link'
 import { MapPin, Phone, Clock, Calendar } from 'lucide-react'
 import { WHATSAPP_URL, PHONE_NUMBER, LOCATION } from '@/lib/utils'
+import { useReveal } from '@/lib/hooks/useReveal'
 
 export default function BookingSection() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-80px' })
+  const ref = useReveal('-80px')
 
   return (
     <section
-      ref={ref}
+      ref={ref as React.RefObject<HTMLElement>}
       id="booking"
       aria-labelledby="booking-heading"
-      className="section-padding bg-hero-gradient"
+      className="reveal-group section-padding bg-hero-gradient"
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-        >
+        <div className="reveal-item">
           <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
             קביעת תור
           </p>
@@ -39,23 +33,21 @@ export default function BookingSection() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <motion.a
+            <a
               href={WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="קביעת תור בוואצאפ – S.M BROWS"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="inline-flex items-center gap-3 bg-[#25D366] text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-3 bg-[#25D366] text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
             >
               <WhatsAppIcon className="w-7 h-7" />
               שלחי הודעה בוואצאפ
-            </motion.a>
+            </a>
 
             <Link
               href="/booking"
               aria-label="קביעת תור דרך הטופס"
-              className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-lg px-10 py-5 rounded-full shadow-gold hover:bg-brand-gold-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-lg px-10 py-5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
             >
               <Calendar className="w-6 h-6" />
               קביעת תור בטופס
@@ -113,16 +105,11 @@ export default function BookingSection() {
           </div>
 
           {/* Hours note */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={isInView ? { opacity: 1 } : {}}
-            transition={{ delay: 0.4 }}
-            className="flex items-center justify-center gap-2 mt-8 text-brand-muted text-sm"
-          >
+          <div className="flex items-center justify-center gap-2 mt-8 text-brand-muted text-sm">
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>זמינות: ראשון–חמישי | 10:00–19:00</span>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   )

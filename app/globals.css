@@ -136,6 +136,31 @@ body.a11y-stop-animations *::after {
   color: #2c1810;
 }
 
+/* ── Scroll reveal — GPU-composited, no JS per frame ── */
+.reveal-group .reveal-item {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal-group.in-view .reveal-item                { opacity: 1; transform: none; }
+.reveal-group.in-view .reveal-item:nth-child(1)   { transition-delay:   0ms; }
+.reveal-group.in-view .reveal-item:nth-child(2)   { transition-delay:  80ms; }
+.reveal-group.in-view .reveal-item:nth-child(3)   { transition-delay: 160ms; }
+.reveal-group.in-view .reveal-item:nth-child(4)   { transition-delay: 240ms; }
+.reveal-group.in-view .reveal-item:nth-child(5)   { transition-delay: 320ms; }
+.reveal-group.in-view .reveal-item:nth-child(6)   { transition-delay: 400ms; }
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-group .reveal-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+}
+
 /* ── Utility Classes ── */
 @layer utilities {
   .text-balance {
