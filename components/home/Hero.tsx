@@ -290,9 +290,9 @@ export default function Hero() {
 
                 {/* Closing line */}
                 <div className="mt-3 pt-3 border-t border-brand-cream-dark/60 text-center">
-                  <p className="text-brand-dark text-sm font-semibold font-serif italic">
-                    ״כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות —
-                    <span className="text-brand-rose"> גבות שמדברות בעד עצמן.״</span>
+                  <p className="text-brand-dark text-base font-serif">
+                    כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות —
+                    <span className="text-brand-rose"> גבות שמדברות בעד עצמן.</span>
                   </p>
                 </div>
               </div>
