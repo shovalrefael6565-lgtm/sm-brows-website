@@ -8,7 +8,6 @@ const TestimonialsSection = dynamic(() => import('@/components/home/Testimonials
 const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
 
 // סקשנים רחוקים — ssr:false מקטין את ה-bundle הראשוני
-const GalleryPreview  = dynamic(() => import('@/components/home/GalleryPreview'),  { ssr: false })
 const WhyChooseUs     = dynamic(() => import('@/components/home/WhyChooseUs'),     { ssr: false })
 const CourseBanner    = dynamic(() => import('@/components/home/CourseBanner'),    { ssr: false })
 const BlogPreview     = dynamic(() => import('@/components/home/BlogPreview'),     { ssr: false })
@@ -27,7 +26,6 @@ export default function HomePage() {
       <BeforeAfterSection />
       <TestimonialsSection />
       <ServicesPreview />
-      <GalleryPreview />
       <WhyChooseUs />
       <CourseBanner />
       <BlogPreview />
