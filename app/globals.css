@@ -136,6 +136,16 @@ body.a11y-stop-animations *::after {
   color: #2c1810;
 }
 
+/* ── Navigation progress bar ── */
+@keyframes nav-progress {
+  0%   { background-position: 200% center; transform: scaleX(0.3); transform-origin: left; }
+  50%  { background-position: 100% center; transform: scaleX(0.75); transform-origin: left; }
+  100% { background-position: 0% center;   transform: scaleX(1);    transform-origin: left; }
+}
+.animate-nav-progress {
+  animation: nav-progress 1.4s ease-in-out infinite;
+}
+
 /* ── Scroll reveal — GPU-composited, no JS per frame ── */
 .reveal-group .reveal-item {
   opacity: 0;
