@@ -70,7 +70,7 @@ export default function Hero() {
               className="w-8 h-px bg-brand-gold flex-shrink-0 hidden lg:inline-block"
               aria-hidden="true"
             />
-            סטודיו גבות מקצועי באשקלון
+            קליניקת גבות מקצועי באשקלון
           </motion.p>
 
           {/* Brand name */}
@@ -105,7 +105,7 @@ export default function Hero() {
             className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0"
           >
             מיקרובליידינג, עיצוב גבות טבעי והרמת גבות – הגבות המושלמות שחלמת עליהן
-            מחכה לך בסטודיו שלי באשקלון.
+            מחכה לך בקליניקה שלי באשקלון.
           </motion.p>
 
           {/* CTA buttons */}

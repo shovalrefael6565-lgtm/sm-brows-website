@@ -19,7 +19,7 @@ export default function BlogPage() {
         tag="הבלוג שלי"
         title="טיפים, ידע"
         titleHighlight="ועדכונים"
-        description="כל מה שצריך לדעת על גבות – מאמרים מקצועיים, טיפים לטיפול, ועדכונים מהסטודיו."
+        description="כל מה שצריך לדעת על גבות – מאמרים מקצועיים, טיפים לטיפול, ועדכונים מהקליניקה."
       />
 
       <section aria-label="מאמרים" className="section-padding bg-brand-cream">

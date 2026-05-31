@@ -39,7 +39,7 @@ export default function Footer() {
               />
             </Link>
             <p className="text-white/55 text-sm leading-relaxed mb-6 max-w-[220px]">
-              סטודיו מקצועי לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב טבעי, הרמת גבות וקורסים.
+              קליניקה מקצועית לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב טבעי, הרמת גבות וקורסים.
             </p>
             {/* Social icons */}
             <div className="flex items-center gap-3" role="list" aria-label="רשתות חברתיות">
@@ -125,10 +125,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4 — הסטודיו */}
+          {/* Col 4 — הקליניקה */}
           <div>
             <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
-              הסטודיו שלי
+              הקליניקה שלי
             </h3>
             <ul className="space-y-4" role="list">
               <li>

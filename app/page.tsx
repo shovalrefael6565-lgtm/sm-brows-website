@@ -16,7 +16,7 @@ const BookingSection  = dynamic(() => import('@/components/home/BookingSection')
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
   description:
-    'סטודיו מקצועי לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. גבות מושלמות מחכות לך.',
+    'קליניקה מקצועית לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. גבות מושלמות מחכות לך.',
 }
 
 export default function HomePage() {

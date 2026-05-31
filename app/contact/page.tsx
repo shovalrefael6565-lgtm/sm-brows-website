@@ -4,7 +4,7 @@ import ContactContent from '@/components/contact/ContactContent'
 
 export const metadata: Metadata = {
   title: 'יצירת קשר',
-  description: 'צרי קשר עם סטודיו S.M BROWS לקביעת תור, שאלות על טיפולים או כל עניין אחר. אשקלון, הכורמים.',
+  description: 'צרי קשר עם קליניקה S.M BROWS לקביעת תור, שאלות על טיפולים או כל עניין אחר. אשקלון, הכורמים.',
   alternates: { canonical: '/contact' },
 }
 

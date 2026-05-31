@@ -56,18 +56,18 @@ export const metadata: Metadata = {
     template: '%s | S.M BROWS',
   },
   description:
-    'סטודיו מקצועי לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
+    'קליניקה מקצועית לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
   keywords: [
     'מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות', 'גבות', 'גבות באשקלון',
     'עיצוב גבות באשקלון', 'מיקרובליידינג אשקלון', 'הרמת גבות אשקלון',
-    'גבות טבעיות', 'גבות מושלמות', 'סטודיו גבות', 'S.M BROWS',
+    'גבות טבעיות', 'גבות מושלמות', 'קליניקת גבות', 'S.M BROWS',
   ],
   authors: [{ name: 'S.M BROWS' }],
   creator: 'S.M BROWS',
   publisher: 'S.M BROWS',
   openGraph: {
     title: "S.M BROWS | IT'S ALL ABOUT YOUR EYEBROWS",
-    description: 'סטודיו מקצועי לעיצוב גבות באשקלון – מיקרובליידינג, עיצוב טבעי, הרמת גבות',
+    description: 'קליניקה מקצועית לעיצוב גבות באשקלון – מיקרובליידינג, עיצוב טבעי, הרמת גבות',
     url: SITE_URL,
     type: 'website',
     locale: 'he_IL',
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'S.M BROWS | עיצוב גבות מקצועי',
-    description: 'סטודיו מקצועי לעיצוב גבות באשקלון',
+    description: 'קליניקה מקצועית לעיצוב גבות באשקלון',
     images: ['/hero.webp'],
   },
   robots: {
@@ -105,7 +105,7 @@ const localBusinessJsonLd = {
   '@type': 'BeautySalon',
   name: 'S.M BROWS',
   alternateName: "S.M BROWS — IT'S ALL ABOUT YOUR EYEBROWS",
-  description: 'סטודיו מקצועי לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות וקורסים.',
+  description: 'קליניקה מקצועית לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות וקורסים.',
   url: SITE_URL,
   telephone: PHONE_NUMBER,
   email: EMAIL,

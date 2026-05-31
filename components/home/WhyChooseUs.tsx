@@ -71,7 +71,7 @@ export default function WhyChooseUs() {
             <span className="text-brand-gold"> בי?</span>
           </h2>
           <p className="text-white/60 max-w-xl mx-auto leading-relaxed">
-            לא כל הסטודיואים שווים. הנה מה שמבדיל אותי מהשאר ומה שתקבלי כשתבחרי ב-S.M BROWS.
+            לא כל הקליניקות שווים. הנה מה שמבדיל אותי מהשאר ומה שתקבלי כשתבחרי ב-S.M BROWS.
           </p>
         </motion.div>
 

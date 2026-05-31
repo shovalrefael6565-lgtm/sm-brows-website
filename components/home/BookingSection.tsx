@@ -87,7 +87,7 @@ export default function BookingSection() {
                 value: `${LOCATION}, ישראל`,
                 href: null,
                 isExternal: false,
-                ariaLabel: `מיקום הסטודיו: ${LOCATION}, ישראל`,
+                ariaLabel: `מיקום הקליניקה: ${LOCATION}, ישראל`,
               },
             ].map(({ icon, label, value, href, isExternal, ariaLabel }) => (
               <div key={label} className="glass-card rounded-2xl p-5" role="listitem">

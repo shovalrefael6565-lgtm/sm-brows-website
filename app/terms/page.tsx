@@ -15,7 +15,7 @@ export default function TermsPage() {
         tag="מסמך משפטי"
         title="תקנון"
         titleHighlight="ותנאי שימוש"
-        description="אנא קראי את התנאים הבאים בעיון לפני קבלת שירותים מהסטודיו."
+        description="אנא קראי את התנאים הבאים בעיון לפני קבלת שירותים מהקליניקה."
       />
       <TermsContent />
     </>
