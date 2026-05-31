@@ -13,9 +13,15 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
   return (
     <section
       aria-label="כותרת עמוד"
-      className="pt-36 pb-16 sm:pt-44 sm:pb-20 bg-hero-gradient text-center"
+      className="relative pt-36 pb-16 sm:pt-44 sm:pb-20 bg-hero-gradient text-center overflow-hidden"
     >
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+      {/* Background image at 50% opacity */}
+      <div
+        className="absolute inset-0 bg-cover bg-center pointer-events-none"
+        style={{ backgroundImage: "url('/page-hero-bg.webp')", opacity: 0.5 }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6">
         {tag && (
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -54,3 +60,4 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
     </section>
   )
 }
+
