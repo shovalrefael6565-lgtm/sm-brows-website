@@ -103,9 +103,9 @@ export default function BeforeAfterSection() {
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, 896px"
-                  priority
-                  loading="eager"
-                  quality={85}
+                  priority={i === 0}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  quality={80}
                 />
               </div>
             ))}

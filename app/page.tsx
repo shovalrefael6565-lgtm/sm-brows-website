@@ -2,15 +2,17 @@ import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import Hero from '@/components/home/Hero'
 
-// כל הסקשנים מתחת ל-Hero נטענים רק כשמגיעים אליהם
-const ServicesPreview   = dynamic(() => import('@/components/home/ServicesPreview'))
-const BeforeAfterSection = dynamic(() => import('@/components/home/BeforeAfterSection'))
-const GalleryPreview    = dynamic(() => import('@/components/home/GalleryPreview'))
-const WhyChooseUs          = dynamic(() => import('@/components/home/WhyChooseUs'))
-const TestimonialsSection  = dynamic(() => import('@/components/home/TestimonialsSection'))
-const CourseBanner         = dynamic(() => import('@/components/home/CourseBanner'))
-const BlogPreview       = dynamic(() => import('@/components/home/BlogPreview'))
-const BookingSection    = dynamic(() => import('@/components/home/BookingSection'))
+// סקשנים קרובים — SSR רגיל (טוב ל-SEO + LCP)
+const BeforeAfterSection  = dynamic(() => import('@/components/home/BeforeAfterSection'))
+const TestimonialsSection = dynamic(() => import('@/components/home/TestimonialsSection'))
+const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
+
+// סקשנים רחוקים — ssr:false מקטין את ה-bundle הראשוני
+const GalleryPreview  = dynamic(() => import('@/components/home/GalleryPreview'),  { ssr: false })
+const WhyChooseUs     = dynamic(() => import('@/components/home/WhyChooseUs'),     { ssr: false })
+const CourseBanner    = dynamic(() => import('@/components/home/CourseBanner'),    { ssr: false })
+const BlogPreview     = dynamic(() => import('@/components/home/BlogPreview'),     { ssr: false })
+const BookingSection  = dynamic(() => import('@/components/home/BookingSection'),  { ssr: false })
 
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',

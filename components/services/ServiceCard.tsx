@@ -59,8 +59,8 @@ function ImageSlider({ images, alt, duration, objectPositions }: { images: strin
               filter: 'brightness(1.04) contrast(1.03) saturate(1.06)',
               objectPosition: objectPositions?.[i] ?? 'top',
             }}
-            loading="eager"
-            priority
+            loading={i === 0 ? 'eager' : 'lazy'}
+            priority={i === 0}
           />
         </div>
       ))}

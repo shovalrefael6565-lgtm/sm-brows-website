@@ -75,7 +75,7 @@ export default function TestimonialsSection() {
                   opacity: i === current ? 1 : 0,
                   transition: 'opacity 0.9s ease-in-out',
                 }}
-                loading="eager"
+                loading={i === 0 ? 'eager' : 'lazy'}
               />
             ))}
           </div>
