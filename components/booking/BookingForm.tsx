@@ -18,7 +18,7 @@ interface ServiceOption {
 
 const SERVICES: ServiceOption[] = [
   { name: NATURAL,          online: true,  desc: 'עיצוב מדויק המדגיש את יופי הפנים הטבעי' },
-  { name: 'מיקרובליידינג',  online: false, desc: 'קעקוע קוסמטי לגבות מושלמות לשנים' },
+  { name: 'מיקרובליידינג',  online: false, desc: 'קעקוע קוסמטי לגבות מושלמות עד שנה' },
   { name: 'הרמת גבות',      online: false, desc: 'הרמה ועיצוב הגבות ללא ניתוח' },
   { name: 'קורס מקצועי',    online: false, desc: 'הכשרה מקצועית לאמניות גבות' },
 ]
