@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
-import { SITE_URL } from '@/lib/utils'
 import { blogPosts } from '@/lib/data'
+
+const SITE_URL = 'https://smbrows.co.il'
 
 /**
  * sitemap.xml דינמי — נוצר אוטומטית מהמסלולים והבלוג
