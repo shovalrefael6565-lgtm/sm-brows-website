@@ -259,9 +259,6 @@ export default function Hero() {
               transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mt-4 relative bg-white rounded-3xl overflow-hidden shadow-[0_8px_40px_-8px_rgba(44,24,16,0.13)] border border-brand-rose-light/30"
             >
-              {/* Gold top bar */}
-              <div className="h-1 w-full bg-gradient-to-r from-brand-rose/40 via-brand-gold to-brand-rose/40" />
-
               <div className="px-6 py-5">
                 {/* Name + tag */}
                 <div className="flex flex-col items-center gap-1 mb-3">
