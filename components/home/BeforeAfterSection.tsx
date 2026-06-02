@@ -148,10 +148,6 @@ export default function BeforeAfterSection() {
                 <ExpandIcon className="w-4 h-4 text-white" />
               </div>
 
-              {/* Counter badge */}
-              <div className="absolute bottom-3 left-3 z-10 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-sm text-white text-xs font-medium" aria-hidden="true">
-                {current + 1} / {IMAGES.length}
-              </div>
             </div>
 
             {/* Controls row: prev — dots — next */}
@@ -207,7 +203,8 @@ export default function BeforeAfterSection() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ background: 'linear-gradient(135deg, rgba(250,247,245,0.97) 0%, rgba(247,235,232,0.97) 40%, rgba(240,216,213,0.97) 70%, rgba(234,216,181,0.97) 100%)' }}
             onClick={() => setLightbox(null)}
             role="dialog"
             aria-modal="true"
@@ -233,7 +230,7 @@ export default function BeforeAfterSection() {
               />
 
               {/* Counter */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white text-xs font-medium">
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-brand-dark/30 backdrop-blur-sm text-white text-xs font-medium">
                 {lightbox + 1} / {IMAGES.length}
               </div>
             </motion.div>
@@ -242,7 +239,7 @@ export default function BeforeAfterSection() {
             <button
               onClick={() => setLightbox(null)}
               aria-label="סגור"
-              className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors"
+              className="absolute top-4 left-4 w-10 h-10 rounded-full bg-brand-dark/10 hover:bg-brand-dark/20 border border-brand-dark/15 flex items-center justify-center text-brand-dark transition-colors"
             >
               <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -253,7 +250,7 @@ export default function BeforeAfterSection() {
             <button
               onClick={(e) => { e.stopPropagation(); lightboxPrev() }}
               aria-label="תמונה קודמת"
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200"
             >
               <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
                 <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -264,7 +261,7 @@ export default function BeforeAfterSection() {
             <button
               onClick={(e) => { e.stopPropagation(); lightboxNext() }}
               aria-label="תמונה הבאה"
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white transition-colors"
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200"
             >
               <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
                 <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
