@@ -515,8 +515,7 @@ export const blogPosts: BlogPost[] = [
     title: '7 טיפים לעיצוב גבות טבעי שישדרגו את המראה שלך',
     excerpt:
       'הגבות הן מסגרת הפנים – ועיצוב נכון יכול לשנות הכל. הנה 7 טיפים מקצועיים שיעזרו לך להשיג גבות טבעיות ומוגדרות שמחמיאות לפנים שלך.',
-    image:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=450&q=80&auto=format&fit=crop',
+    image: '/mamar-tevi.webp',
     category: 'עיצוב גבות',
     date: '2024-02-20',
     readTime: 4,
