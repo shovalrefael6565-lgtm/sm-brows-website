@@ -565,8 +565,7 @@ export const blogPosts: BlogPost[] = [
     title: 'שאלות נפוצות על הרמת גבות – כל מה שרצית לדעת',
     excerpt:
       'הרמת גבות הפכה לאחד הטיפולים הפופולריים ביותר בעולם. אבל מה זה בדיוק? כואב? כמה זמן זה מחזיק? ריכזתי תשובות לכל השאלות שלך.',
-    image:
-      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=450&q=80&auto=format&fit=crop',
+    image: '/mamar.webp',
     category: 'הרמת גבות',
     date: '2024-01-10',
     readTime: 6,
