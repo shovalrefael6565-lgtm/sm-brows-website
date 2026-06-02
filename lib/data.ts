@@ -149,6 +149,7 @@ export const services: Service[] = [
     duration: '45 דקות',
     image: '/lifting-1.webp',
     images: [
+      '/123.webp',
       '/lifting-1.webp',
       '/lifting-2.webp',
       '/lifting-3.webp',
@@ -156,6 +157,7 @@ export const services: Service[] = [
       '/lifting-5.webp',
     ],
     imagePositions: [
+      '50% 30%',
       '65% 50%',
       '50% 0%',
       '50% 0%',
@@ -163,6 +165,7 @@ export const services: Service[] = [
       '50% 20%',
     ],
     homeImages: [
+      '/123.webp',
       '/lifting-1.webp',
       '/lifting-2.webp',
       '/lifting-3.webp',
@@ -170,6 +173,7 @@ export const services: Service[] = [
       '/lifting-5.webp',
     ],
     homeImagePositions: [
+      '50% 30%',
       '65% 55%',
       '50% 22%',
       '50% 15%',
