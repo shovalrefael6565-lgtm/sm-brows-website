@@ -72,13 +72,11 @@ export const services: Service[] = [
       '/microblading-9.webp',
     ],
     homeImages: [
-      '/microblading-2.webp',
       '/microblading-8.webp',
       '/microblading-5.webp',
       '/microblading-9.webp',
     ],
     homeImagePositions: [
-      '50% 40%',
       '50% 35%',
       '50% 35%',
       '50% 25%',
