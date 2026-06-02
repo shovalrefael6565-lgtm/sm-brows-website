@@ -66,9 +66,8 @@ export const services: Service[] = [
       'טכניקה מתקדמת של קעקוע קוסמטי ידני ליצירת גבות טבעיות ומוגדרות. כל שיערה מצוירת בנפרד לאפקט ריאליסטי מרהיב. תוצאות המחזיקות עד שנה.',
     price: '',
     duration: '2–3 שעות',
-    image: '/microblading-1.webp',
+    image: '/microblading-2.webp',
     images: [
-      '/microblading-1.webp',
       '/microblading-2.webp',
       '/microblading-9.webp',
     ],
