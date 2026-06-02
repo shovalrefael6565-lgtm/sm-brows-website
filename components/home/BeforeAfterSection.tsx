@@ -6,7 +6,6 @@ import Image from 'next/image'
 
 const IMAGES = [
   { src: '/ba-new-1.webp', alt: 'מיקרובליידינג לפני ואחרי 1' },
-  { src: '/ba-new-2.webp', alt: 'מיקרובליידינג לפני ואחרי 2' },
   { src: '/ba-new-3.webp', alt: 'מיקרובליידינג לפני ואחרי 3' },
   { src: '/ba-new-4.webp', alt: 'מיקרובליידינג לפני ואחרי 4' },
   { src: '/ba-new-5.webp', alt: 'מיקרובליידינג לפני ואחרי 5' },
