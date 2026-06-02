@@ -100,6 +100,7 @@ export const services: Service[] = [
     duration: '15–30 דקות',
     image: '/natural-1.webp',
     images: [
+      '/1222.webp',
       '/natural-10.webp',
       '/natural-1.webp',
       '/natural-2.webp',
@@ -111,6 +112,7 @@ export const services: Service[] = [
       '/natural-9.webp',
     ],
     imagePositions: [
+      '50% 30%',
       '50% 40%',
       '50% 15%',
       '50% 5%',
@@ -122,6 +124,7 @@ export const services: Service[] = [
       '50% 35%',
     ],
     homeImagePositions: [
+      '50% 30%',
       '50% 40%',
       '50% 15%',
       '50% 5%',
