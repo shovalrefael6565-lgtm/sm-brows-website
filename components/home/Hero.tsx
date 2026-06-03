@@ -222,7 +222,7 @@ export default function Hero() {
             </div>
 
             {/* Main image container */}
-            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[560px] lg:h-[520px] rounded-[2rem] overflow-hidden shadow-soft-lg">
+            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[640px] lg:h-[560px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
                 src="/hero.webp"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
@@ -244,19 +244,19 @@ export default function Hero() {
               transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mt-4 relative"
             >
-              <div className="px-6 py-5">
+              <div className="px-6 py-6 sm:px-8 sm:py-7">
                 {/* Name + tag */}
-                <div className="flex flex-col items-center gap-1 mb-3">
-                  <h3 className="font-serif text-2xl font-bold text-brand-dark tracking-wide">
+                <div className="flex flex-col items-center gap-1.5 mb-4">
+                  <h3 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark tracking-wide">
                     שובל מאירה
                   </h3>
-                  <p className="text-brand-muted text-sm font-medium">אמא של לוי משה 🤍</p>
+                  <p className="text-brand-muted text-sm sm:text-base font-medium">אמא של לוי משה 🤍</p>
                 </div>
 
                 {/* Divider with title */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-5">
                   <div className="flex-1 h-px bg-brand-gold/30" />
-                  <span className="text-xs text-brand-gold font-semibold tracking-[0.2em] uppercase whitespace-nowrap">
+                  <span className="text-xs sm:text-sm text-brand-gold font-semibold tracking-[0.2em] uppercase whitespace-nowrap">
                     מומחית גבות · 5 שנות ניסיון
                   </span>
                   <div className="flex-1 h-px bg-brand-gold/30" />
@@ -264,15 +264,15 @@ export default function Hero() {
 
                 {/* Quote */}
                 <div className="relative">
-                  <span className="absolute -top-2 -right-1 font-serif text-5xl text-brand-rose/20 leading-none select-none" aria-hidden="true">"</span>
-                  <p className="text-brand-medium text-base leading-relaxed text-center relative z-10 px-2">
+                  <span className="absolute -top-2 -right-1 font-serif text-6xl text-brand-rose/20 leading-none select-none" aria-hidden="true">"</span>
+                  <p className="text-brand-medium text-base sm:text-lg leading-relaxed text-center relative z-10 px-2">
                     תמיד הייתה לי משהו עם גבות — שלי תמיד היו עבות, טבעיות, מסודרות. אנשים היו עוצרים אותי ברחוב ושואלים מה עשיתי להן. מתישהו הבנתי שזה לא סתם מחמאה — זו התשוקה שלי.
                   </p>
                 </div>
 
                 {/* Closing line */}
-                <div className="mt-3 pt-3 border-t border-brand-cream-dark/60 text-center">
-                  <p className="text-brand-dark text-lg font-serif">
+                <div className="mt-4 pt-4 border-t border-brand-cream-dark/60 text-center">
+                  <p className="text-brand-dark text-xl sm:text-2xl font-serif">
                     כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות —
                     <span className="text-brand-rose"> גבות שמדברות בעד עצמן.</span>
                   </p>
