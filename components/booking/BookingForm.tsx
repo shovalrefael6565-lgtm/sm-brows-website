@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 
-const NATURAL = 'עיצוב גבות טבעי'
+const NATURAL = 'עיצוב גבות טבעיות'
 
 interface ServiceOption {
   name: string

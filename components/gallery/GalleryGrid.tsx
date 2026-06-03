@@ -19,7 +19,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 const CATEGORY_LABELS: Record<GalleryItem['category'], string> = {
   microblading: 'מיקרובליידינג',
-  natural: 'עיצוב גבות טבעי',
+  natural: 'עיצוב גבות טבעיות',
   lifting: 'הרמת גבות',
 }
 

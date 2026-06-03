@@ -61,7 +61,7 @@ function normalizeAmPm(
 }
 
 const SERVICE_DURATIONS: Record<string, number> = {
-  'עיצוב גבות טבעי': 20,
+  'עיצוב גבות טבעיות': 20,
   'הרמת גבות': 45,
   'קורס מקצועי': 60,
   'מיקרובליידינג': 150,

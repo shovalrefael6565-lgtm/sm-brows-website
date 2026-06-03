@@ -81,20 +81,14 @@ export default function ServicesPreview() {
           transition={{ duration: 0.6 }}
           className="text-center mb-14"
         >
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
-            הטיפולים שלי
-          </p>
           <h2
             id="services-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark mb-4"
+            className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark mb-4"
           >
-            כי הגבות שלך
-            <br />
-            <span className="text-brand-rose">מגיעות להיות מושלמות</span>
+            הטיפולים שלי
           </h2>
           <p className="text-brand-medium max-w-xl mx-auto leading-relaxed">
-            שלושה טיפולים מקצועיים, תוצאות מהפכניות. בחרי את הטיפול המתאים לך ותיהני
-            מגבות שתמיד חלמת עליהן.
+            שלושה טיפולים, כל אחד עם תוצאה אחרת — בואי נמצא יחד מה הכי מתאים לך.
           </p>
         </motion.div>
 
@@ -176,7 +170,7 @@ export default function ServicesPreview() {
                       <WhatsAppSmIcon />
                       {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'וואצאפ'}
                     </a>
-                    {service.name === 'עיצוב גבות טבעי' && (
+                    {service.name === 'עיצוב גבות טבעיות' && (
                       <Link
                         href="/booking"
                         aria-label={`קביעת תור לטיפול ${service.name} ביומן`}

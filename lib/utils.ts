@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 /** תקשורת חברתית — עדכון אחרון: 2026-05-20 */
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://smbrows.co.il'
 
-export const WHATSAPP_URL = 'https://wa.me/9720547261564'
+export const WHATSAPP_URL = `https://wa.me/9720547261564?text=${encodeURIComponent('היי שובל 🤍 רציתי לקבוע תור')}`
 export const PHONE_NUMBER = '054-726-1564'
 export const PHONE_RAW = '0547261564'
 export const LOCATION = 'הכורמים, אשקלון'

@@ -58,24 +58,9 @@ export default function Hero() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-16 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Text content */}
         <div className="order-2 lg:order-1 text-center lg:text-start">
-          {/* Pre-title */}
-          <motion.p
-            custom={0}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-4"
-          >
-            <span
-              className="w-8 h-px bg-brand-gold flex-shrink-0 hidden lg:inline-block"
-              aria-hidden="true"
-            />
-            קליניקת גבות מקצועי באשקלון
-          </motion.p>
-
           {/* Brand name */}
           <motion.h1
-            custom={1}
+            custom={0}
             variants={fadeUp}
             initial="hidden"
             animate="visible"
@@ -86,7 +71,7 @@ export default function Hero() {
 
           {/* Tagline */}
           <motion.p
-            custom={2}
+            custom={1}
             variants={fadeUp}
             initial="hidden"
             animate="visible"
@@ -98,19 +83,19 @@ export default function Hero() {
 
           {/* Description */}
           <motion.p
-            custom={3}
+            custom={2}
             variants={fadeUp}
             initial="hidden"
             animate="visible"
             className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0"
           >
-            מיקרובליידינג, עיצוב גבות טבעי והרמת גבות – הגבות המושלמות שחלמת עליהן
-            מחכה לך בקליניקה שלי באשקלון.
+            מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות — הגבות שחלמת עליהן
+            מחכות לך בקליניקה שלי באשקלון.
           </motion.p>
 
           {/* CTA buttons */}
           <motion.div
-            custom={4}
+            custom={3}
             variants={fadeUp}
             initial="hidden"
             animate="visible"
@@ -127,7 +112,7 @@ export default function Hero() {
                 className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full shadow-gold hover:bg-brand-gold-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
               >
                 <CalendarIcon className="w-5 h-5" />
-                קבעי תור
+                לקביעת תורים
                 <motion.span
                   animate={{ rotate: bookingOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
@@ -196,7 +181,7 @@ export default function Hero() {
 
           {/* Trust badges */}
           <motion.div
-            custom={5}
+            custom={4}
             variants={fadeUp}
             initial="hidden"
             animate="visible"
