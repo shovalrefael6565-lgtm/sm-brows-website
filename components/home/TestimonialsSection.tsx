@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const REVIEWS = [
   '/wa-review-1.webp',
@@ -22,11 +22,22 @@ const REVIEWS = [
 
 export default function TestimonialsSection() {
   const [current, setCurrent] = useState(0)
+  const pausedRef = useRef(false)
 
   const next = useCallback(() => setCurrent((c) => (c + 1) % REVIEWS.length), [])
+  const prev = useCallback(() => setCurrent((c) => (c - 1 + REVIEWS.length) % REVIEWS.length), [])
+
+  const goManual = useCallback((fn: () => void) => {
+    pausedRef.current = true
+    fn()
+    // resume auto-scroll after 6 seconds of inactivity
+    setTimeout(() => { pausedRef.current = false }, 6000)
+  }, [])
 
   useEffect(() => {
-    const timer = setInterval(next, 3000)
+    const timer = setInterval(() => {
+      if (!pausedRef.current) next()
+    }, 3000)
     return () => clearInterval(timer)
   }, [next])
 
@@ -64,7 +75,7 @@ export default function TestimonialsSection() {
         </div>
 
         {/* Crossfade screenshots */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-5">
           <div className="w-full max-w-sm" style={{ display: 'grid' }}>
             {REVIEWS.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -73,7 +84,7 @@ export default function TestimonialsSection() {
                 src={src}
                 alt={i === current ? `ביקורת לקוחה ${i + 1}` : ''}
                 aria-hidden={i !== current}
-                className="w-full h-auto block"
+                className="w-full h-auto block rounded-2xl"
                 style={{
                   gridColumn: 1,
                   gridRow: 1,
@@ -84,8 +95,45 @@ export default function TestimonialsSection() {
               />
             ))}
           </div>
-        </div>
 
+          {/* Navigation */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => goManual(prev)}
+              aria-label="ביקורת קודמת"
+              className="w-8 h-8 rounded-full bg-white/70 border border-brand-rose-light text-brand-rose hover:bg-white hover:border-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm cursor-pointer"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-1.5" role="tablist" aria-label="ביקורות">
+              {REVIEWS.map((_, i) => (
+                <button
+                  key={i}
+                  role="tab"
+                  aria-selected={i === current}
+                  aria-label={`ביקורת ${i + 1}`}
+                  onClick={() => goManual(() => setCurrent(i))}
+                  className={`rounded-full transition-all duration-300 cursor-pointer ${
+                    i === current ? 'w-4 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-rose-light hover:bg-brand-rose/50'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => goManual(next)}
+              aria-label="ביקורת הבאה"
+              className="w-8 h-8 rounded-full bg-white/70 border border-brand-rose-light text-brand-rose hover:bg-white hover:border-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm cursor-pointer"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
 
       </div>
     </section>
