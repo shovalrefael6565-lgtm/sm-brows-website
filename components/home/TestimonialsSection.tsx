@@ -17,6 +17,7 @@ const REVIEWS = [
   '/wa-review-12.webp',
   '/wa-review-13.webp',
   '/wa-review-14.webp',
+  '/wa-review-15.webp',
 ]
 
 export default function TestimonialsSection() {
