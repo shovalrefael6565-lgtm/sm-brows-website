@@ -57,7 +57,7 @@ export default function Hero() {
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full flex flex-col items-center gap-10">
         {/* Text content */}
-        <div className="order-2 text-center w-full">
+        <div className="order-2 text-center w-full mt-8 sm:mt-0">
           {/* Brand name */}
           <motion.h1
             custom={0}
