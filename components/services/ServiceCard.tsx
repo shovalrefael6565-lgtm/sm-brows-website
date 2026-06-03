@@ -13,7 +13,7 @@ interface Props {
   index: number
 }
 
-function ImageSlider({ images, alt, duration, objectPositions }: { images: string[]; alt: string; duration: string; objectPositions?: string[] }) {
+function ImageSlider({ images, alt, duration, objectPositions, aspectRatio }: { images: string[]; alt: string; duration: string; objectPositions?: string[]; aspectRatio?: string }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
 
@@ -30,7 +30,8 @@ function ImageSlider({ images, alt, duration, objectPositions }: { images: strin
 
   return (
     <div
-      className="relative rounded-3xl overflow-hidden shadow-soft-lg aspect-[4/2.04] group bg-brand-cream"
+      className="relative rounded-3xl overflow-hidden shadow-soft-lg group bg-brand-cream"
+      style={{ aspectRatio: aspectRatio ?? '4/2.04' }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
@@ -148,6 +149,7 @@ export default function ServiceCard({ service, index }: Props) {
         alt={service.name}
         duration={service.duration}
         objectPositions={service.imagePositions}
+        aspectRatio={service.imageAspect}
       />
 
       {/* Content */}

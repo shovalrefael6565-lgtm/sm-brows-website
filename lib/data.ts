@@ -12,6 +12,7 @@ export interface Service {
   homeImages?: string[]
   imagePositions?: string[]
   homeImagePositions?: string[]
+  imageAspect?: string   // CSS aspect-ratio value, e.g. '1/1' or '4/2.04' (default)
   features: string[]
 }
 
@@ -85,6 +86,7 @@ export const services: Service[] = [
       '/microblading-slider-7.webp',
       '/microblading-slider-8.webp',
     ],
+    imageAspect: '1/1',
     homeImages: [
       '/microblading-8.webp',
       '/microblading-5.webp',
