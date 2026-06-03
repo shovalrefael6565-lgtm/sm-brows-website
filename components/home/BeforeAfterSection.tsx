@@ -126,14 +126,14 @@ export default function BeforeAfterSection() {
                   key={i}
                   onClick={() => setLightbox(i % IMAGES.length)}
                   aria-label={`הגדל תמונה ${(i % IMAGES.length) + 1}`}
-                  className="group relative flex-shrink-0 w-[280px] h-[360px] rounded-2xl overflow-hidden shadow-soft cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+                  className="group relative flex-shrink-0 w-[440px] h-[230px] rounded-2xl overflow-hidden shadow-soft cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
                 >
                   <Image
                     src={img.src}
                     alt={img.alt}
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="280px"
+                    sizes="440px"
                     loading="lazy"
                     quality={75}
                   />

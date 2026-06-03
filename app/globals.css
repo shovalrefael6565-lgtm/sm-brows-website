@@ -142,7 +142,7 @@ body.a11y-stop-animations *::after {
   to   { transform: translateX(-50%) }
 }
 .animate-ba-scroll {
-  animation: ba-scroll 44s linear infinite;
+  animation: ba-scroll 55s linear infinite;
   will-change: transform;
 }
 .animate-ba-scroll:hover,
