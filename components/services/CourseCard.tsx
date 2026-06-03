@@ -49,7 +49,7 @@ export default function CourseCard() {
     >
       <article
         aria-label="קורס עיצוב גבות מקצועי – פרימיום"
-        className="relative overflow-hidden rounded-3xl bg-brand-dark text-white shadow-[0_20px_80px_-12px_rgba(44,24,16,0.4)]"
+        className="relative overflow-hidden rounded-3xl bg-brand-linen shadow-soft-lg border border-brand-cream-dark/60"
       >
         {/* Background image */}
         <div className="absolute inset-0" aria-hidden="true">
@@ -58,9 +58,9 @@ export default function CourseCard() {
             alt="קורס עיצוב גבות מקצועי"
             fill
             sizes="100vw"
-            className="object-cover opacity-20"
+            className="object-cover opacity-10"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-brand-dark/95 to-brand-dark/70" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-linen via-brand-linen/95 to-brand-linen/70" />
         </div>
 
         {/* Gold top border */}
@@ -77,7 +77,7 @@ export default function CourseCard() {
               </span>
             </div>
 
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white mb-3 leading-snug">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-3 leading-snug">
               {courseService.name}
             </h2>
 
@@ -90,7 +90,7 @@ export default function CourseCard() {
                 className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'frontal'
                     ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
-                    : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white/80'
+                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >
                 <MapPin className="w-3 h-3" aria-hidden="true" />
@@ -103,7 +103,7 @@ export default function CourseCard() {
                 className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'online'
                     ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
-                    : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white/80'
+                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >
                 <Monitor className="w-3 h-3" aria-hidden="true" />
@@ -119,7 +119,7 @@ export default function CourseCard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.25 }}
-                className="text-white/70 leading-relaxed mb-5"
+                className="text-brand-medium leading-relaxed mb-5"
               >
                 {data.description}
               </motion.p>
@@ -127,17 +127,17 @@ export default function CourseCard() {
 
             {/* Key details */}
             <div className="flex flex-wrap gap-3 mb-6">
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
+              <div className="flex items-center gap-2 bg-brand-cream-dark rounded-xl px-4 py-2">
                 {data.sessionIcon === 'video'
                   ? <Video className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
                   : <Users className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
                 }
-                <span className="text-sm text-white font-medium">{data.sessions}</span>
+                <span className="text-sm text-brand-dark font-medium">{data.sessions}</span>
               </div>
               {format === 'frontal' && (
-                <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
+                <div className="flex items-center gap-2 bg-brand-cream-dark rounded-xl px-4 py-2">
                   <CalendarDays className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                  <span className="text-sm text-white font-medium">מקומות מוגבלים</span>
+                  <span className="text-sm text-brand-dark font-medium">מקומות מוגבלים</span>
                 </div>
               )}
             </div>
@@ -161,7 +161,7 @@ export default function CourseCard() {
                     >
                       <Check className="w-3 h-3 text-brand-gold" />
                     </span>
-                    <span className="text-sm text-white/80">{feature}</span>
+                    <span className="text-sm text-brand-medium">{feature}</span>
                   </li>
                 ))}
               </motion.ul>
@@ -173,7 +173,7 @@ export default function CourseCard() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="לפרטים ורישום לקורס עיצוב גבות בוואצאפ"
-              className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-light transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-light transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-linen w-full sm:w-auto"
             >
               <WhatsAppIcon className="w-5 h-5" />
               לפרטים ורישום בוואצאפ
@@ -186,7 +186,7 @@ export default function CourseCard() {
               <div className="absolute inset-0 rounded-full border-2 border-brand-gold/20 scale-110" aria-hidden="true" />
               <div className="absolute inset-0 rounded-full border border-brand-gold/10 scale-125" aria-hidden="true" />
 
-              <p className="text-white/50 text-sm uppercase tracking-widest mb-2">מחיר הקורס</p>
+              <p className="text-brand-muted text-sm uppercase tracking-widest mb-2">מחיר הקורס</p>
               <AnimatePresence mode="wait">
                 <motion.p
                   key={format + '-price'}
@@ -200,21 +200,21 @@ export default function CourseCard() {
                   {data.price}
                 </motion.p>
               </AnimatePresence>
-              <p className="text-white/40 text-xs">{data.priceLabel}</p>
+              <p className="text-brand-muted text-xs">{data.priceLabel}</p>
 
-              <div className="mt-6 pt-6 border-t border-white/10 space-y-2">
+              <div className="mt-6 pt-6 border-t border-brand-cream-dark space-y-2">
                 {format === 'frontal' ? (
-                  <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
                     <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                     <span>{LOCATION} / אונליין</span>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
                     <Monitor className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                     <span>מכל מקום, בזמן שנוח לך</span>
                   </div>
                 )}
-                <div className="flex items-center justify-center gap-1.5 text-white/60 text-sm">
+                <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
                   <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                   <span>{data.sessions}</span>
                 </div>
