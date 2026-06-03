@@ -5,15 +5,15 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 
 const IMAGES = [
-  { src: '/ba-new-1.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 1' },
-  { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3' },
-  { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4' },
-  { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5' },
-  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6' },
-  { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7' },
-  { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8' },
-  { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9' },
-  { src: '/ba-new-10.webp',    alt: 'מיקרובליידינג לפני ואחרי 10' },
+  { src: '/ba-new-1.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%' },
+  { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%' },
+  { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4',  pos: '50% 30%' },
+  { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%' },
+  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 15%' },
+  { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%' },
+  { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%' },
+  { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%' },
+  { src: '/ba-new-10.webp',    alt: 'מיקרובליידינג לפני ואחרי 10', pos: '50% 30%' },
 ]
 
 const ITEM_W = 440   // px — width of each card
@@ -194,6 +194,7 @@ export default function BeforeAfterSection() {
                   style={{ opacity: i === current ? 1 : 0, transition: 'opacity 0.7s ease-in-out', willChange: 'opacity' }}
                 >
                   <Image src={img.src} alt={img.alt} fill className="object-cover"
+                    style={{ objectPosition: img.pos }}
                     sizes="(max-width: 768px) 100vw, 896px" priority={i === 0} loading={i === 0 ? 'eager' : 'lazy'} quality={80} />
                 </div>
               ))}
