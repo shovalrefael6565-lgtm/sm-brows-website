@@ -85,6 +85,7 @@ export const services: Service[] = [
       '/microblading-slider-6.webp',
       '/microblading-slider-7.webp',
       '/microblading-slider-8.webp',
+      '/microblading-slider-9.webp',
     ],
     imageAspect: '1/1',
     homeImages: [
