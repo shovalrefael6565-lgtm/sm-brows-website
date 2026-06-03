@@ -55,9 +55,9 @@ export default function Hero() {
         className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full bg-brand-gold/10 blur-3xl pointer-events-none"
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-16 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full flex flex-col items-center gap-10">
         {/* Text content */}
-        <div className="order-2 lg:order-1 text-center lg:text-start">
+        <div className="order-2 text-center w-full">
           {/* Brand name */}
           <motion.h1
             custom={0}
@@ -99,7 +99,7 @@ export default function Hero() {
             variants={fadeUp}
             initial="hidden"
             animate="visible"
-            className="flex flex-col sm:flex-row items-center lg:items-start gap-3 justify-center lg:justify-start"
+            className="flex flex-col sm:flex-row items-center gap-3 justify-center"
           >
             {/* Single booking button with dropdown */}
             <div ref={bookingRef} className="relative">
@@ -185,7 +185,7 @@ export default function Hero() {
             variants={fadeUp}
             initial="hidden"
             animate="visible"
-            className="flex items-center gap-6 mt-10 justify-center lg:justify-start"
+            className="flex items-center gap-6 mt-10 justify-center"
             role="list"
             aria-label="יתרונות S.M BROWS"
           >
@@ -204,7 +204,7 @@ export default function Hero() {
 
         {/* Hero image */}
         <motion.div
-          className="order-1 lg:order-2 relative mx-auto lg:mx-0"
+          className="order-1 relative mx-auto w-full flex justify-center"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
@@ -222,7 +222,7 @@ export default function Hero() {
             </div>
 
             {/* Main image container */}
-            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[540px] lg:h-[660px] rounded-[2rem] overflow-hidden shadow-soft-lg">
+            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[560px] lg:h-[520px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
                 src="/hero.webp"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"

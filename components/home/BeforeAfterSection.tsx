@@ -21,9 +21,14 @@ const INTERVAL = 4000
 export default function BeforeAfterSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-80px' })
+
+  // ── Mobile state ──
   const [current, setCurrent] = useState(0)
   const [lightbox, setLightbox] = useState<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // ── Desktop strip state ──
+  const [stripPaused, setStripPaused] = useState(false)
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -37,7 +42,6 @@ export default function BeforeAfterSection() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [startTimer])
 
-  // Pause auto-advance when lightbox is open
   useEffect(() => {
     if (lightbox !== null) {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -46,26 +50,20 @@ export default function BeforeAfterSection() {
     }
   }, [lightbox, startTimer])
 
-  // Keyboard navigation
   useEffect(() => {
     if (lightbox === null) return
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLightbox(null)
       if (e.key === 'ArrowRight') setLightbox((p) => p !== null ? (p - 1 + IMAGES.length) % IMAGES.length : p)
-      if (e.key === 'ArrowLeft') setLightbox((p) => p !== null ? (p + 1) % IMAGES.length : p)
+      if (e.key === 'ArrowLeft')  setLightbox((p) => p !== null ? (p + 1) % IMAGES.length : p)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [lightbox])
 
-  const goTo = (i: number) => {
-    setCurrent(i)
-    startTimer()
-  }
-
+  const goTo = (i: number) => { setCurrent(i); startTimer() }
   const prev = () => goTo((current - 1 + IMAGES.length) % IMAGES.length)
   const next = () => goTo((current + 1) % IMAGES.length)
-
   const lightboxPrev = () => setLightbox((p) => p !== null ? (p - 1 + IMAGES.length) % IMAGES.length : p)
   const lightboxNext = () => setLightbox((p) => p !== null ? (p + 1) % IMAGES.length : p)
 
@@ -87,12 +85,8 @@ export default function BeforeAfterSection() {
             <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
               תוצאות אמיתיות
             </p>
-            <h2
-              id="ba-heading"
-              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark mb-4"
-            >
-              לפני
-              <span className="text-brand-rose"> ואחרי</span>
+            <h2 id="ba-heading" className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark mb-4">
+              לפני <span className="text-brand-rose">ואחרי</span>
             </h2>
             <div className="flex items-center justify-center gap-2 mb-4" aria-hidden="true">
               <span className="w-10 h-px bg-brand-rose-light" />
@@ -103,14 +97,70 @@ export default function BeforeAfterSection() {
               מיקרובליידינג — תוצאות שמדברות בעד עצמן.
             </p>
           </motion.div>
+        </div>
 
+        {/* ── Desktop: Infinite horizontal scroll strip ── */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ delay: 0.2, duration: 0.7 }}
+          className="hidden md:block"
+        >
+          {/* Fade edges */}
+          <div
+            className={`relative overflow-hidden ${stripPaused ? 'ba-strip-paused' : ''}`}
+            onMouseEnter={() => setStripPaused(true)}
+            onMouseLeave={() => setStripPaused(false)}
+            style={{
+              maskImage: 'linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)',
+            }}
+          >
+            <div
+              className="animate-ba-scroll flex gap-5 w-max py-2"
+              style={{ animationPlayState: stripPaused ? 'paused' : 'running' }}
+            >
+              {/* Duplicate for seamless loop */}
+              {[...IMAGES, ...IMAGES].map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setLightbox(i % IMAGES.length)}
+                  aria-label={`הגדל תמונה ${(i % IMAGES.length) + 1}`}
+                  className="group relative flex-shrink-0 w-[280px] h-[360px] rounded-2xl overflow-hidden shadow-soft cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+                >
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="280px"
+                    loading="lazy"
+                    quality={75}
+                  />
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/10 transition-colors duration-300" />
+                  {/* Expand icon */}
+                  <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/25 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200" aria-hidden="true">
+                    <ExpandIcon className="w-3.5 h-3.5 text-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Hint */}
+          <p className="text-center text-xs text-brand-muted mt-4 tracking-wide" aria-hidden="true">
+            לחצי על תמונה להגדלה
+          </p>
+        </motion.div>
+
+        {/* ── Mobile: Single crossfade carousel ── */}
+        <div className="md:hidden max-w-4xl mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 32 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.2, duration: 0.6 }}
             className="relative"
           >
-            {/* Carousel — images stacked, crossfade */}
             <div
               className="relative rounded-3xl shadow-soft overflow-hidden aspect-[16/9] cursor-zoom-in group"
               onClick={() => setLightbox(current)}
@@ -130,63 +180,30 @@ export default function BeforeAfterSection() {
                   }}
                 >
                   <Image
-                    src={img.src}
-                    alt={img.alt}
-                    fill
+                    src={img.src} alt={img.alt} fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 896px"
-                    priority={i === 0}
-                    loading={i === 0 ? 'eager' : 'lazy'}
-                    quality={80}
+                    priority={i === 0} loading={i === 0 ? 'eager' : 'lazy'} quality={80}
                   />
                 </div>
               ))}
-
-              {/* Expand hint */}
               <div className="absolute top-3 left-3 z-10 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200" aria-hidden="true">
                 <ExpandIcon className="w-4 h-4 text-white" />
               </div>
-
             </div>
 
-            {/* Controls row: prev — dots — next */}
+            {/* Controls row */}
             <div className="flex items-center justify-center gap-4 mt-5">
-              {/* Prev */}
-              <button
-                onClick={prev}
-                aria-label="תמונה קודמת"
-                className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm"
-              >
-                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
-                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <button onClick={prev} aria-label="תמונה קודמת" className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm">
+                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-
-              {/* Dots */}
               <div className="flex gap-2" role="tablist" aria-label="בחירת תמונה">
                 {IMAGES.map((_, i) => (
-                  <button
-                    key={i}
-                    role="tab"
-                    aria-selected={i === current}
-                    aria-label={`תמונה ${i + 1}`}
-                    onClick={() => goTo(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      i === current ? 'w-6 bg-brand-rose' : 'w-2 bg-brand-rose-light'
-                    }`}
-                  />
+                  <button key={i} role="tab" aria-selected={i === current} aria-label={`תמונה ${i + 1}`} onClick={() => goTo(i)} className={`h-2 rounded-full transition-all duration-300 ${i === current ? 'w-6 bg-brand-rose' : 'w-2 bg-brand-rose-light'}`} />
                 ))}
               </div>
-
-              {/* Next */}
-              <button
-                onClick={next}
-                aria-label="תמונה הבאה"
-                className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm"
-              >
-                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
-                  <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <button onClick={next} aria-label="תמונה הבאה" className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm">
+                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
           </motion.div>
@@ -198,73 +215,34 @@ export default function BeforeAfterSection() {
         {lightbox !== null && (
           <motion.div
             key="lightbox-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
             style={{ background: 'linear-gradient(135deg, rgba(250,247,245,0.97) 0%, rgba(247,235,232,0.97) 40%, rgba(240,216,213,0.97) 70%, rgba(234,216,181,0.97) 100%)' }}
             onClick={() => setLightbox(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="תצוגת תמונה מוגדלת"
+            role="dialog" aria-modal="true" aria-label="תצוגת תמונה מוגדלת"
           >
-            {/* Image container */}
             <motion.div
               key={lightbox}
-              initial={{ opacity: 0, scale: 0.93 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.93 }}
+              initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.93 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               className="relative w-full max-w-3xl max-h-[85vh] aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <Image
-                src={IMAGES[lightbox].src}
-                alt={IMAGES[lightbox].alt}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 1200px"
-                quality={90}
-              />
-
-              {/* Counter */}
+              <Image src={IMAGES[lightbox].src} alt={IMAGES[lightbox].alt} fill className="object-cover" sizes="(max-width: 768px) 100vw, 1200px" quality={90} />
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-brand-dark/30 backdrop-blur-sm text-white text-xs font-medium">
                 {lightbox + 1} / {IMAGES.length}
               </div>
             </motion.div>
 
-            {/* Close button */}
-            <button
-              onClick={() => setLightbox(null)}
-              aria-label="סגור"
-              className="absolute top-4 left-4 w-10 h-10 rounded-full bg-brand-dark/10 hover:bg-brand-dark/20 border border-brand-dark/15 flex items-center justify-center text-brand-dark transition-colors"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
-                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+            <button onClick={() => setLightbox(null)} aria-label="סגור" className="absolute top-4 left-4 w-10 h-10 rounded-full bg-brand-dark/10 hover:bg-brand-dark/20 border border-brand-dark/15 flex items-center justify-center text-brand-dark transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
             </button>
-
-            {/* Lightbox prev */}
-            <button
-              onClick={(e) => { e.stopPropagation(); lightboxPrev() }}
-              aria-label="תמונה קודמת"
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <button onClick={(e) => { e.stopPropagation(); lightboxPrev() }} aria-label="תמונה קודמת" className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
-
-            {/* Lightbox next */}
-            <button
-              onClick={(e) => { e.stopPropagation(); lightboxNext() }}
-              aria-label="תמונה הבאה"
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <button onClick={(e) => { e.stopPropagation(); lightboxNext() }} aria-label="תמונה הבאה" className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white hover:bg-brand-rose hover:text-white hover:border-brand-rose border border-brand-rose-light text-brand-rose flex items-center justify-center shadow-sm transition-all duration-200">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </motion.div>
         )}

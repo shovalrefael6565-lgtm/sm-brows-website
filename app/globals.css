@@ -136,6 +136,20 @@ body.a11y-stop-animations *::after {
   color: #2c1810;
 }
 
+/* ── Before/After desktop infinite scroll ── */
+@keyframes ba-scroll {
+  from { transform: translateX(0) }
+  to   { transform: translateX(-50%) }
+}
+.animate-ba-scroll {
+  animation: ba-scroll 44s linear infinite;
+  will-change: transform;
+}
+.animate-ba-scroll:hover,
+.ba-strip-paused .animate-ba-scroll {
+  animation-play-state: paused;
+}
+
 /* ── Navigation progress bar ── */
 @keyframes nav-progress {
   0%   { background-position: 200% center; transform: scaleX(0.3); transform-origin: left; }
