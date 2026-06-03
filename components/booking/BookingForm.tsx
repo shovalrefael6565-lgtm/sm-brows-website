@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
   MessageSquare, Sparkles, ArrowRight, Pencil,
 } from 'lucide-react'
-import { cn, WHATSAPP_URL } from '@/lib/utils'
+import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 
 const NATURAL = 'עיצוב גבות טבעיות'
 
@@ -368,19 +368,20 @@ export default function BookingForm() {
   }
 
   const buildWhatsAppMessage = () => {
+    const service = isNatural && form.variant ? form.variant : form.service
     const lines = [
-      'שלום! קיבלתי בקשה לתור 🌸',
+      'היי שובל 🤍',
       '',
-      `👤 שם: ${form.name}`,
-      `📞 טלפון: ${form.phone}`,
-      `💆 טיפול: ${isNatural && form.variant ? form.variant : form.service}`,
-      ...(isNatural && selectedVariant ? [`💰 מחיר: ₪${selectedVariant.price}`] : []),
-      ...(isNatural ? [
-        `📅 תאריך: ${form.date}`,
-        `⏰ שעה: ${form.time}`,
-      ] : []),
-      form.notes.trim() ? `📝 הערות: ${form.notes}` : '',
-    ].filter(Boolean)
+      'בקשת תור חדשה 🌸',
+      '',
+      `👤 ${form.name}`,
+      `📞 ${form.phone}`,
+      '',
+      `💆 ${service}`,
+      ...(form.date ? [`📅 ${form.date}`] : []),
+      ...(form.time ? [`⏰ ${form.time}`] : []),
+      ...(form.notes.trim() ? ['', `📝 ${form.notes}`] : []),
+    ]
     return encodeURIComponent(lines.join('\n'))
   }
 
@@ -388,7 +389,7 @@ export default function BookingForm() {
     e.preventDefault()
     if (!validateFinal()) return
     setSubmitted(true)
-    const url = `${WHATSAPP_URL}?text=${buildWhatsAppMessage()}`
+    const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -441,7 +442,7 @@ export default function BookingForm() {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href={`${WHATSAPP_URL}?text=${buildWhatsAppMessage()}`}
+            href={`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
