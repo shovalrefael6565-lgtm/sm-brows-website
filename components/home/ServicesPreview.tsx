@@ -128,7 +128,7 @@ export default function ServicesPreview() {
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
                   </div>
                   <p className="text-brand-medium text-sm leading-relaxed mb-4 flex-1">
-                    {service.description}
+                    {service.homeDescription ?? service.description}
                   </p>
 
                   {/* Features */}

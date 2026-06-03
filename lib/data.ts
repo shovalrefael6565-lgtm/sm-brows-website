@@ -3,6 +3,7 @@ export interface Service {
   name: string
   tagline: string
   description: string
+  homeDescription?: string   // short 1-2 line version shown on homepage
   price: string
   duration: string
   image: string
@@ -64,6 +65,7 @@ export const services: Service[] = [
     tagline: 'גבות מושלמות עד שנה',
     description:
       'טכניקה מתקדמת של קעקוע קוסמטי ידני ליצירת גבות טבעיות ומוגדרות. כל שיערה מצוירת בנפרד לאפקט ריאליסטי מרהיב. תוצאות המחזיקות עד שנה.',
+    homeDescription: 'פתרון לאזורים דלילים באמצעות הדמיית שערה עדינה וטבעית.',
     price: '',
     duration: '2–3 שעות',
     image: '/microblading-2.webp',
@@ -94,6 +96,7 @@ export const services: Service[] = [
     tagline: 'ההגדרה המושלמת',
     description:
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. הגדרה מותאמת אישית לצורת הפנים ולמבנה הגבה הטבעי שלך.',
+    homeDescription: 'התאמת צורת הגבה למבנה הפנים לקבלת מראה טבעי ומחמיא.',
     price: '₪70',
     duration: '15–30 דקות',
     image: '/natural-1.webp',
@@ -145,6 +148,7 @@ export const services: Service[] = [
     tagline: 'הרמה ללא ניתוח',
     description:
       'טיפול מתקדם להרמה ועיצוב הגבות ללא פולשנות. מעניק מראה מורם ופתוח לעיניים, גבות מוגדרות ומאורגנות לתוצאה דרמטית ורעננה.',
+    homeDescription: 'עיצוב והרמה למראה מסודר, מלא ומודגש יותר.',
     price: '₪250',
     duration: '45 דקות',
     image: '/lifting-1.webp',
