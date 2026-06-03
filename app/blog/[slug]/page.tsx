@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight, Clock, Calendar } from 'lucide-react'
+import { ArrowRight, Clock } from 'lucide-react'
 import { blogPosts } from '@/lib/data'
 import { WHATSAPP_URL, SITE_URL } from '@/lib/utils'
 
@@ -41,12 +41,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default function BlogPostPage({ params }: Props) {
   const post = blogPosts.find((p) => p.slug === params.slug)
   if (!post) notFound()
-
-  const dateFormatted = new Date(post.date).toLocaleDateString('he-IL', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 
   const relatedPosts = blogPosts.filter((p) => p.slug !== post.slug).slice(0, 2)
   const html = renderMarkdown(post.content)
@@ -115,11 +109,6 @@ export default function BlogPostPage({ params }: Props) {
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
             כל המאמרים
           </Link>
-          <span aria-hidden="true">|</span>
-          <span className="flex items-center gap-1.5">
-            <Calendar className="w-4 h-4" aria-hidden="true" />
-            <time dateTime={post.date}>{dateFormatted}</time>
-          </span>
           <span className="flex items-center gap-1.5">
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>{post.readTime} דקות קריאה</span>

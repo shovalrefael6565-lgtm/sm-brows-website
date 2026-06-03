@@ -9,12 +9,6 @@ interface Props {
 }
 
 export default function BlogCard({ post, priority = false }: Props) {
-  const dateFormatted = new Date(post.date).toLocaleDateString('he-IL', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-
   return (
     <article
       aria-label={`מאמר: ${post.title}`}
@@ -49,8 +43,6 @@ export default function BlogCard({ post, priority = false }: Props) {
       {/* Content */}
       <div className="p-6 flex flex-col flex-1">
         <div className="flex items-center gap-4 text-xs text-brand-muted mb-3">
-          <time dateTime={post.date}>{dateFormatted}</time>
-          <span aria-hidden="true">•</span>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" aria-hidden="true" />
             <span>{post.readTime} דקות קריאה</span>
