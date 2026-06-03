@@ -166,9 +166,11 @@ export default function ServiceCard({ service, index }: Props) {
 
       {/* Content */}
       <div>
-        <p className="text-xs tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
-          {service.tagline}
-        </p>
+        {service.tagline && (
+          <p className="text-xs tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
+            {service.tagline}
+          </p>
+        )}
         <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-4">
           {service.name}
         </h2>
