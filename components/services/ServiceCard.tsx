@@ -143,26 +143,12 @@ export default function ServiceCard({ service, index }: Props) {
       }`}
     >
       {/* Image */}
-      {service.id === 'microblading' ? (
-        <div className="relative rounded-3xl overflow-hidden aspect-[4/2.04] shadow-soft-lg">
-          <Image
-            src="/microblading-9.webp"
-            alt="מיקרובליידינג – תוצאה מקצועית"
-            fill
-            className="object-cover"
-            style={{ objectPosition: '5% 30%' }}
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            priority
-          />
-        </div>
-      ) : (
-        <ImageSlider
-          images={service.images}
-          alt={service.name}
-          duration={service.duration}
-          objectPositions={service.imagePositions}
-        />
-      )}
+      <ImageSlider
+        images={service.images}
+        alt={service.name}
+        duration={service.duration}
+        objectPositions={service.imagePositions}
+      />
 
       {/* Content */}
       <div>
