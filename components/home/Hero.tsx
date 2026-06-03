@@ -87,7 +87,7 @@ export default function Hero() {
             variants={fadeUp}
             initial="hidden"
             animate="visible"
-            className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0"
+            className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto"
           >
             מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות — הגבות שחלמת עליהן
             מחכות לך בקליניקה שלי באשקלון.
