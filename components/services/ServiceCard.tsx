@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
-import { Clock, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
@@ -13,7 +13,7 @@ interface Props {
   index: number
 }
 
-function ImageSlider({ images, alt, duration, objectPositions, aspectRatio }: { images: string[]; alt: string; duration: string; objectPositions?: string[]; aspectRatio?: string }) {
+function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: string[]; alt: string; objectPositions?: string[]; aspectRatio?: string }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
 
@@ -75,15 +75,6 @@ function ImageSlider({ images, alt, duration, objectPositions, aspectRatio }: { 
         className="absolute inset-0 bg-gradient-to-br from-brand-rose/8 via-transparent to-brand-gold/5 pointer-events-none z-10"
         aria-hidden="true"
       />
-
-      {/* Duration badge */}
-      <div
-        className="absolute bottom-4 end-4 glass-card rounded-2xl px-4 py-2 flex items-center gap-2 z-10"
-        aria-hidden="true"
-      >
-        <Clock className="w-4 h-4 text-brand-gold" />
-        <span className="text-sm font-semibold text-brand-dark">{duration}</span>
-      </div>
 
       {/* Arrows — visible on hover */}
       <button
@@ -149,7 +140,6 @@ export default function ServiceCard({ service, index }: Props) {
           <ImageSlider
             images={service.images}
             alt={service.name}
-            duration={service.duration}
             objectPositions={service.imagePositions}
             aspectRatio={service.imageAspect}
           />
