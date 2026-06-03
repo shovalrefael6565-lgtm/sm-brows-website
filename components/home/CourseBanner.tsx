@@ -41,7 +41,7 @@ export default function CourseBanner() {
     <section
       ref={ref}
       aria-labelledby="course-banner-heading"
-      className="relative overflow-hidden bg-brand-dark py-16 sm:py-20"
+      className="relative overflow-hidden bg-brand-linen py-16 sm:py-20"
     >
       {/* Background decoration */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
@@ -70,7 +70,7 @@ export default function CourseBanner() {
 
             <h2
               id="course-banner-heading"
-              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4"
+              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark leading-tight mb-4"
             >
               קורס עיצוב גבות
               <br />
@@ -85,7 +85,7 @@ export default function CourseBanner() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.22 }}
-                className="text-white/65 text-base sm:text-lg leading-relaxed mb-6 max-w-lg"
+                className="text-brand-medium text-base sm:text-lg leading-relaxed mb-6 max-w-lg"
               >
                 {data.description}
               </motion.p>
@@ -100,7 +100,7 @@ export default function CourseBanner() {
                 className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'frontal'
                     ? 'bg-brand-gold/15 border-brand-gold/30 text-brand-gold'
-                    : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white'
+                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >
                 <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
@@ -113,7 +113,7 @@ export default function CourseBanner() {
                 className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'online'
                     ? 'bg-brand-gold/15 border-brand-gold/30 text-brand-gold'
-                    : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white'
+                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" aria-hidden="true" />
@@ -128,7 +128,7 @@ export default function CourseBanner() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${data.ctaLabel} לקורס עיצוב גבות בוואצאפ`}
-                className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-7 py-3.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
+                className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-7 py-3.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
               >
                 <WhatsAppIcon className="w-5 h-5" />
                 {data.ctaLabel}
@@ -136,7 +136,7 @@ export default function CourseBanner() {
               <Link
                 href={data.secondaryHref}
                 aria-label={data.secondaryLabel}
-                className="inline-flex items-center gap-2 text-white/70 font-medium text-base px-5 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:text-white transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="inline-flex items-center gap-2 text-brand-medium font-medium text-base px-5 py-3.5 rounded-full border border-brand-medium/30 hover:border-brand-medium/60 hover:text-brand-dark transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 {data.secondaryLabel}
               </Link>
@@ -154,13 +154,13 @@ export default function CourseBanner() {
               {/* Glow */}
               <div aria-hidden="true" className="absolute inset-0 bg-brand-gold/10 rounded-3xl blur-2xl scale-110" />
 
-              <div className="relative bg-white/5 border border-white/10 rounded-3xl p-8 text-center backdrop-blur-sm">
+              <div className="relative bg-white/80 border border-brand-cream-dark rounded-3xl p-8 text-center backdrop-blur-sm shadow-soft">
                 <div className="inline-flex items-center gap-1.5 bg-brand-rose/20 border border-brand-rose/30 text-brand-rose text-xs font-bold px-3 py-1 rounded-full mb-5">
                   <Sparkles className="w-3 h-3" aria-hidden="true" />
                   {data.badge}
                 </div>
 
-                <p className="text-white/50 text-xs uppercase tracking-widest mb-1">מחיר הקורס</p>
+                <p className="text-brand-muted text-xs uppercase tracking-widest mb-1">מחיר הקורס</p>
 
                 <AnimatePresence mode="wait">
                   <motion.p
@@ -176,7 +176,7 @@ export default function CourseBanner() {
                   </motion.p>
                 </AnimatePresence>
 
-                <p className="text-white/40 text-xs mb-6">{data.priceLabel}</p>
+                <p className="text-brand-muted text-xs mb-6">{data.priceLabel}</p>
 
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -188,7 +188,7 @@ export default function CourseBanner() {
                     className="space-y-3 text-sm"
                   >
                     {data.features.map((item) => (
-                      <div key={item} className="flex items-center gap-2 text-white/60">
+                      <div key={item} className="flex items-center gap-2 text-brand-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-brand-gold flex-shrink-0" aria-hidden="true" />
                         {item}
                       </div>
