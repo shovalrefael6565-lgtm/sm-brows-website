@@ -45,10 +45,14 @@ function pad(n: number) {
   return n.toString().padStart(2, '0')
 }
 
-/** Natural brow design — 20-minute slots, 10:00–18:40 (last appointment ends 19:00) */
+/** Natural brow design — 20-minute slots: 09:00–11:00 and 15:00–19:00 */
 function buildTimeSlots(): string[] {
   const slots: string[] = []
-  for (let m = 10 * 60; m <= 18 * 60 + 40; m += 20)
+  // בוקר 09:00–11:00 (המשבצת האחרונה מתחילה ב-10:40 ומסתיימת ב-11:00)
+  for (let m = 9 * 60; m <= 10 * 60 + 40; m += 20)
+    slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  // אחה"צ/ערב 15:00–19:00 (המשבצת האחרונה מתחילה ב-18:40 ומסתיימת ב-19:00)
+  for (let m = 15 * 60; m <= 18 * 60 + 40; m += 20)
     slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   return slots
 }
@@ -165,7 +169,7 @@ export default function BookingForm() {
   const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
 
-  const EVENING_FROM = 16 * 60 // 16:00 — משם נחשב "ערב"
+  const EVENING_FROM = 15 * 60 // 15:00 — תחילת משמרת אחה"צ/ערב
 
   /** בוחר את הזמינות המוצגות: כמות לפי מרחק ביום-עסקים, בעיקר ערב, גיוון יומי. */
   const visibleSlots = (() => {

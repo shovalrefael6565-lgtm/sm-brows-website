@@ -7,7 +7,8 @@ import { WHATSAPP_URL, LOCATION, EMAIL } from '@/lib/utils'
 const PHONE = '054-726-1564'
 
 const hours = [
-  { day: 'ראשון – חמישי', time: '10:00 – 19:00' },
+  { day: 'ראשון – חמישי (בוקר)', time: '09:00 – 11:00' },
+  { day: 'ראשון – חמישי (אחה"צ)', time: '15:00 – 19:00' },
   { day: 'שישי – שבת', time: 'סגור' },
 ]
 

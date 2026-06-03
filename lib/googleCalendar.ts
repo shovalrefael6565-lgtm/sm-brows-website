@@ -1,7 +1,7 @@
 import { google } from 'googleapis'
 
-const BUSINESS_START = 10  // 10:00 Israel time
-const BUSINESS_END   = 19  // 19:00 Israel time
+const BUSINESS_START = 9   // 09:00 Israel time (בוקר)
+const BUSINESS_END   = 19  // 19:00 Israel time (ערב)
 
 /** Format a UTC Date as HH:MM in Israel timezone (Asia/Jerusalem) */
 function fmtIsrael(d: Date): string {

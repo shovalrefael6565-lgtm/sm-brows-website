@@ -107,7 +107,7 @@ export default function BookingSection() {
           {/* Hours note */}
           <div className="flex items-center justify-center gap-2 mt-8 text-brand-muted text-sm">
             <Clock className="w-4 h-4" aria-hidden="true" />
-            <span>זמינות: ראשון–חמישי | 10:00–19:00</span>
+            <span>זמינות: ראשון–חמישי | 09:00–11:00 ו־15:00–19:00</span>
           </div>
         </div>
       </div>

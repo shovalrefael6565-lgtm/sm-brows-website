@@ -25,7 +25,7 @@ export default function BookingPage() {
           </p>
           <div className="flex items-center justify-center gap-2 mt-4">
             <span className="w-8 h-px bg-brand-rose-light" aria-hidden="true" />
-            <span className="text-brand-rose text-sm">זמינות: ראשון–חמישי | 10:00–19:00</span>
+            <span className="text-brand-rose text-sm">זמינות: ראשון–חמישי | 09:00–11:00 ו־15:00–19:00</span>
             <span className="w-8 h-px bg-brand-rose-light" aria-hidden="true" />
           </div>
         </div>
