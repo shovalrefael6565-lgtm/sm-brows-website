@@ -144,13 +144,17 @@ export default function ServiceCard({ service, index }: Props) {
       }`}
     >
       {/* Image */}
-      <ImageSlider
-        images={service.images}
-        alt={service.name}
-        duration={service.duration}
-        objectPositions={service.imagePositions}
-        aspectRatio={service.imageAspect}
-      />
+      <div className={service.imageAspect ? 'flex justify-center' : ''}>
+        <div className={service.imageAspect ? 'w-full max-w-[300px]' : 'w-full'}>
+          <ImageSlider
+            images={service.images}
+            alt={service.name}
+            duration={service.duration}
+            objectPositions={service.imagePositions}
+            aspectRatio={service.imageAspect}
+          />
+        </div>
+      </div>
 
       {/* Content */}
       <div>
