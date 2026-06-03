@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft, Clock } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
@@ -127,36 +127,9 @@ export default function ServicesPreview() {
                     <span className="w-8 h-px bg-brand-rose-light" />
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
                   </div>
-                  <p className="text-brand-medium text-sm leading-relaxed mb-4 flex-1">
+                  <p className="text-brand-medium text-sm leading-relaxed mb-6 flex-1">
                     {service.homeDescription ?? service.description}
                   </p>
-
-                  {/* Features */}
-                  <ul className="space-y-1.5 mb-5" aria-label={`תכונות של ${service.name}`}>
-                    {service.features.slice(0, 3).map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-xs text-brand-medium">
-                        <span
-                          className="w-4 h-4 rounded-full bg-brand-rose-bg flex items-center justify-center flex-shrink-0"
-                          aria-hidden="true"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
-                        </span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Price & Duration */}
-                  <div className="flex items-center justify-between mb-5 py-3 border-t border-b border-brand-cream-dark/50">
-                    <div>
-                      <p className="text-xs text-brand-muted">מחיר</p>
-                      <p className="font-bold text-brand-dark text-sm">{service.price}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-brand-muted">
-                      <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span className="text-xs">{service.duration}</span>
-                    </div>
-                  </div>
 
                   {/* CTAs */}
                   <div className="flex gap-2">
