@@ -174,6 +174,21 @@ export default function ServiceCard({ service, index }: Props) {
         </h2>
         <p className="text-brand-medium leading-relaxed mb-6">{service.description}</p>
 
+        {/* למי מתאים? */}
+        {service.suitableFor && service.suitableFor.length > 0 && (
+          <div className="mb-6">
+            <p className="font-semibold text-brand-dark mb-3">למי מתאים?</p>
+            <ul className="space-y-2" aria-label={`למי מתאים ${service.name}`}>
+              {service.suitableFor.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-brand-medium text-sm">
+                  <span className="mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-rose" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Features */}
         <ul className="space-y-3 mb-6" aria-label={`תכונות של ${service.name}`}>
           {service.features.map((feature) => (

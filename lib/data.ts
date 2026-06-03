@@ -4,6 +4,7 @@ export interface Service {
   tagline: string
   description: string
   homeDescription?: string   // short 1-2 line version shown on homepage
+  suitableFor?: string[]     // "למי מתאים?" bullet list
   price: string
   duration: string
   image: string
@@ -64,8 +65,13 @@ export const services: Service[] = [
     name: 'מיקרובליידינג',
     tagline: 'גבות מושלמות עד שנה',
     description:
-      'טכניקה מתקדמת של קעקוע קוסמטי ידני ליצירת גבות טבעיות ומוגדרות. כל שיערה מצוירת בנפרד לאפקט ריאליסטי מרהיב. תוצאות המחזיקות עד שנה.',
+      'טכניקת הדמיית שערה עדינה המיועדת למילוי אזורים דלילים ולעיצוב הגבות במראה טבעי. הטיפול מותאם באופן אישי למבנה הפנים ולצורת הגבה הרצויה.',
     homeDescription: 'פתרון לאזורים דלילים באמצעות הדמיית שערה עדינה וטבעית.',
+    suitableFor: [
+      'גבות דלילות או לא אחידות',
+      'אזורים חסרים בגבה',
+      'מי שמעוניינת במראה טבעי ומסודר יותר',
+    ],
     price: '',
     duration: '2–3 שעות',
     image: '/microblading-2.webp',
@@ -84,9 +90,9 @@ export const services: Service[] = [
       '50% 25%',
     ],
     features: [
-      'תוצאות המחזיקות עד שנה',
-      'מראה טבעי לחלוטין',
-      'מותאם אישית לצורת הפנים',
+      'מראה טבעי ועדין',
+      'התאמה אישית לכל לקוחה',
+      'מתאים לגבות דלילות או לא סימטריות',
       'כולל טיפול חיזוק לאחר 6 שבועות',
     ],
   },
