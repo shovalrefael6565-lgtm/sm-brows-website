@@ -81,7 +81,7 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         type="button"
         onClick={prev}
         aria-label="תמונה קודמת"
-        className="absolute top-1/2 -translate-y-1/2 start-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="absolute top-1/2 -translate-y-1/2 start-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <ChevronRight className="w-4 h-4" aria-hidden="true" />
       </button>
@@ -89,7 +89,7 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         type="button"
         onClick={next}
         aria-label="תמונה הבאה"
-        className="absolute top-1/2 -translate-y-1/2 end-14 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="absolute top-1/2 -translate-y-1/2 end-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <ChevronLeft className="w-4 h-4" aria-hidden="true" />
       </button>
