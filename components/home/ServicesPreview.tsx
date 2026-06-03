@@ -138,7 +138,7 @@ export default function ServicesPreview() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`קביעת תור לטיפול ${service.name} בוואצאפ`}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-brand-gold text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-gold-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-brand-linen text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-linen-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
                     >
                       <WhatsAppSmIcon />
                       {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'וואצאפ'}

@@ -109,7 +109,7 @@ export default function Hero() {
                 aria-haspopup="true"
                 aria-expanded={bookingOpen}
                 aria-label="קביעת תור"
-                className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full shadow-gold hover:bg-brand-gold-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
+                className="inline-flex items-center gap-3 bg-brand-linen text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-linen-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
               >
                 <CalendarIcon className="w-5 h-5" />
                 לקביעת תורים

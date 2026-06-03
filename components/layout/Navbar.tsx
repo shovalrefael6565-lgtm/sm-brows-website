@@ -366,7 +366,7 @@ export default function Navbar() {
                   aria-haspopup="true"
                   aria-expanded={bookingOpen}
                   aria-label="קביעת תור"
-                  className="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-sm font-semibold px-4 py-2.5 rounded-full hover:bg-brand-gold-dark transition-colors duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
+                  className="inline-flex items-center gap-1.5 bg-brand-linen text-brand-dark text-sm font-semibold px-4 py-2.5 rounded-full hover:bg-brand-linen-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
                 >
                   <WhatsAppIcon className="w-4 h-4" />
                   קבעי תור
@@ -607,7 +607,7 @@ export default function Navbar() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="קביעת תור בוואצאפ"
-                  className="flex items-center justify-center gap-2 w-full bg-brand-gold text-brand-dark font-semibold py-3 rounded-xl hover:bg-brand-gold-dark transition-colors cursor-pointer"
+                  className="flex items-center justify-center gap-2 w-full bg-brand-linen text-brand-dark font-semibold py-3 rounded-xl hover:bg-brand-linen-dark transition-colors cursor-pointer"
                   onClick={() => setMenuOpen(false)}
                 >
                   <WhatsAppIcon className="w-5 h-5" />

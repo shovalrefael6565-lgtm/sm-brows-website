@@ -17,7 +17,7 @@ export default function BookingCTA() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="קביעת תור בוואצאפ"
-          className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-semibold px-6 py-3 rounded-xl hover:bg-brand-gold-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+          className="inline-flex items-center gap-2 bg-brand-linen text-brand-dark font-semibold px-6 py-3 rounded-xl hover:bg-brand-linen-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
         >
           קבעי תור בוואצאפ ←
         </a>

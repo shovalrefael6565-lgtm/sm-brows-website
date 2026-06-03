@@ -18,6 +18,8 @@ const config: Config = {
           gold: '#C9A96E',
           'gold-light': '#EAD8B5',
           'gold-dark': '#A07840',
+          linen: '#EDE8DF',
+          'linen-dark': '#DDD6CB',
           dark: '#2C1810',
           medium: '#6B4545',
           muted: '#9B7A7A',
