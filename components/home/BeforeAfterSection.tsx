@@ -5,15 +5,15 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 
 const IMAGES = [
-  { src: '/ba-new-1.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%' },
-  { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%' },
-  { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4',  pos: '50% 30%' },
-  { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%' },
-  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 15%' },
-  { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%' },
-  { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%' },
-  { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%' },
-  { src: '/ba-new-10.webp',    alt: 'מיקרובליידינג לפני ואחרי 10', pos: '50% 30%' },
+  { src: '/ba-new-1.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 15%', mobilePos: '80% 30%' },
+  { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-10.webp',    alt: 'מיקרובליידינג לפני ואחרי 10', pos: '50% 30%', mobilePos: '50% 30%' },
 ]
 
 const ITEM_W = 440   // px — width of each card
@@ -129,6 +129,7 @@ export default function BeforeAfterSection() {
           className="hidden md:block"
         >
           <div
+            dir="ltr"
             className="relative overflow-hidden"
             style={{
               maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
@@ -137,9 +138,10 @@ export default function BeforeAfterSection() {
             onMouseEnter={() => setStripPaused(true)}
             onMouseLeave={() => setStripPaused(false)}
           >
-            {/* RAF-animated track */}
+            {/* RAF-animated track — dir=ltr so flex starts from left; translateX(-X) scrolls right→left seamlessly */}
             <div
               ref={stripRef}
+              dir="ltr"
               className="flex py-3"
               style={{ gap: `${GAP}px`, width: 'max-content' }}
             >
@@ -194,7 +196,7 @@ export default function BeforeAfterSection() {
                   style={{ opacity: i === current ? 1 : 0, transition: 'opacity 0.7s ease-in-out', willChange: 'opacity' }}
                 >
                   <Image src={img.src} alt={img.alt} fill className="object-cover"
-                    style={{ objectPosition: img.pos }}
+                    style={{ objectPosition: img.mobilePos ?? img.pos }}
                     sizes="(max-width: 768px) 100vw, 896px" priority={i === 0} loading={i === 0 ? 'eager' : 'lazy'} quality={80} />
                 </div>
               ))}
