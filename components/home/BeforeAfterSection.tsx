@@ -5,11 +5,11 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 
 const IMAGES = [
-  { src: '/ba-new-1.webp', alt: 'מיקרובליידינג לפני ואחרי 1' },
+  { src: '/ba-new-1.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 1' },
   { src: '/ba-new-3.webp', alt: 'מיקרובליידינג לפני ואחרי 3' },
   { src: '/ba-new-4.webp', alt: 'מיקרובליידינג לפני ואחרי 4' },
   { src: '/ba-new-5.webp', alt: 'מיקרובליידינג לפני ואחרי 5' },
-  { src: '/ba-new-6.webp', alt: 'מיקרובליידינג לפני ואחרי 6' },
+  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6' },
   { src: '/ba-new-7.webp', alt: 'מיקרובליידינג לפני ואחרי 7' },
   { src: '/ba-new-8.webp', alt: 'מיקרובליידינג לפני ואחרי 8' },
   { src: '/ba-new-9.webp', alt: 'מיקרובליידינג לפני ואחרי 9' },
