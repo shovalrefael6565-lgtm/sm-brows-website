@@ -9,8 +9,7 @@ const IMAGES = [
   { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%', mobilePos: '50% 30%' },
-  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6 — אחרי',  pos: '75% 15%', mobilePos: '75% 30%' },
-  { src: '/ba-new-6.webp?v=2', alt: 'מיקרובליידינג לפני ואחרי 6 — לפני',  pos: '25% 15%', mobilePos: '20% 30%' },
+  { src: '/ba-new-6.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%', mobilePos: '50% 30%' },
@@ -25,7 +24,7 @@ const INTERVAL = 4000
 
 // Triple items so the loop reset is always invisible
 const STRIP_ITEMS = [...IMAGES, ...IMAGES, ...IMAGES]
-const SINGLE_SET  = IMAGES.length * (ITEM_W + GAP) // 10 × 460 = 4600px — distance before reset
+const SINGLE_SET  = IMAGES.length * (ITEM_W + GAP) // 9 × 460 = 4140px — distance before reset
 
 export default function BeforeAfterSection() {
   const ref     = useRef(null)
