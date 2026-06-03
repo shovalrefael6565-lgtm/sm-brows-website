@@ -137,12 +137,13 @@ body.a11y-stop-animations *::after {
 }
 
 /* ── Before/After desktop infinite scroll ── */
+/* 9 images × (440px width + 20px gap) = 4140px — exact seamless loop */
 @keyframes ba-scroll {
   from { transform: translateX(0) }
-  to   { transform: translateX(-50%) }
+  to   { transform: translateX(-4140px) }
 }
 .animate-ba-scroll {
-  animation: ba-scroll 55s linear infinite;
+  animation: ba-scroll 70s linear infinite;
   will-change: transform;
 }
 .animate-ba-scroll:hover,
