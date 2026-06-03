@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
@@ -16,6 +16,8 @@ interface Props {
 function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: string[]; alt: string; objectPositions?: string[]; aspectRatio?: string }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [touched, setTouched] = useState(false)
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const go = useCallback((idx: number) => setCurrent(idx), [])
 
@@ -28,10 +30,17 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
     return () => clearInterval(timer)
   }, [paused, next])
 
+  const handleTouch = () => {
+    setTouched(true)
+    if (touchTimer.current) clearTimeout(touchTimer.current)
+    touchTimer.current = setTimeout(() => setTouched(false), 3000)
+  }
+
   return (
     <div
       className="relative rounded-3xl overflow-hidden shadow-soft-lg group bg-brand-cream"
       style={{ aspectRatio: aspectRatio ?? '4/2.04' }}
+      onClick={handleTouch}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
@@ -81,7 +90,7 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         type="button"
         onClick={prev}
         aria-label="תמונה קודמת"
-        className="absolute top-1/2 -translate-y-1/2 start-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className={`absolute top-1/2 -translate-y-1/2 start-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${touched ? 'opacity-100' : 'opacity-0'} sm:opacity-0 sm:group-hover:opacity-100`}
       >
         <ChevronRight className="w-4 h-4" aria-hidden="true" />
       </button>
@@ -89,7 +98,7 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         type="button"
         onClick={next}
         aria-label="תמונה הבאה"
-        className="absolute top-1/2 -translate-y-1/2 end-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className={`absolute top-1/2 -translate-y-1/2 end-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${touched ? 'opacity-100' : 'opacity-0'} sm:opacity-0 sm:group-hover:opacity-100`}
       >
         <ChevronLeft className="w-4 h-4" aria-hidden="true" />
       </button>
