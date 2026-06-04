@@ -7,8 +7,8 @@ import { MapPin, Monitor, Sparkles } from 'lucide-react'
 import { WHATSAPP_URL } from '@/lib/utils'
 
 const FRONTAL = {
-  price: '₪2,500',
-  priceAriaLabel: 'מחיר 2,500 שקלים',
+  price: null,
+  priceAriaLabel: '',
   priceLabel: 'כולל ערכת כלים מקצועית',
   badge: 'מקומות מוגבלים',
   description: '2 מפגשים אישיים שיהפכו אותך לאמנית גבות מקצועית. תיאוריה, פרקטיקה, ערכת כלים מקצועית והסמכה מוכרת — הכל כלול.',
@@ -160,23 +160,39 @@ export default function CourseBanner() {
                   {data.badge}
                 </div>
 
-                <p className="text-brand-muted text-xs uppercase tracking-widest mb-1">מחיר הקורס</p>
-
                 <AnimatePresence mode="wait">
-                  <motion.p
-                    key={format + '-price'}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                    className="font-serif text-6xl font-bold text-brand-gold leading-none mb-1"
-                    aria-label={data.priceAriaLabel}
-                  >
-                    {data.price}
-                  </motion.p>
+                  {data.price ? (
+                    <motion.div
+                      key={format + '-price'}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <p className="text-brand-muted text-xs uppercase tracking-widest mb-1">מחיר הקורס</p>
+                      <p
+                        className="font-serif text-6xl font-bold text-brand-gold leading-none mb-1"
+                        aria-label={data.priceAriaLabel}
+                      >
+                        {data.price}
+                      </p>
+                      <p className="text-brand-muted text-xs mb-6">{data.priceLabel}</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={format + '-price'}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                      className="mb-6"
+                    >
+                      <p className="text-brand-muted text-xs uppercase tracking-widest mb-3">מחיר הקורס</p>
+                      <p className="font-serif text-2xl font-bold text-brand-dark leading-snug mb-1">לפרטים על המחיר</p>
+                      <p className="text-brand-medium text-sm">צרי קשר ונשמח לעזור 🤍</p>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
-
-                <p className="text-brand-muted text-xs mb-6">{data.priceLabel}</p>
 
                 <AnimatePresence mode="wait">
                   <motion.div

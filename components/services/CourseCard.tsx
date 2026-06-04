@@ -8,7 +8,7 @@ import { courseService } from '@/lib/data'
 import { WHATSAPP_URL, LOCATION } from '@/lib/utils'
 
 const FRONTAL = {
-  price: '₪2,500',
+  price: null,
   priceLabel: 'כולל ערכת כלים',
   sessions: '2 מפגשים',
   sessionIcon: 'users',
@@ -188,17 +188,31 @@ export default function CourseCard() {
 
               <p className="text-brand-muted text-sm uppercase tracking-widest mb-2">מחיר הקורס</p>
               <AnimatePresence mode="wait">
-                <motion.p
-                  key={format + '-price'}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                  className="font-serif text-6xl sm:text-7xl font-bold text-brand-gold leading-none mb-2"
-                  aria-label={`מחיר ${data.price}`}
-                >
-                  {data.price}
-                </motion.p>
+                {data.price ? (
+                  <motion.p
+                    key={format + '-price'}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-serif text-6xl sm:text-7xl font-bold text-brand-gold leading-none mb-2"
+                    aria-label={`מחיר ${data.price}`}
+                  >
+                    {data.price}
+                  </motion.p>
+                ) : (
+                  <motion.div
+                    key={format + '-price'}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    className="mb-2"
+                  >
+                    <p className="font-serif text-2xl font-bold text-brand-dark leading-snug mb-1">לפרטים על המחיר</p>
+                    <p className="text-brand-medium text-sm">צרי קשר ונשמח לעזור 🤍</p>
+                  </motion.div>
+                )}
               </AnimatePresence>
               <p className="text-brand-muted text-xs">{data.priceLabel}</p>
 
