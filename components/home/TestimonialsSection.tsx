@@ -58,7 +58,7 @@ export default function TestimonialsSection() {
 
         {/* Heading */}
         <div className="text-center mb-12">
-          <p className="text-xs tracking-[0.25em] text-brand-gold font-semibold uppercase mb-3">
+          <p className="text-xs tracking-[0.25em] text-brand-gold-text font-semibold uppercase mb-3">
             מה אומרות עלינו
           </p>
           <h2
@@ -84,6 +84,8 @@ export default function TestimonialsSection() {
                 src={src}
                 alt={i === current ? `ביקורת לקוחה ${i + 1}` : ''}
                 aria-hidden={i !== current}
+                width={384}
+                height={480}
                 className="w-full h-auto block rounded-2xl"
                 style={{
                   gridColumn: 1,

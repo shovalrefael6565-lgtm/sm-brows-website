@@ -75,7 +75,7 @@ export default function Hero() {
             variants={fadeUp}
             initial="hidden"
             animate="visible"
-            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold font-medium uppercase mb-8 lg:mb-10"
+            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold-text font-medium uppercase mb-8 lg:mb-10"
             lang="en"
           >
             IT&apos;S ALL ABOUT YOUR EYEBROWS

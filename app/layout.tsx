@@ -150,8 +150,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preload" href="/hero.webp" as="image" fetchPriority="high" />
         <script
           type="application/ld+json"

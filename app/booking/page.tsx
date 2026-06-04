@@ -14,7 +14,7 @@ export default function BookingPage() {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
+          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
             S.M BROWS
           </p>
           <h1 className="font-serif text-4xl sm:text-5xl font-bold text-brand-dark mb-4">

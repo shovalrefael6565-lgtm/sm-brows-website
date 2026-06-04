@@ -166,7 +166,7 @@ export default function Navbar() {
                 <span className="font-serif text-lg sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
                   S.M BROWS
                 </span>
-                <span className="font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold font-medium uppercase leading-none">
+                <span className="font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold-text font-medium uppercase leading-none">
                   IT&apos;S ALL ABOUT YOUR EYEBROWS
                 </span>
               </div>
@@ -498,7 +498,7 @@ export default function Navbar() {
                     <span className="font-serif text-lg font-bold tracking-widest text-brand-dark leading-none">
                       S.M BROWS
                     </span>
-                    <span className="font-serif text-[8px] tracking-[0.16em] text-brand-gold font-medium uppercase leading-none">
+                    <span className="font-serif text-[8px] tracking-[0.16em] text-brand-gold-text font-medium uppercase leading-none">
                       IT&apos;S ALL ABOUT YOUR EYEBROWS
                     </span>
                   </div>

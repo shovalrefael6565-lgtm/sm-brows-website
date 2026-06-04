@@ -47,7 +47,7 @@ export default function WhyChooseUs() {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div className="reveal-item text-center mb-14">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
+          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
             למה <span className="font-serif">S.M BROWS</span>
           </p>
           <h2

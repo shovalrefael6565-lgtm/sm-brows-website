@@ -45,7 +45,7 @@ export default function ServicesPage() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
+            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
               השקעה בעצמך
             </p>
             <h2

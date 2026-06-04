@@ -104,7 +104,7 @@ export default function ServiceFaqSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-10"
         >
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
+          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
             לפני שקובעים תור
           </p>
           <h2

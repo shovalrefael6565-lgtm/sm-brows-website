@@ -71,7 +71,7 @@ export default function CourseCard() {
           <div className="flex flex-col justify-center">
             {/* Badge */}
             <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center gap-1.5 bg-brand-gold/20 border border-brand-gold/40 text-brand-gold text-xs font-bold px-3 py-1.5 rounded-full tracking-wider uppercase">
+              <span className="inline-flex items-center gap-1.5 bg-brand-gold/20 border border-brand-gold/40 text-brand-gold-text text-xs font-bold px-3 py-1.5 rounded-full tracking-wider uppercase">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse" aria-hidden="true" />
                 קורס פרימיום
               </span>
@@ -89,7 +89,7 @@ export default function CourseCard() {
                 aria-pressed={format === 'frontal'}
                 className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'frontal'
-                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
+                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold-text'
                     : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >
@@ -102,7 +102,7 @@ export default function CourseCard() {
                 aria-pressed={format === 'online'}
                 className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
                   format === 'online'
-                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold'
+                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold-text'
                     : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
                 }`}
               >

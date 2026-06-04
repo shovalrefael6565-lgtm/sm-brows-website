@@ -17,7 +17,7 @@ export default function BookingSection() {
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
         <div className="reveal-item">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
+          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
             קביעת תור
           </p>
           <h2

@@ -18,11 +18,12 @@ const config: Config = {
           gold: '#C9A96E',
           'gold-light': '#EAD8B5',
           'gold-dark': '#A07840',
+          'gold-text': '#7D5C1C',   // accessible gold for small text — 6:1 on white/cream/linen
           linen: '#EDE8DF',
           'linen-dark': '#DDD6CB',
           dark: '#2C1810',
           medium: '#6B4545',
-          muted: '#9B7A7A',
+          muted: '#6B5252',          // was #9B7A7A (3.8:1) — now 7:1 on white
         },
       },
       fontFamily: {
@@ -50,7 +51,6 @@ const config: Config = {
         'fade-up': 'fadeUp 0.6s ease-out forwards',
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         float: 'float 3s ease-in-out infinite',
-        shimmer: 'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeUp: {
@@ -64,10 +64,6 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-8px)' },
-        },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
         },
       },
     },

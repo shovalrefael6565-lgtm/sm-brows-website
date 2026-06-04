@@ -69,7 +69,7 @@ export default function OnlineCoursePromo() {
                 ))}
               </div>
 
-              <p className="text-xs tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
+              <p className="text-xs tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
                 {onlineCourse.category}
               </p>
 

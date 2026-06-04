@@ -26,7 +26,7 @@ export default function BlogPreview() {
           className="flex items-end justify-between mb-10 flex-wrap gap-4"
         >
           <div>
-            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-2">
+            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
               המאמרים שלי
             </p>
             <h2

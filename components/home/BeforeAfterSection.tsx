@@ -103,7 +103,7 @@ export default function BeforeAfterSection() {
             transition={{ duration: 0.6 }}
             className="text-center mb-10"
           >
-            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
+            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
               תוצאות אמיתיות
             </p>
             <h2 id="ba-heading" className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark mb-4">

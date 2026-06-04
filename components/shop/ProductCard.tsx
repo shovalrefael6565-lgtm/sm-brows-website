@@ -139,7 +139,7 @@ export default function ProductCard({ product }: Props) {
 
       {/* Content */}
       <div className="p-5 flex flex-col flex-1">
-        <span className="text-xs text-brand-gold font-semibold uppercase tracking-wider mb-1">
+        <span className="text-xs text-brand-gold-text font-semibold uppercase tracking-wider mb-1">
           {product.category}
         </span>
         <h3 className="font-semibold text-brand-dark mb-2 leading-snug">{product.name}</h3>
