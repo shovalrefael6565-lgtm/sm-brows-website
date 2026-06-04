@@ -14,7 +14,7 @@ const FRONTAL = {
   description: '2 מפגשים אישיים שיהפכו אותך לאמנית גבות מקצועית. תיאוריה, פרקטיקה, ערכת כלים מקצועית והסמכה מוכרת — הכל כלול.',
   features: ['2 מפגשים אישיים', 'תיאוריה ופרקטיקה', 'הסמכה מוכרת', 'ליווי לאחר הקורס'],
   ctaLabel: 'לפרטים ורישום',
-  secondaryHref: '/services' as const,
+  secondaryHref: '/services#course' as const,
   secondaryLabel: 'פרטים נוספים',
 }
 
@@ -26,7 +26,7 @@ const ONLINE = {
   description: 'קורס אונליין ממוקד לבנות שרוצות לחדד את הטכניקה ולהגיע לתוצאות מקצועיות יותר. מועבר בזום, בנוחות מוחלטת, בזמן שמתאים לך.',
   features: ['חוברת קורס מקצועית', 'מפגש זום אישי', 'חומר לימוד דיגיטלי', 'ליווי לאחר הקורס'],
   ctaLabel: 'לפרטים ורישום',
-  secondaryHref: '/services' as const,
+  secondaryHref: '/services#course' as const,
   secondaryLabel: 'פרטים נוספים',
 }
 
