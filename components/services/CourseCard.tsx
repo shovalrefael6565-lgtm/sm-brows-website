@@ -209,8 +209,15 @@ export default function CourseCard() {
                     transition={{ duration: 0.2 }}
                     className="mb-2"
                   >
-                    <p className="font-serif text-2xl font-bold text-brand-dark leading-snug mb-1">לפרטים על המחיר</p>
-                    <p className="text-brand-medium text-sm">צרי קשר ונשמח לעזור 🤍</p>
+                    <a
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-sm px-5 py-2.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold"
+                    >
+                      <WhatsAppIcon className="w-4 h-4" />
+                      ליצירת קשר
+                    </a>
                   </motion.div>
                 )}
               </AnimatePresence>
