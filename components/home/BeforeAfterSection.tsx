@@ -7,7 +7,6 @@ import Image from 'next/image'
 const IMAGES = [
   { src: '/ba-new-1.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%', mobilePos: '50% 30%' },
-  { src: '/ba-new-4.webp',     alt: 'מיקרובליידינג לפני ואחרי 4',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-6.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%', mobilePos: '50% 30%' },
