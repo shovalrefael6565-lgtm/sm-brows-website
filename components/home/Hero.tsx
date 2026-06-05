@@ -202,12 +202,12 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        {/* Hero image */}
+        {/* Hero image — no opacity fade so the bio-card paragraph (LCP element) is visible from first paint */}
         <motion.div
           className="order-1 relative mx-auto w-full flex justify-center"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ scale: 0.98 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.div style={{ y }} className="relative">
             {/* Logo brand seal */}
@@ -237,13 +237,8 @@ export default function Hero() {
               />
             </div>
 
-            {/* Bio card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-4 relative"
-            >
+            {/* Bio card — plain div so quote paragraph (LCP) renders on first paint */}
+            <div className="mt-4 relative">
               <div className="px-6 py-6 sm:px-8 sm:py-7">
                 {/* Name + tag */}
                 <div className="flex flex-col items-center gap-1.5 mb-4">
@@ -278,7 +273,7 @@ export default function Hero() {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         </motion.div>
       </div>
