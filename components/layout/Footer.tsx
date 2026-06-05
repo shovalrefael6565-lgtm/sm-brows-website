@@ -177,10 +177,10 @@ export default function Footer() {
       {/* Bottom bar */}
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-white/35 text-xs text-center sm:text-start">
+          <p className="text-white/60 text-xs text-center sm:text-start">
             © 2025 <span className="font-serif">S.M BROWS</span> — כל הזכויות שמורות
           </p>
-          <p className="text-white/25 text-xs">
+          <p className="text-white/55 text-xs">
             עוצב ופותח בישראל
           </p>
         </div>

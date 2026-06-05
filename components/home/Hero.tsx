@@ -247,9 +247,9 @@ export default function Hero() {
               <div className="px-6 py-6 sm:px-8 sm:py-7">
                 {/* Name + tag */}
                 <div className="flex flex-col items-center gap-1.5 mb-4">
-                  <h3 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark tracking-wide">
+                  <p className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark tracking-wide">
                     שובל מאירה
-                  </h3>
+                  </p>
                   <p className="text-brand-muted text-sm sm:text-base font-medium">אמא של לוי משה 🤍</p>
                 </div>
 

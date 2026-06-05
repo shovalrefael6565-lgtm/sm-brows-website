@@ -118,10 +118,12 @@ export default function TestimonialsSection() {
                   aria-selected={i === current}
                   aria-label={`ביקורת ${i + 1}`}
                   onClick={() => goManual(() => setCurrent(i))}
-                  className={`rounded-full transition-all duration-300 cursor-pointer ${
+                  className="p-2 cursor-pointer flex items-center justify-center"
+                >
+                  <span className={`block rounded-full transition-colors duration-300 ${
                     i === current ? 'w-4 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-rose-light hover:bg-brand-rose/50'
-                  }`}
-                />
+                  }`} />
+                </button>
               ))}
             </div>
 
