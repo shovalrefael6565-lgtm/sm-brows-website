@@ -229,7 +229,7 @@ export default function Hero() {
                 fill
                 priority
                 sizes="(max-width: 640px) 320px, (max-width: 1024px) 430px, 540px"
-                className="object-cover object-center scale-105"
+                className="object-cover object-top scale-105"
               />
               <div
                 className="absolute inset-0 bg-gradient-to-t from-brand-dark/20 to-transparent"
