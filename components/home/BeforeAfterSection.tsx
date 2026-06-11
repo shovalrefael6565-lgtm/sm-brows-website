@@ -8,7 +8,7 @@ const IMAGES = [
   { src: '/ba-new-1.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-3.webp',     alt: 'מיקרובליידינג לפני ואחרי 3',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-5.webp',     alt: 'מיקרובליידינג לפני ואחרי 5',  pos: '50% 30%', mobilePos: '50% 30%' },
-  { src: '/ba-new-6.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-6.webp?v=4', alt: 'מיקרובליידינג לפני ואחרי 6',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-7.webp',     alt: 'מיקרובליידינג לפני ואחרי 7',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%', mobilePos: '50% 30%' },
