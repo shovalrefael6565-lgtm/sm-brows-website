@@ -2,9 +2,9 @@
 
 import { motion } from 'framer-motion'
 import { MapPin, Phone, Mail, Clock, MessageCircle } from 'lucide-react'
-import { WHATSAPP_URL, LOCATION, EMAIL } from '@/lib/utils'
+import { WHATSAPP_URL, LOCATION, EMAIL, PHONE_NUMBER } from '@/lib/utils'
 
-const PHONE = '054-726-1564'
+const PHONE = PHONE_NUMBER
 
 const hours = [
   { day: 'ראשון – חמישי (בוקר)', time: '09:00 – 11:00' },
