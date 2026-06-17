@@ -10,6 +10,7 @@ import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
 import ScrollToTop from '@/components/ui/ScrollToTop'
 import NavigationProgress from '@/components/ui/NavigationProgress'
 import MetaPixel from '@/components/analytics/MetaPixel'
+import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
@@ -177,6 +178,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ScrollToTop />
         <AccessibilityWidget />
         <MetaPixel />
+        <GoogleAnalytics />
       </body>
     </html>
   )
