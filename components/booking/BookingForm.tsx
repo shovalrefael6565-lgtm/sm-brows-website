@@ -388,6 +388,13 @@ export default function BookingForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateFinal()) return
+
+    window.gtag?.('event', 'booking_request', {
+      treatment:     isNatural && form.variant ? form.variant : form.service,
+      selected_date: form.date,
+      selected_time: form.time,
+    })
+
     setSubmitted(true)
     const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
     window.open(url, '_blank', 'noopener,noreferrer')
