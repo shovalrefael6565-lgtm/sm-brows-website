@@ -45,9 +45,19 @@ export default function BeforeAfterSection() {
   useEffect(() => { pausedRef.current = stripPaused }, [stripPaused])
 
   /* RAF loop — runs only on desktop (strip hidden on mobile) */
+  const visibleRef = useRef(false)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { visibleRef.current = entry.isIntersecting },
+      { rootMargin: '200px' }
+    )
+    if (stripRef.current) observer.observe(stripRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   useEffect(() => {
     const tick = () => {
-      if (!pausedRef.current) {
+      if (!pausedRef.current && visibleRef.current) {
         posRef.current += SPEED
         if (posRef.current >= SINGLE_SET) posRef.current -= SINGLE_SET
         if (stripRef.current)

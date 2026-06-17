@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 const REVIEWS = [
   '/wa-review-1.webp',
@@ -20,17 +20,59 @@ const REVIEWS = [
   '/wa-review-15.webp',
 ]
 
+/**
+ * Double-buffer crossfade: 2 stable <img> elements (face-a / face-b) swap
+ * front/back roles on each navigation.  Only 2 images ever exist in the DOM
+ * instead of the original 15 — eliminates ~13 unnecessary image downloads.
+ *
+ * CSS transitions fire because the elements never unmount (stable keys).
+ */
 export default function TestimonialsSection() {
-  const [current, setCurrent] = useState(0)
-  const pausedRef = useRef(false)
+  const [slotA, setSlotA] = useState(0)       // index shown in face-a
+  const [slotB, setSlotB] = useState(1)       // index shown in face-b
+  const [aIsFront, setAIsFront] = useState(true)
+  const [displayIdx, setDisplayIdx] = useState(0)
 
-  const next = useCallback(() => setCurrent((c) => (c + 1) % REVIEWS.length), [])
-  const prev = useCallback(() => setCurrent((c) => (c - 1 + REVIEWS.length) % REVIEWS.length), [])
+  const aIsFrontRef   = useRef(true)
+  const displayIdxRef = useRef(0)
+  const pausedRef     = useRef(false)
+  const navigating    = useRef(false)
+
+  const navigate = useCallback((nextIdx: number) => {
+    if (navigating.current) return
+    navigating.current = true
+
+    const toBack = aIsFrontRef.current ? 'b' : 'a'
+
+    // Paint new image into the back (hidden) face first
+    if (toBack === 'a') setSlotA(nextIdx)
+    else                setSlotB(nextIdx)
+
+    // After 2 frames (browser has started loading the new src) swap front/back
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const front = toBack === 'a'
+        setAIsFront(front)
+        setDisplayIdx(nextIdx)
+        aIsFrontRef.current   = front
+        displayIdxRef.current = nextIdx
+        navigating.current    = false
+
+        // Preload the image after nextIdx into the now-hidden face
+        const afterNext   = (nextIdx + 1) % REVIEWS.length
+        const newBack     = front ? 'b' : 'a'
+        if (newBack === 'a') setSlotA(afterNext)
+        else                 setSlotB(afterNext)
+      })
+    )
+  }, [])
+
+  const next = useCallback(() => navigate((displayIdxRef.current + 1) % REVIEWS.length), [navigate])
+  const prev = useCallback(() => navigate((displayIdxRef.current - 1 + REVIEWS.length) % REVIEWS.length), [navigate])
 
   const goManual = useCallback((fn: () => void) => {
     pausedRef.current = true
     fn()
-    // resume auto-scroll after 6 seconds of inactivity
     setTimeout(() => { pausedRef.current = false }, 6000)
   }, [])
 
@@ -41,13 +83,23 @@ export default function TestimonialsSection() {
     return () => clearInterval(timer)
   }, [next])
 
+  const faceStyle = (isFront: boolean): React.CSSProperties => ({
+    gridColumn: 1,
+    gridRow: 1,
+    width: '100%',
+    height: 'auto',
+    display: 'block',
+    borderRadius: '1rem',
+    opacity: isFront ? 1 : 0,
+    transition: 'opacity 0.9s ease-in-out',
+  })
+
   return (
     <section
       id="testimonials"
       aria-labelledby="testimonials-heading"
       className="section-padding bg-brand-rose-bg relative overflow-hidden"
     >
-      {/* Tools background — 40% opacity */}
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
         style={{ backgroundImage: "url('/tools-bg.webp')", opacity: 0.4 }}
@@ -55,8 +107,6 @@ export default function TestimonialsSection() {
       />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6">
-
-        {/* Heading */}
         <div className="text-center mb-12">
           <p className="text-xs tracking-[0.25em] text-brand-gold-text font-semibold uppercase mb-3">
             מה אומרות עלינו
@@ -74,31 +124,31 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Crossfade screenshots */}
         <div className="flex flex-col items-center gap-5">
+          {/* Double-buffer: 2 images total, crossfade via CSS opacity transition */}
           <div className="w-full max-w-sm" style={{ display: 'grid' }}>
-            {REVIEWS.map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={src}
-                src={src}
-                alt={i === current ? `ביקורת לקוחה ${i + 1}` : ''}
-                aria-hidden={i !== current}
-                width={384}
-                height={480}
-                className="w-full h-auto block rounded-2xl"
-                style={{
-                  gridColumn: 1,
-                  gridRow: 1,
-                  opacity: i === current ? 1 : 0,
-                  transition: 'opacity 0.9s ease-in-out',
-                }}
-                loading={i === 0 ? 'eager' : 'lazy'}
-              />
-            ))}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={REVIEWS[slotA]}
+              alt={aIsFront ? `ביקורת לקוחה ${displayIdx + 1}` : ''}
+              aria-hidden={!aIsFront}
+              width={384}
+              height={480}
+              style={faceStyle(aIsFront)}
+              loading="lazy"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={REVIEWS[slotB]}
+              alt={!aIsFront ? `ביקורת לקוחה ${displayIdx + 1}` : ''}
+              aria-hidden={aIsFront}
+              width={384}
+              height={480}
+              style={faceStyle(!aIsFront)}
+              loading="lazy"
+            />
           </div>
 
-          {/* Navigation */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => goManual(prev)}
@@ -106,7 +156,7 @@ export default function TestimonialsSection() {
               className="w-8 h-8 rounded-full bg-white/70 border border-brand-rose-light text-brand-rose hover:bg-white hover:border-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm cursor-pointer"
             >
               <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
@@ -115,13 +165,13 @@ export default function TestimonialsSection() {
                 <button
                   key={i}
                   role="tab"
-                  aria-selected={i === current}
+                  aria-selected={i === displayIdx}
                   aria-label={`ביקורת ${i + 1}`}
-                  onClick={() => goManual(() => setCurrent(i))}
+                  onClick={() => goManual(() => navigate(i))}
                   className="p-2 cursor-pointer flex items-center justify-center"
                 >
                   <span className={`block rounded-full transition-colors duration-300 ${
-                    i === current ? 'w-4 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-rose-light hover:bg-brand-rose/50'
+                    i === displayIdx ? 'w-4 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-rose-light hover:bg-brand-rose/50'
                   }`} />
                 </button>
               ))}
@@ -133,12 +183,11 @@ export default function TestimonialsSection() {
               className="w-8 h-8 rounded-full bg-white/70 border border-brand-rose-light text-brand-rose hover:bg-white hover:border-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm cursor-pointer"
             >
               <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>
         </div>
-
       </div>
     </section>
   )

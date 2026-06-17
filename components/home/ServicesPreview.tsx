@@ -3,47 +3,91 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useInView } from 'framer-motion'
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { services } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
 
-function ServiceImageSlider({ images, imagePositions, name, active }: { images: string[]; imagePositions?: string[]; name: string; active?: boolean }) {
-  const [current, setCurrent] = useState(0)
+/**
+ * Double-buffer slider: 2 stable <Image> slots swap front/back.
+ * Only 2 images in DOM instead of all 3-5, with identical CSS crossfade.
+ */
+function ServiceImageSlider({ images, imagePositions, name, active }: {
+  images: string[]
+  imagePositions?: string[]
+  name: string
+  active?: boolean
+}) {
+  const [slotA, setSlotA]     = useState(0)
+  const [slotB, setSlotB]     = useState(Math.min(1, images.length - 1))
+  const [aIsFront, setAIsFront] = useState(true)
+  const [displayIdx, setDisplayIdx] = useState(0)
+
+  const aIsFrontRef   = useRef(true)
+  const displayIdxRef = useRef(0)
+  const navigating    = useRef(false)
+
+  const navigate = useCallback((nextIdx: number) => {
+    if (navigating.current || images.length <= 1) return
+    navigating.current = true
+    const toBack = aIsFrontRef.current ? 'b' : 'a'
+
+    if (toBack === 'a') setSlotA(nextIdx)
+    else                setSlotB(nextIdx)
+
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const front = toBack === 'a'
+        setAIsFront(front)
+        setDisplayIdx(nextIdx)
+        aIsFrontRef.current   = front
+        displayIdxRef.current = nextIdx
+        navigating.current    = false
+      })
+    )
+  }, [images.length])
 
   useEffect(() => {
     if (!active || images.length <= 1) return
     const interval = setInterval(() => {
-      setCurrent((i) => (i + 1) % images.length)
+      navigate((displayIdxRef.current + 1) % images.length)
     }, 3500)
     return () => clearInterval(interval)
-  }, [images.length, active])
+  }, [images.length, active, navigate])
+
+  const slotStyle = (isFront: boolean): React.CSSProperties => ({
+    position: 'absolute',
+    inset: 0,
+    opacity: isFront ? 1 : 0,
+    transition: 'opacity 380ms ease-in-out',
+    willChange: 'opacity',
+    transform: 'translateZ(0)',
+  })
 
   return (
     <div className="relative h-52 overflow-hidden flex-shrink-0 bg-brand-cream">
-      {images.map((src, i) => (
-        <div
-          key={src}
-          className="absolute inset-0"
-          style={{
-            opacity: i === current ? 1 : 0,
-            transition: 'opacity 380ms ease-in-out',
-            willChange: 'opacity',
-            transform: 'translateZ(0)',
-          }}
-          aria-hidden={i !== current}
-        >
-          <Image
-            src={src}
-            alt={i === 0 ? name : ''}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover"
-            style={{ objectPosition: imagePositions?.[i] ?? '50% 50%' }}
-            loading="lazy"
-          />
-        </div>
-      ))}
+      <div aria-hidden={!aIsFront} style={slotStyle(aIsFront)}>
+        <Image
+          src={images[slotA]}
+          alt={aIsFront ? name : ''}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover"
+          style={{ objectPosition: imagePositions?.[slotA] ?? '50% 50%' }}
+          loading="lazy"
+        />
+      </div>
+      <div aria-hidden={aIsFront} style={slotStyle(!aIsFront)}>
+        <Image
+          src={images[slotB]}
+          alt={!aIsFront ? name : ''}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover"
+          style={{ objectPosition: imagePositions?.[slotB] ?? '50% 50%' }}
+          loading="lazy"
+        />
+      </div>
       <div
         className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none z-10"
         aria-hidden="true"
@@ -53,7 +97,7 @@ function ServiceImageSlider({ images, imagePositions, name, active }: { images: 
           <span
             key={i}
             className={`rounded-full transition-all duration-300 ${
-              i === current ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
+              i === displayIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
             }`}
           />
         ))}
