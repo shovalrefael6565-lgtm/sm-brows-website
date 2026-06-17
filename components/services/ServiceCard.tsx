@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react'
 import { Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { type Service } from '@/lib/data'
 import { WHATSAPP_URL } from '@/lib/utils'
@@ -13,27 +13,80 @@ interface Props {
   index: number
 }
 
-function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: string[]; alt: string; objectPositions?: string[]; aspectRatio?: string }) {
-  const [current, setCurrent] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const [touched, setTouched] = useState(false)
-  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+/**
+ * Double-buffer slider: 2 stable slots (A/B) swap front/back on each step.
+ * Only 2 images in DOM instead of all 9-10, with identical CSS crossfade.
+ */
+function ImageSlider({ images, alt, objectPositions, aspectRatio }: {
+  images: string[]
+  alt: string
+  objectPositions?: string[]
+  aspectRatio?: string
+}) {
+  const [slotA, setSlotA]       = useState(0)
+  const [slotB, setSlotB]       = useState(Math.min(1, images.length - 1))
+  const [aIsFront, setAIsFront] = useState(true)
+  const [displayIdx, setDisplayIdx] = useState(0)
+  const [paused, setPaused]     = useState(false)
+  const [touched, setTouched]   = useState(false)
 
-  const go = useCallback((idx: number) => setCurrent(idx), [])
+  const aIsFrontRef   = useRef(true)
+  const displayIdxRef = useRef(0)
+  const navigating    = useRef(false)
+  const touchTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const prev = () => go((current - 1 + images.length) % images.length)
-  const next = useCallback(() => go((current + 1) % images.length), [current, images.length, go])
+  const navigate = useCallback((nextIdx: number) => {
+    if (navigating.current || images.length <= 1) return
+    navigating.current = true
+    const toBack = aIsFrontRef.current ? 'b' : 'a'
+
+    if (toBack === 'a') setSlotA(nextIdx)
+    else                setSlotB(nextIdx)
+
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const front = toBack === 'a'
+        setAIsFront(front)
+        setDisplayIdx(nextIdx)
+        aIsFrontRef.current   = front
+        displayIdxRef.current = nextIdx
+        navigating.current    = false
+      })
+    )
+  }, [images.length])
+
+  const prev = useCallback(
+    () => navigate((displayIdxRef.current - 1 + images.length) % images.length),
+    [navigate, images.length]
+  )
+  const next = useCallback(
+    () => navigate((displayIdxRef.current + 1) % images.length),
+    [navigate, images.length]
+  )
 
   useEffect(() => {
-    if (paused) return
+    if (paused || images.length <= 1) return
     const timer = setInterval(next, 3500)
     return () => clearInterval(timer)
-  }, [paused, next])
+  }, [paused, next, images.length])
 
   const handleTouch = () => {
     setTouched(true)
     if (touchTimer.current) clearTimeout(touchTimer.current)
     touchTimer.current = setTimeout(() => setTouched(false), 3000)
+  }
+
+  const slotStyle = (isFront: boolean): CSSProperties => ({
+    position: 'absolute',
+    inset: 0,
+    opacity: isFront ? 1 : 0,
+    transition: 'opacity 380ms ease-in-out',
+    willChange: 'opacity',
+    transform: 'translateZ(0)',
+  })
+
+  const imgStyle: CSSProperties = {
+    filter: 'brightness(1.04) contrast(1.03) saturate(1.06)',
   }
 
   return (
@@ -46,36 +99,31 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
       aria-roledescription="carousel"
       aria-label={`תמונות של ${alt}`}
     >
-      {/* All images rendered simultaneously — opacity crossfade only */}
-      {images.map((src, i) => (
-        <div
-          key={src}
-          className="absolute inset-0"
-          style={{
-            opacity: i === current ? 1 : 0,
-            transition: 'opacity 380ms ease-in-out',
-            willChange: 'opacity',
-            transform: 'translateZ(0)',
-          }}
-          aria-hidden={i !== current}
-        >
-          <Image
-            src={src}
-            alt={i === 0 ? `${alt} – תמונה 1` : ''}
-            fill
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover"
-            style={{
-              filter: 'brightness(1.04) contrast(1.03) saturate(1.06)',
-              objectPosition: objectPositions?.[i] ?? 'top',
-            }}
-            loading={i === 0 ? 'eager' : 'lazy'}
-            priority={i === 0}
-          />
-        </div>
-      ))}
+      <div aria-hidden={!aIsFront} style={slotStyle(aIsFront)}>
+        <Image
+          src={images[slotA]}
+          alt={aIsFront ? `${alt} – תמונה 1` : ''}
+          fill
+          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="object-cover"
+          style={{ ...imgStyle, objectPosition: objectPositions?.[slotA] ?? 'top' }}
+          loading="lazy"
+          priority={false}
+        />
+      </div>
+      <div aria-hidden={aIsFront} style={slotStyle(!aIsFront)}>
+        <Image
+          src={images[slotB]}
+          alt={!aIsFront ? `${alt} – תמונה 1` : ''}
+          fill
+          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="object-cover"
+          style={{ ...imgStyle, objectPosition: objectPositions?.[slotB] ?? 'top' }}
+          loading="lazy"
+          priority={false}
+        />
+      </div>
 
-      {/* Gradients sit above all images */}
       <div
         className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-dark/20 pointer-events-none z-10"
         aria-hidden="true"
@@ -85,7 +133,6 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         aria-hidden="true"
       />
 
-      {/* Arrows — visible on hover */}
       <button
         type="button"
         onClick={prev}
@@ -103,7 +150,6 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
         <ChevronLeft className="w-4 h-4" aria-hidden="true" />
       </button>
 
-      {/* Dots */}
       <div
         className="absolute bottom-4 start-4 flex items-center gap-1.5 z-10"
         role="tablist"
@@ -114,11 +160,11 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: { images: st
             key={i}
             type="button"
             role="tab"
-            aria-selected={i === current}
+            aria-selected={i === displayIdx}
             aria-label={`תמונה ${i + 1}`}
-            onClick={() => go(i)}
+            onClick={() => navigate(i)}
             className={`transition-all duration-300 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${
-              i === current
+              i === displayIdx
                 ? 'w-4 h-1.5 bg-brand-gold'
                 : 'w-1.5 h-1.5 bg-white/60 hover:bg-white'
             }`}

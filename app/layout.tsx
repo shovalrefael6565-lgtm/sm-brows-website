@@ -1,18 +1,21 @@
 import type { Metadata, Viewport } from 'next'
 import { Rubik, Dancing_Script, Noto_Serif_Hebrew } from 'next/font/google'
 import './globals.css'
+import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Providers from '@/components/layout/Providers'
-import WhatsAppButton from '@/components/ui/WhatsAppButton'
-import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
-import FloatingSocialButtons from '@/components/ui/FloatingSocialButtons'
-import ScrollToTop from '@/components/ui/ScrollToTop'
-import NavigationProgress from '@/components/ui/NavigationProgress'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
-import CookieNotice from '@/components/ui/CookieNotice'
+
+// Non-critical UI — loaded after hydration, not part of initial JS bundle
+const WhatsAppButton      = dynamic(() => import('@/components/ui/WhatsAppButton'),      { ssr: false })
+const AccessibilityWidget = dynamic(() => import('@/components/ui/AccessibilityWidget'), { ssr: false })
+const FloatingSocialButtons = dynamic(() => import('@/components/ui/FloatingSocialButtons'), { ssr: false })
+const ScrollToTop         = dynamic(() => import('@/components/ui/ScrollToTop'),         { ssr: false })
+const NavigationProgress  = dynamic(() => import('@/components/ui/NavigationProgress'),  { ssr: false })
+const CookieNotice        = dynamic(() => import('@/components/ui/CookieNotice'),        { ssr: false })
 import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
