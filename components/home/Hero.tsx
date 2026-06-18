@@ -209,7 +209,7 @@ export default function Hero() {
           animate={{ scale: 1 }}
           transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
         >
-          <motion.div style={{ y }} className="relative">
+          <motion.div style={{ y }} className="relative w-80 sm:w-[430px] lg:w-[640px]">
             {/* Logo brand seal */}
             <div className="absolute top-4 start-4 z-10 hidden sm:block">
               <Image
