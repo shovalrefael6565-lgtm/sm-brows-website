@@ -250,6 +250,9 @@ export default function ServiceCard({ service, index }: Props) {
               <div>
                 <p className="text-xs text-brand-muted">מחיר הטיפול</p>
                 <p className="font-serif text-2xl font-bold text-brand-dark">{service.price}</p>
+                {service.priceNote && (
+                  <p className="text-xs text-brand-rose font-semibold mt-0.5">{service.priceNote}</p>
+                )}
               </div>
               <div className="h-10 w-px bg-brand-rose-light" aria-hidden="true" />
             </>

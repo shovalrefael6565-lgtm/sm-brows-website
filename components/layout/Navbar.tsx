@@ -205,7 +205,7 @@ export default function Navbar() {
             </div>
 
             {/* Desktop nav links */}
-            <ul className="hidden lg:flex items-center gap-6 flex-1 justify-center" role="list">
+            <ul className="hidden lg:flex items-center gap-6 flex-1 justify-start ps-8" role="list">
               {navLinks.map(({ href, label, special }) => {
                 const isActive = pathname === href || (href.includes('#') && pathname === href.split('#')[0])
                 return (

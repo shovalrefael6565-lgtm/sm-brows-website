@@ -6,6 +6,7 @@ export interface Service {
   homeDescription?: string   // short 1-2 line version shown on homepage
   suitableFor?: string[]     // "למי מתאים?" bullet list
   price: string
+  priceNote?: string   // small note shown under the price, e.g. 'גבות + שפם'
   duration: string
   image: string
   images: string[]
@@ -113,6 +114,7 @@ export const services: Service[] = [
       'עיצוב גבות מדויק ומקצועי המדגיש את יופי הפנים הטבעי. הגדרה מותאמת אישית לצורת הפנים ולמבנה הגבה הטבעי שלך.',
     homeDescription: 'התאמת צורת הגבה למבנה הפנים לקבלת מראה טבעי ומחמיא.',
     price: '₪70',
+    priceNote: 'גבות + שפם',
     duration: '15–30 דקות',
     image: '/natural-1.webp',
     images: [
