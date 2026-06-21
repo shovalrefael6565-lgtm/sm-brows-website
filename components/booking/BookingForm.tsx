@@ -31,8 +31,9 @@ interface Variant {
 }
 
 const NATURAL_VARIANTS: Variant[] = [
-  { id: 'עיצוב גבות טבעי',        label: 'עיצוב גבות טבעי',        desc: 'עיצוב מדויק והגדרת הגבה',                                          price: 70 },
-  { id: 'עיצוב גבות + צביעה',     label: 'עיצוב גבות + צביעה',     desc: 'כולל צביעת גבות — האפקט נמשך כ-7 עד 10 ימים',                     price: 85 },
+  { id: 'עיצוב גבות טבעי',        label: 'עיצוב גבות טבעי',        desc: 'עיצוב מדויק והגדרת הגבה — כולל שפם',              price: 70 },
+  { id: 'עיצוב גבות + צביעה',     label: 'עיצוב גבות + צביעה',     desc: 'כולל צביעת גבות — האפקט נמשך כ-7 עד 10 ימים',     price: 85 },
+  { id: 'שעווה לכל הפנים',        label: 'שעווה לכל הפנים',        desc: 'הסרת שיער בשעווה לכל אזורי הפנים',                price: 40 },
 ]
 
 const MONTHS = [
@@ -126,14 +127,16 @@ interface FormData {
   name: string
   phone: string
   service: string
-  variant: string
+  variants: string[]
   date: string
   time: string
   notes: string
 }
 
+type FieldErrors = Partial<Record<keyof FormData, string>>
+
 const EMPTY_FORM: FormData = {
-  name: '', phone: '', service: '', variant: '', date: '', time: '', notes: '',
+  name: '', phone: '', service: '', variants: [], date: '', time: '', notes: '',
 }
 
 export default function BookingForm() {
@@ -144,7 +147,7 @@ export default function BookingForm() {
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [errors, setErrors] = useState<Partial<FormData>>({})
+  const [errors, setErrors] = useState<FieldErrors>({})
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -227,7 +230,8 @@ export default function BookingForm() {
     : ['בחירת טיפול', 'פרטים ואישור']
   const totalSteps = stepLabels.length
 
-  const selectedVariant = NATURAL_VARIANTS.find(v => v.id === form.variant)
+  const selectedVariants = NATURAL_VARIANTS.filter(v => form.variants.includes(v.id))
+  const totalPrice = selectedVariants.reduce((sum, v) => sum + v.price, 0)
 
   const fetchTakenSlots = useCallback(async (isoDate: string) => {
     setLoadingSlots(true)
@@ -322,7 +326,7 @@ export default function BookingForm() {
     setForm(f => ({
       ...f,
       service: name,
-      variant: name === NATURAL ? f.variant : '',
+      variants: name === NATURAL ? f.variants : [],
       date: '', time: '',
     }))
     setSelectedDay(null)
@@ -339,10 +343,10 @@ export default function BookingForm() {
 
   // ── ניווט בין שלבים ──
   const validateStep = (s: number): boolean => {
-    const e: Partial<FormData> = {}
+    const e: FieldErrors = {}
     if (s === 1 && !form.service) e.service = 'יש לבחור טיפול'
     if (s === 2 && isNatural) {
-      if (!form.variant) e.variant = 'יש לבחור סוג טיפול'
+      if (form.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
       if (!form.date) e.date = 'יש לבחור תאריך'
       if (!form.time) e.time = 'יש לבחור שעה'
     }
@@ -360,7 +364,7 @@ export default function BookingForm() {
   }
 
   const validateFinal = () => {
-    const e: Partial<FormData> = {}
+    const e: FieldErrors = {}
     if (!form.name.trim()) e.name = 'שדה חובה'
     if (!form.phone.trim()) e.phone = 'שדה חובה'
     setErrors(e)
@@ -368,7 +372,9 @@ export default function BookingForm() {
   }
 
   const buildWhatsAppMessage = () => {
-    const service = isNatural && form.variant ? form.variant : form.service
+    const service = isNatural && form.variants.length
+      ? selectedVariants.map(v => v.label).join(' + ')
+      : form.service
     const lines = [
       'היי שובל 🤍',
       '',
@@ -378,6 +384,7 @@ export default function BookingForm() {
       `📞 ${form.phone}`,
       '',
       `💆 ${service}`,
+      ...(isNatural && totalPrice ? [`💰 סה"כ ₪${totalPrice}`] : []),
       ...(form.date ? [`📅 ${form.date}`] : []),
       ...(form.time ? [`⏰ ${form.time}`] : []),
       ...(form.notes.trim() ? ['', `📝 ${form.notes}`] : []),
@@ -390,7 +397,7 @@ export default function BookingForm() {
     if (!validateFinal()) return
 
     window.gtag?.('event', 'booking_request', {
-      treatment:     isNatural && form.variant ? form.variant : form.service,
+      treatment:     isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service,
       selected_date: form.date,
       selected_time: form.time,
     })
@@ -439,7 +446,7 @@ export default function BookingForm() {
         <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-brand-muted text-sm mb-8 bg-brand-cream rounded-2xl px-4 py-2">
           <span className="font-semibold text-brand-dark">{form.name}</span>
           <span aria-hidden="true">·</span>
-          <span>{isNatural && form.variant ? form.variant : form.service}</span>
+          <span>{isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service}</span>
           {isNatural && (
             <>
               <span aria-hidden="true">·</span>
@@ -599,36 +606,53 @@ export default function BookingForm() {
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-7"
             >
-              {/* בחירת סוג טיפול + מחיר */}
+              {/* בחירת סוג טיפול + מחיר — בחירה מרובה */}
               <div>
-                <div className="flex items-center gap-1.5 mb-3">
+                <div className="flex items-center gap-1.5 mb-1">
                   <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
                   <span className="text-sm font-semibold text-brand-dark">
                     סוג הטיפול
                     <span className="text-brand-rose me-1" aria-hidden="true">*</span>
                   </span>
                 </div>
+                <p className="text-brand-muted text-xs mb-3">ניתן לבחור יותר מסוג טיפול אחד לאותו תור</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {NATURAL_VARIANTS.map(v => {
-                    const selected = form.variant === v.id
+                    const selected = form.variants.includes(v.id)
                     return (
                       <button
                         key={v.id}
                         type="button"
                         onClick={() => {
-                          setForm(f => ({ ...f, variant: v.id }))
-                          setErrors(e => ({ ...e, variant: undefined }))
+                          setForm(f => ({
+                            ...f,
+                            variants: f.variants.includes(v.id)
+                              ? f.variants.filter(id => id !== v.id)
+                              : [...f.variants, v.id],
+                          }))
+                          setErrors(e => ({ ...e, variants: undefined }))
                         }}
                         aria-pressed={selected}
                         className={cn(
-                          'text-right p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
+                          'relative text-right p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
                           selected
                             ? 'border-brand-rose bg-brand-rose-bg shadow-rose'
                             : 'border-brand-cream-dark bg-white hover:border-brand-rose/40'
                         )}
                       >
-                        <div className="flex items-baseline justify-between gap-2 mb-1">
-                          <h3 className="font-bold text-brand-dark text-sm">{v.label}</h3>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 transition-colors',
+                                selected ? 'border-brand-rose bg-brand-rose' : 'border-brand-cream-dark'
+                              )}
+                              aria-hidden="true"
+                            >
+                              {selected && <Check className="w-3 h-3 text-white" />}
+                            </span>
+                            <h3 className="font-bold text-brand-dark text-sm">{v.label}</h3>
+                          </div>
                           <span className="font-serif text-lg font-bold text-brand-rose whitespace-nowrap">
                             ₪{v.price}
                           </span>
@@ -638,8 +662,13 @@ export default function BookingForm() {
                     )
                   })}
                 </div>
-                {errors.variant && (
-                  <p className="text-red-500 text-xs mt-2">{errors.variant}</p>
+                {form.variants.length > 0 && (
+                  <p className="text-left text-sm font-semibold text-brand-dark mt-3">
+                    סה&quot;כ: <span className="text-brand-rose">₪{totalPrice}</span>
+                  </p>
+                )}
+                {errors.variants && (
+                  <p className="text-red-500 text-xs mt-2">{errors.variants}</p>
                 )}
               </div>
 
@@ -831,13 +860,13 @@ export default function BookingForm() {
                   <div className="flex justify-between">
                     <dt className="text-brand-muted">טיפול</dt>
                     <dd className="font-semibold text-brand-dark">
-                      {isNatural && form.variant ? form.variant : form.service}
+                      {isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service}
                     </dd>
                   </div>
-                  {isNatural && selectedVariant && (
+                  {isNatural && totalPrice > 0 && (
                     <div className="flex justify-between">
                       <dt className="text-brand-muted">מחיר</dt>
-                      <dd className="font-semibold text-brand-dark">₪{selectedVariant.price}</dd>
+                      <dd className="font-semibold text-brand-dark">₪{totalPrice}</dd>
                     </div>
                   )}
                   {isNatural && (
