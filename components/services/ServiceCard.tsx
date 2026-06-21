@@ -274,7 +274,7 @@ export default function ServiceCard({ service, index }: Props) {
             <WhatsAppIcon className="w-5 h-5" />
             {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'קבעי תור בוואצאפ'}
           </a>
-          {service.name === 'עיצוב גבות טבעיות' && (
+          {(service.name === 'עיצוב גבות טבעיות' || service.name === 'הרמת גבות') && (
             <Link
               href="/booking"
               aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
