@@ -9,6 +9,9 @@ import {
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 
 const NATURAL = 'עיצוב גבות טבעיות'
+const LIFTING = 'הרמת גבות'
+const LIFTING_PRICE = 250
+const LIFTING_MINUTES = 40
 
 interface ServiceOption {
   name: string
@@ -19,7 +22,7 @@ interface ServiceOption {
 const SERVICES: ServiceOption[] = [
   { name: NATURAL,          online: true,  desc: 'עיצוב מדויק המדגיש את יופי הפנים הטבעי' },
   { name: 'מיקרובליידינג',  online: false, desc: 'קעקוע קוסמטי לגבות מושלמות עד שנה' },
-  { name: 'הרמת גבות',      online: false, desc: 'הרמה ועיצוב הגבות ללא ניתוח' },
+  { name: LIFTING,          online: true,  desc: 'הרמה ועיצוב הגבות — 40 דקות' },
   { name: 'קורס מקצועי',    online: false, desc: 'הכשרה מקצועית לאמניות גבות' },
 ]
 
@@ -169,6 +172,8 @@ export default function BookingForm() {
   }
 
   const isNatural = form.service === NATURAL
+  const isLifting = form.service === LIFTING
+  const isCalendar = isNatural || isLifting
   const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
 
@@ -210,7 +215,7 @@ export default function BookingForm() {
     const targetMorning = maxSlots <= 5 ? 1 : 2
     const targetEvening = maxSlots - targetMorning
 
-    const picked = [
+    let picked = [
       ...morning.slice(0, targetMorning),
       ...evening.slice(0, targetEvening),
     ]
@@ -221,17 +226,56 @@ export default function BookingForm() {
       picked.push(...remaining.slice(0, maxSlots - picked.length))
     }
 
+    // תחושת ביקוש + זמינות אמיתית: אם קיים ביומן זוג סלוטים רצוף פנוי (S, S+20),
+    // לדאוג שמתוך אותה כמות סלוטים שכבר נבחרו יופיע לפחות זוג רצוף אחד —
+    // בלי להוסיף/להוריד סלוטים, בלי לחשוף שעות מוסתרות ובלי לשנות זמינות אמיתית.
+    const hasAdjacentPair = (arr: string[]) => {
+      const s = [...arr].sort((a, b) => toMin(a) - toMin(b))
+      return s.some((v, i) => i > 0 && toMin(v) - toMin(s[i - 1]) === 20)
+    }
+    const freeSorted = [...free].sort((a, b) => toMin(a) - toMin(b))
+    const freePairs: [string, string][] = []
+    for (let i = 0; i < freeSorted.length - 1; i++) {
+      if (toMin(freeSorted[i + 1]) - toMin(freeSorted[i]) === 20)
+        freePairs.push([freeSorted[i], freeSorted[i + 1]])
+    }
+    if (!hasAdjacentPair(picked) && freePairs.length > 0 && picked.length >= 2) {
+      // בחירת זוג יציבה לפי זרע התאריך
+      const chosen = seededShuffle(freePairs, seed + 2)[0]
+      const need = chosen.filter(s => !picked.includes(s))
+      if (need.length > 0) {
+        // מפנים מקום ע"י הסרת סלוטים שאינם חלק מהזוג — כך הכמות נשמרת בדיוק
+        const removable = picked.filter(s => !chosen.includes(s))
+        const toRemove = removable.slice(removable.length - need.length)
+        picked = picked.filter(s => !toRemove.includes(s)).concat(need)
+      }
+    }
+
     return picked.sort((a, b) => toMin(a) - toMin(b))
   })()
 
-  // שלבים: עיצוב טבעי → 3 שלבים | שאר הטיפולים → 2 שלבים
-  const stepLabels = isNatural
+  // הרמת גבות = 40 דק׳ → שני סלוטים רצופים. שעות ההתחלה האפשריות הן רק
+  // סלוטים מתוך אלה שכבר מוצגים שיש להם שכן רצוף מוצג (S וגם S+20) — בלי
+  // לחשוף שעות נוספות מעבר לאלה שכבר נבחרו להצגה.
+  const minToHHMM = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
+  const liftingStarts = visibleSlots.filter(s => visibleSlots.includes(minToHHMM(toMin(s) + 20)))
+  const displaySlots = isLifting ? liftingStarts : visibleSlots
+
+  // שלבים: טיפול עם יומן (טבעי/הרמת גבות) → 3 שלבים | שאר → 2 שלבים
+  const stepLabels = isCalendar
     ? ['בחירת טיפול', 'בחירת מועד', 'פרטים ואישור']
     : ['בחירת טיפול', 'פרטים ואישור']
   const totalSteps = stepLabels.length
 
   const selectedVariants = NATURAL_VARIANTS.filter(v => form.variants.includes(v.id))
   const totalPrice = selectedVariants.reduce((sum, v) => sum + v.price, 0)
+
+  // סיכום אחוד לטבעי / הרמת גבות
+  const summaryTreatment = isNatural
+    ? selectedVariants.map(v => v.label).join(' + ')
+    : isLifting ? LIFTING : form.service
+  const summaryPrice = isNatural ? totalPrice : isLifting ? LIFTING_PRICE : 0
+  const liftingRange = form.time ? `${form.time}–${minToHHMM(toMin(form.time) + LIFTING_MINUTES)}` : ''
 
   const fetchTakenSlots = useCallback(async (isoDate: string) => {
     setLoadingSlots(true)
@@ -345,8 +389,8 @@ export default function BookingForm() {
   const validateStep = (s: number): boolean => {
     const e: FieldErrors = {}
     if (s === 1 && !form.service) e.service = 'יש לבחור טיפול'
-    if (s === 2 && isNatural) {
-      if (form.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
+    if (s === 2 && isCalendar) {
+      if (isNatural && form.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
       if (!form.date) e.date = 'יש לבחור תאריך'
       if (!form.time) e.time = 'יש לבחור שעה'
     }
@@ -372,9 +416,7 @@ export default function BookingForm() {
   }
 
   const buildWhatsAppMessage = () => {
-    const service = isNatural && form.variants.length
-      ? selectedVariants.map(v => v.label).join(' + ')
-      : form.service
+    const service = isCalendar ? summaryTreatment : form.service
     const lines = [
       'היי שובל 🤍',
       '',
@@ -384,9 +426,10 @@ export default function BookingForm() {
       `📞 ${form.phone}`,
       '',
       `💆 ${service}`,
-      ...(isNatural && totalPrice ? [`💰 סה"כ ₪${totalPrice}`] : []),
+      ...(isCalendar && summaryPrice ? [`💰 ${isNatural ? 'סה"כ ' : ''}₪${summaryPrice}`] : []),
+      ...(isLifting ? ['⏱️ 40 דקות'] : []),
       ...(form.date ? [`📅 ${form.date}`] : []),
-      ...(form.time ? [`⏰ ${form.time}`] : []),
+      ...(form.time ? [`⏰ ${isLifting ? liftingRange : form.time}`] : []),
       ...(form.notes.trim() ? ['', `📝 ${form.notes}`] : []),
     ]
     return encodeURIComponent(lines.join('\n'))
@@ -397,7 +440,7 @@ export default function BookingForm() {
     if (!validateFinal()) return
 
     window.gtag?.('event', 'booking_request', {
-      treatment:     isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service,
+      treatment:     isCalendar ? summaryTreatment : form.service,
       selected_date: form.date,
       selected_time: form.time,
     })
@@ -446,11 +489,11 @@ export default function BookingForm() {
         <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-brand-muted text-sm mb-8 bg-brand-cream rounded-2xl px-4 py-2">
           <span className="font-semibold text-brand-dark">{form.name}</span>
           <span aria-hidden="true">·</span>
-          <span>{isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service}</span>
-          {isNatural && (
+          <span>{summaryTreatment}</span>
+          {isCalendar && (
             <>
               <span aria-hidden="true">·</span>
-              <span>{form.date} בשעה {form.time}</span>
+              <span>{form.date} בשעה {isLifting ? liftingRange : form.time}</span>
             </>
           )}
         </div>
@@ -596,17 +639,29 @@ export default function BookingForm() {
             </motion.div>
           )}
 
-          {/* ═══ שלב 2 (עיצוב טבעי) — בחירת מועד ═══ */}
-          {step === 2 && isNatural && (
+          {/* ═══ שלב 2 (טבעי / הרמת גבות) — בחירת מועד ═══ */}
+          {step === 2 && isCalendar && (
             <motion.div
-              key="step-2-natural"
+              key="step-2-calendar"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-7"
             >
-              {/* בחירת סוג טיפול + מחיר — בחירה מרובה */}
+              {/* הרמת גבות — באנר מחיר ומשך (ללא וריאציות) */}
+              {isLifting && (
+                <div className="flex items-center justify-between gap-2 bg-brand-rose-bg border border-brand-rose-light rounded-2xl p-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+                    <span className="text-sm font-semibold text-brand-dark">הרמת גבות · 40 דקות</span>
+                  </div>
+                  <span className="font-serif text-lg font-bold text-brand-rose whitespace-nowrap">₪{LIFTING_PRICE}</span>
+                </div>
+              )}
+
+              {/* בחירת סוג טיפול + מחיר — בחירה מרובה (טבעי בלבד) */}
+              {isNatural && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
@@ -671,6 +726,7 @@ export default function BookingForm() {
                   <p className="text-red-500 text-xs mt-2">{errors.variants}</p>
                 )}
               </div>
+              )}
 
               {/* לוח שנה */}
               <div>
@@ -779,18 +835,20 @@ export default function BookingForm() {
                         בחירת שעה
                         <span className="text-brand-rose me-1" aria-hidden="true">*</span>
                       </span>
-                      {!loadingSlots && visibleSlots.length > 0 && (
-                        <span className="text-xs text-brand-muted">(זמינות פנויה)</span>
+                      {!loadingSlots && displaySlots.length > 0 && (
+                        <span className="text-xs text-brand-muted">
+                          {isLifting ? '(כל תור 40 דק׳)' : '(זמינות פנויה)'}
+                        </span>
                       )}
                     </div>
                     {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
 
                     {loadingSlots ? (
                       <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
-                    ) : visibleSlots.length === 0 ? (
+                    ) : displaySlots.length === 0 ? (
                       <div className="bg-brand-cream border border-brand-cream-dark rounded-2xl p-5 text-center">
                         <p className="text-sm text-brand-medium mb-1">
-                          אין זמינות פנויה בתאריך זה
+                          {isLifting ? 'אין זוג סלוטים רצוף פנוי בתאריך זה' : 'אין זמינות פנויה בתאריך זה'}
                         </p>
                         <p className="text-xs text-brand-muted">
                           בחרי תאריך אחר או צרי קשר ישירות בוואצאפ
@@ -802,8 +860,9 @@ export default function BookingForm() {
                         role="group"
                         aria-label="בחירת שעת הפגישה"
                       >
-                        {visibleSlots.map(slot => {
+                        {displaySlots.map(slot => {
                           const isSelected = form.time === slot
+                          const endLabel = isLifting ? minToHHMM(toMin(slot) + LIFTING_MINUTES) : ''
                           return (
                             <button
                               key={slot}
@@ -813,7 +872,7 @@ export default function BookingForm() {
                                 setErrors(e => ({ ...e, time: undefined }))
                               }}
                               aria-pressed={isSelected}
-                              aria-label={`שעה ${slot}`}
+                              aria-label={isLifting ? `שעה ${slot} עד ${endLabel}` : `שעה ${slot}`}
                               className={cn(
                                 'py-2.5 rounded-xl text-sm font-semibold border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
                                 isSelected
@@ -860,23 +919,29 @@ export default function BookingForm() {
                   <div className="flex justify-between">
                     <dt className="text-brand-muted">טיפול</dt>
                     <dd className="font-semibold text-brand-dark">
-                      {isNatural && form.variants.length ? selectedVariants.map(v => v.label).join(' + ') : form.service}
+                      {isCalendar ? summaryTreatment : form.service}
                     </dd>
                   </div>
-                  {isNatural && totalPrice > 0 && (
+                  {isLifting && (
                     <div className="flex justify-between">
-                      <dt className="text-brand-muted">מחיר</dt>
-                      <dd className="font-semibold text-brand-dark">₪{totalPrice}</dd>
+                      <dt className="text-brand-muted">משך</dt>
+                      <dd className="font-semibold text-brand-dark">40 דקות</dd>
                     </div>
                   )}
-                  {isNatural && (
+                  {isCalendar && summaryPrice > 0 && (
+                    <div className="flex justify-between">
+                      <dt className="text-brand-muted">מחיר</dt>
+                      <dd className="font-semibold text-brand-dark">₪{summaryPrice}</dd>
+                    </div>
+                  )}
+                  {isCalendar && (
                     <div className="flex justify-between">
                       <dt className="text-brand-muted">מועד</dt>
-                      <dd className="font-semibold text-brand-dark">{form.date} · {form.time}</dd>
+                      <dd className="font-semibold text-brand-dark">{form.date} · {isLifting ? liftingRange : form.time}</dd>
                     </div>
                   )}
                 </dl>
-                {!isNatural && (
+                {!isCalendar && (
                   <p className="text-xs text-brand-muted mt-2 pt-2 border-t border-brand-cream-dark">
                     טיפול זה דורש ייעוץ אישי — אחזור אלייך לתיאום מדויק.
                   </p>

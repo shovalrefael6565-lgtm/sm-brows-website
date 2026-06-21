@@ -162,8 +162,7 @@ export const services: Service[] = [
     id: 'brow-lifting',
     name: 'הרמת גבות',
     tagline: '',
-    description:
-      'טיפול מתקדם להרמה ועיצוב הגבות ללא פולשנות. מעניק מראה מורם ופתוח לעיניים, גבות מוגדרות ומאורגנות.',
+    description: 'הרמה ועיצוב הגבות',
     homeDescription: 'עיצוב והרמה למראה מסודר, מלא ומודגש יותר.',
     price: '₪250',
     duration: '45 דקות',
