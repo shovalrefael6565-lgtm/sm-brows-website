@@ -13,6 +13,8 @@ const IMAGES = [
   { src: '/ba-new-8.webp',     alt: 'מיקרובליידינג לפני ואחרי 8',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-9.webp',     alt: 'מיקרובליידינג לפני ואחרי 9',  pos: '50% 30%', mobilePos: '50% 30%' },
   { src: '/ba-new-10.webp',    alt: 'מיקרובליידינג לפני ואחרי 10', pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-11.webp',    alt: 'מיקרובליידינג לפני ואחרי 11', pos: '50% 30%', mobilePos: '50% 30%' },
+  { src: '/ba-new-12.webp',    alt: 'מיקרובליידינג לפני ואחרי 12', pos: '50% 30%', mobilePos: '50% 30%' },
 ]
 
 const ITEM_W = 440   // px — width of each card
@@ -23,7 +25,7 @@ const INTERVAL = 4000
 
 // Triple items so the loop reset is always invisible
 const STRIP_ITEMS = [...IMAGES, ...IMAGES, ...IMAGES]
-const SINGLE_SET  = IMAGES.length * (ITEM_W + GAP) // 9 × 460 = 4140px — distance before reset
+const SINGLE_SET  = IMAGES.length * (ITEM_W + GAP) // distance (px) before the loop resets
 
 export default function BeforeAfterSection() {
   const ref     = useRef(null)
