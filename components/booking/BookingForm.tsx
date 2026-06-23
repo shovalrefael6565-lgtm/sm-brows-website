@@ -184,7 +184,7 @@ export default function BookingForm() {
     if (selectedDay === null) return []
     const seed = dateSeed(viewYear, viewMonth, selectedDay)
     const offset = businessDayOffset(viewYear, viewMonth, selectedDay)
-    const maxSlots = slotsForOffset(offset, seed)
+    let maxSlots = slotsForOffset(offset, seed)
     if (maxSlots === 0) return []
 
     const nowParts = new Intl.DateTimeFormat('en-US', {
@@ -208,6 +208,11 @@ export default function BookingForm() {
       .filter(slot => toMin(slot) >= minStartMin)
       .filter(slot => !isSlotTaken(slot))
 
+    // מינימום 4 סלוטים ביום אם קיימת זמינות אמיתית מספקת (≥4 פנויים) — בלי
+    // לפתוח את כל היומן ובלי להוריד ימים שכבר מציגים 4+ (max בין שניהם).
+    // אם פחות מ-4 פנויים אמיתיים — מציגים רק את מה שבאמת פנוי.
+    maxSlots = Math.max(maxSlots, Math.min(4, free.length))
+
     // ערבוב יציב לפי תאריך — ריענון לא משנה, אבל כל יום שונה
     const evening = seededShuffle(free.filter(s => toMin(s) >= EVENING_FROM), seed)
     const morning = seededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
@@ -226,14 +231,43 @@ export default function BookingForm() {
       picked.push(...remaining.slice(0, maxSlots - picked.length))
     }
 
-    // תחושת ביקוש + זמינות אמיתית: אם קיים ביומן זוג סלוטים רצוף פנוי (S, S+20),
-    // לדאוג שמתוך אותה כמות סלוטים שכבר נבחרו יופיע לפחות זוג רצוף אחד —
+    const freeSorted = [...free].sort((a, b) => toMin(a) - toMin(b))
+
+    // העדפה ראשונה: שלישיית סלוטים רצופה אמיתית בערב, החל מ-16:00 ומעלה
+    // (S, S+20, S+40). אם קיימת — לכלול אותה במלואה, תוך הסרת אותו מספר סלוטים
+    // מפוזרים, כך שמספר הסלוטים ביום נשאר זהה בדיוק. הבוקר נשאר מפוזר.
+    const TRIPLE_FROM = 16 * 60
+    const eveningTriples: [string, string, string][] = []
+    for (let i = 0; i < freeSorted.length - 2; i++) {
+      if (
+        toMin(freeSorted[i]) >= TRIPLE_FROM &&
+        toMin(freeSorted[i + 1]) - toMin(freeSorted[i]) === 20 &&
+        toMin(freeSorted[i + 2]) - toMin(freeSorted[i + 1]) === 20
+      ) {
+        eveningTriples.push([freeSorted[i], freeSorted[i + 1], freeSorted[i + 2]])
+      }
+    }
+    const hasEveningTriple = (arr: string[]) => {
+      const s = [...arr].sort((a, b) => toMin(a) - toMin(b))
+      return s.some((_, i) =>
+        i >= 2 &&
+        toMin(s[i - 2]) >= TRIPLE_FROM &&
+        toMin(s[i]) - toMin(s[i - 1]) === 20 &&
+        toMin(s[i - 1]) - toMin(s[i - 2]) === 20
+      )
+    }
+    if (maxSlots >= 3 && eveningTriples.length > 0 && !hasEveningTriple(picked)) {
+      const chosen = seededShuffle(eveningTriples, seed + 3)[0]
+      const others = picked.filter(s => !chosen.includes(s))
+      picked = [...chosen, ...others.slice(0, maxSlots - chosen.length)]
+    }
+
+    // fallback: אם אין שלישיית ערב, לוודא לפחות זוג רצוף אמיתי (S, S+20) —
     // בלי להוסיף/להוריד סלוטים, בלי לחשוף שעות מוסתרות ובלי לשנות זמינות אמיתית.
     const hasAdjacentPair = (arr: string[]) => {
       const s = [...arr].sort((a, b) => toMin(a) - toMin(b))
       return s.some((v, i) => i > 0 && toMin(v) - toMin(s[i - 1]) === 20)
     }
-    const freeSorted = [...free].sort((a, b) => toMin(a) - toMin(b))
     const freePairs: [string, string][] = []
     for (let i = 0; i < freeSorted.length - 1; i++) {
       if (toMin(freeSorted[i + 1]) - toMin(freeSorted[i]) === 20)
