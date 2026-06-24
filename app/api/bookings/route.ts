@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBookingEvent } from '@/lib/googleCalendar'
+import { isShabbat } from '@/lib/shabbat'
 
 export async function POST(req: NextRequest) {
   try {
+    // נעילת שבת ברמת השרת — מונע יצירת הזמנות גם בעקיפת ה-UI.
+    if (isShabbat()) {
+      return NextResponse.json(
+        { error: 'shabbat', message: 'המערכת אינה פעילה בשבת. נשמח לעמוד לרשותך במוצאי שבת.' },
+        { status: 403 },
+      )
+    }
+
     const body = await req.json()
     const { name, phone, service, date, time, notes } = body
 
