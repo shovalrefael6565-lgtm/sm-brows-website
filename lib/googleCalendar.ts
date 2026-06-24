@@ -2,6 +2,9 @@ import { google } from 'googleapis'
 
 const BUSINESS_START = 9   // 09:00 Israel time (בוקר)
 const BUSINESS_END   = 19  // 19:00 Israel time (ערב)
+const BUSINESS_START_MIN = BUSINESS_START * 60 // 540
+const BUSINESS_END_MIN   = BUSINESS_END * 60   // 1140
+const DAY_MIN = 24 * 60
 
 /** Format a UTC Date as HH:MM in Israel timezone (Asia/Jerusalem) */
 function fmtIsrael(d: Date): string {
@@ -16,48 +19,24 @@ function fmtIsrael(d: Date): string {
   return `${h}:${m}`
 }
 
-/** Returns true if a HH:MM Israel-time string falls within business hours */
-function inBusinessHours(timeStr: string): boolean {
-  const h = parseInt(timeStr.slice(0, 2), 10)
-  return h >= BUSINESS_START && h < BUSINESS_END
+/** The YYYY-MM-DD calendar date of an instant, in Israel time */
+function israelDateStr(d: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d)
+  const get = (t: string) => parts.find(p => p.type === t)!.value
+  return `${get('year')}-${get('month')}-${get('day')}`
 }
 
-/**
- * Handle AM/PM calendar mistakes: if an event start falls outside business hours,
- * shift it ±12 hours to see if that lands inside business hours.
- * Example: event at 22:00 Israel → shift -12h → 10:00 Israel (valid).
- * Both start and end are shifted by the same offset so duration is preserved.
- * Returns null if neither shift puts the event inside business hours (genuine off-hours event).
- */
-function normalizeAmPm(
-  startDate: Date,
-  endDate: Date
-): { start: Date; end: Date } | null {
-  const startStr = fmtIsrael(startDate)
-  if (inBusinessHours(startStr)) return { start: startDate, end: endDate }
+/** Minutes from Israel midnight (00:00 → 0, 09:30 → 570) */
+function israelMinutes(d: Date): number {
+  const s = fmtIsrael(d)
+  return parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(3, 5), 10)
+}
 
-  const h = parseInt(startStr.slice(0, 2), 10)
-  const TWELVE_H = 12 * 60 * 60 * 1000
-
-  // Try PM → AM (subtract 12 h)
-  const hMinus = h - 12
-  if (hMinus >= BUSINESS_START && hMinus < BUSINESS_END) {
-    return {
-      start: new Date(startDate.getTime() - TWELVE_H),
-      end:   new Date(endDate.getTime()   - TWELVE_H),
-    }
-  }
-
-  // Try AM → PM (add 12 h)
-  const hPlus = h + 12
-  if (hPlus >= BUSINESS_START && hPlus < BUSINESS_END) {
-    return {
-      start: new Date(startDate.getTime() + TWELVE_H),
-      end:   new Date(endDate.getTime()   + TWELVE_H),
-    }
-  }
-
-  return null  // genuinely outside business hours — ignore
+function minToHHMM(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
 const SERVICE_DURATIONS: Record<string, number> = {
@@ -92,7 +71,6 @@ function getCalendarId() {
  * Build query bounds for a calendar date.
  * We query a 30-hour window (21:00 UTC day-before to 03:00 UTC day-after)
  * to fully cover the Israel day regardless of DST (UTC+2 / UTC+3).
- * Business-hour filtering ensures only relevant events survive.
  */
 function dayBounds(date: string): { timeMin: string; timeMax: string } {
   const base = new Date(`${date}T00:00:00Z`)
@@ -101,7 +79,12 @@ function dayBounds(date: string): { timeMin: string; timeMax: string } {
   return { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() }
 }
 
-/** Returns busy time ranges (HH:MM start/end in Israel time) for a given date */
+/**
+ * Busy time ranges (HH:MM Israel) for a date — a faithful reflection of the
+ * real calendar: every timed event that overlaps the business window
+ * (09:00–19:00 Israel) on that date is blocked, clamped to the window.
+ * No AM/PM guessing — the calendar is the source of truth.
+ */
 export async function getBusyRanges(date: string): Promise<{ start: string; end: string }[]> {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
@@ -120,53 +103,36 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
   const ranges: { start: string; end: string }[] = []
 
   for (const event of events) {
+    if (event.status === 'cancelled') continue
     const startStr = event.start?.dateTime
     const endStr   = event.end?.dateTime
-    if (!startStr || !endStr) continue  // skip all-day events
+    if (!startStr || !endStr) continue  // skip all-day / date-only events
 
-    const normalized = normalizeAmPm(new Date(startStr), new Date(endStr))
-    if (!normalized) continue  // outside business hours even after ±12h — ignore
+    const start = new Date(startStr)
+    const end   = new Date(endStr)
 
-    ranges.push({
-      start: fmtIsrael(normalized.start),
-      end:   fmtIsrael(normalized.end),
-    })
+    // Minutes-from-midnight on the *target* Israel date, clamped to that day,
+    // so multi-day or adjacent-day events only contribute their portion of today.
+    const startDate = israelDateStr(start)
+    const endDate   = israelDateStr(end)
+
+    let startMin: number
+    if (startDate < date) startMin = 0
+    else if (startDate === date) startMin = israelMinutes(start)
+    else continue // event starts after today
+
+    let endMin: number
+    if (endDate > date) endMin = DAY_MIN
+    else if (endDate === date) endMin = israelMinutes(end)
+    else continue // event ended before today
+
+    // Clamp to the business window and keep only a positive overlap.
+    const s = Math.max(startMin, BUSINESS_START_MIN)
+    const e = Math.min(endMin, BUSINESS_END_MIN)
+    if (s < e) ranges.push({ start: minToHHMM(s), end: minToHHMM(e) })
   }
 
   return ranges
-}
-
-/** Returns the list of start times (HH:MM in Israel time) already booked on a given date */
-export async function getTakenSlots(date: string): Promise<string[]> {
-  const auth = getAuth()
-  const calendar = google.calendar({ version: 'v3', auth })
-  const calendarId = getCalendarId()
-  const { timeMin, timeMax } = dayBounds(date)
-
-  const res = await calendar.events.list({
-    calendarId,
-    timeMin,
-    timeMax,
-    singleEvents: true,
-    orderBy: 'startTime',
-  })
-
-  const events = res.data.items ?? []
-  const taken: string[] = []
-
-  for (const event of events) {
-    const startStr = event.start?.dateTime
-    const endStr   = event.end?.dateTime
-    if (!startStr) continue
-
-    const endDate = endStr ? new Date(endStr) : new Date(new Date(startStr).getTime() + 60 * 60 * 1000)
-    const normalized = normalizeAmPm(new Date(startStr), endDate)
-    if (!normalized) continue
-
-    taken.push(fmtIsrael(normalized.start))
-  }
-
-  return taken
 }
 
 /** Creates a calendar event for a new booking */
