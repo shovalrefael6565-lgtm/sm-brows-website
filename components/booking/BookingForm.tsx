@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
-  MessageSquare, Sparkles, ArrowRight, Pencil,
+  MessageSquare, Sparkles, ArrowRight, Pencil, Moon,
 } from 'lucide-react'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 
@@ -142,7 +142,64 @@ const EMPTY_FORM: FormData = {
   name: '', phone: '', service: '', variants: [], date: '', time: '', notes: '',
 }
 
+/**
+ * מצב שבת לצד-הלקוח. נשען על מקור האמת היחיד (lib/shabbat.ts) דרך /api/shabbat.
+ * נבדק שוב כל דקה כדי שהמערכת תחזור לפעילות אוטומטית 30 דק' אחרי צאת השבת,
+ * בלי רענון ידני. fail-open: בכל שגיאה מתייחסים כלא-שבת (לא נועלים בטעות ביום חול).
+ */
+function useShabbat(): boolean {
+  const [shabbat, setShabbat] = useState(false)
+  useEffect(() => {
+    let alive = true
+    const check = async () => {
+      try {
+        const res = await fetch('/api/shabbat', { cache: 'no-store' })
+        const data = await res.json()
+        if (alive) setShabbat(Boolean(data.shabbat))
+      } catch {
+        if (alive) setShabbat(false)
+      }
+    }
+    check()
+    const id = setInterval(check, 60_000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+  return shabbat
+}
+
+/** כרטיס מידע אסתטי שמוצג במקום מערכת ההזמנות בזמן שבת */
+function ShabbatClosedCard() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="text-center py-12 px-4"
+      role="status"
+    >
+      <div className="relative inline-flex items-center justify-center w-20 h-20 mb-6">
+        <span className="absolute inset-0 rounded-full bg-brand-gold/15" aria-hidden="true" />
+        <span className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-gold/20 border border-brand-gold/40">
+          <Moon className="w-9 h-9 text-brand-gold-dark" aria-hidden="true" />
+        </span>
+      </div>
+      <h2 className="font-serif text-3xl font-bold text-brand-dark mb-3">
+        המערכת אינה פעילה בשבת
+      </h2>
+      <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-md mx-auto">
+        נשמח לעמוד לרשותך במוצאי שבת 🤍
+      </p>
+      <div className="flex items-center justify-center gap-3 mt-7">
+        <span className="w-10 h-px bg-brand-gold/40" aria-hidden="true" />
+        <span className="text-brand-gold font-serif text-xl select-none" aria-hidden="true">✦</span>
+        <span className="w-10 h-px bg-brand-gold/40" aria-hidden="true" />
+      </div>
+    </motion.div>
+  )
+}
+
 export default function BookingForm() {
+  const shabbat = useShabbat()
   const today  = getIsraelToday()
   const ctaRef = useRef<HTMLDivElement>(null)
   const [step, setStep] = useState(1)
@@ -201,8 +258,8 @@ export default function BookingForm() {
       selectedDay === nowDay &&
       viewMonth === nowMonth &&
       viewYear === nowYear
-    // בהיום — להציג רק שעות לפחות שעה מעכשיו (חלון להכנה)
-    const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 60 : 0
+    // בהיום — להציג רק שעות לפחות 90 דק' מעכשיו (חלון הכנה, בלי הפתעות של רגע אחרון)
+    const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 90 : 0
 
     const free = timeSlots
       .filter(slot => toMin(slot) >= minStartMin)
@@ -471,6 +528,7 @@ export default function BookingForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (shabbat) return // נעילת שבת — הגנה נוספת מעבר להחלפת הטופס בכרטיס
     if (!validateFinal()) return
 
     window.gtag?.('event', 'booking_request', {
@@ -481,7 +539,15 @@ export default function BookingForm() {
 
     setSubmitted(true)
     const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
-    window.open(url, '_blank', 'noopener,noreferrer')
+    // פתיחה עמידה לדפדפנים פנימיים (אינסטגרם/פייסבוק/טיקטוק): מחרוזת features
+    // מפעילה חוסם-פופאפים ולכן הושמטה. אם הלשונית נחסמה — ניווט באותה לשונית
+    // כדי שוואצאפ ייפתח בכל זאת. (במסך ההצלחה יש גם קישור ידני כגיבוי אחרון.)
+    const win = window.open(url, '_blank')
+    if (win) {
+      win.opener = null // שומר על הגנת noopener בלי לעורר חוסם פופאפים
+    } else {
+      window.location.href = url
+    }
   }
 
   const resetAll = () => {
@@ -497,6 +563,11 @@ export default function BookingForm() {
   ) => {
     setForm(f => ({ ...f, [k]: ev.target.value }))
     setErrors(err => ({ ...err, [k]: undefined }))
+  }
+
+  // ── נעילת שבת — מחליפה את כל מערכת ההזמנות בכרטיס המידע ──
+  if (shabbat) {
+    return <ShabbatClosedCard />
   }
 
   // ── מסך אישור ──
@@ -597,7 +668,8 @@ export default function BookingForm() {
       </ol>
 
       <form onSubmit={handleSubmit} noValidate>
-        <AnimatePresence mode="wait">
+        {/* שלבים מתחלפים ללא AnimatePresence mode="wait" — הוא היה גורם לתקיעה
+            לסירוגין (השלב הבא לא נטען). כל שלב מותנה ומוצג לבדו, החלפה מיידית. */}
 
           {/* ═══ שלב 1 — בחירת טיפול ═══ */}
           {step === 1 && (
@@ -605,7 +677,6 @@ export default function BookingForm() {
               key="step-1"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
               <h2 className="font-serif text-2xl font-bold text-brand-dark text-center mb-1">
@@ -679,7 +750,6 @@ export default function BookingForm() {
               key="step-2-calendar"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-7"
             >
@@ -932,7 +1002,6 @@ export default function BookingForm() {
               key="step-details"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-5"
             >
@@ -1057,8 +1126,6 @@ export default function BookingForm() {
               </div>
             </motion.div>
           )}
-
-        </AnimatePresence>
 
         {/* ── ניווט ── */}
         <div ref={ctaRef} className="flex items-center gap-3 mt-9 pt-6 border-t border-brand-cream-dark">
