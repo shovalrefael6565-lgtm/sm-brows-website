@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
-  MessageSquare, Sparkles, ArrowRight, Pencil, Moon,
+  MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon,
 } from 'lucide-react'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 
@@ -219,6 +219,9 @@ export default function BookingForm() {
   const stepRef = useRef(step)
   formRef.current = form
   stepRef.current = step
+
+  // אזור בחירת סוג הטיפול — כדי לגלול אליו אם ניסו להמשיך בלי לבחור
+  const variantRef = useRef<HTMLDivElement>(null)
 
   // משך טיפול לעיצוב גבות טבעי = 20 דקות. בודקים חפיפה מלאה — לא רק התחלה מדויקת
   const SLOT_DURATION = 20
@@ -504,7 +507,14 @@ export default function BookingForm() {
 
   const goNext = () => {
     const s = stepRef.current
-    if (!validateStep(s)) return
+    if (!validateStep(s)) {
+      // אם נחסמו כי לא נבחר סוג טיפול — לגלול אל הבחירה כדי שהקריאה תהיה מול העיניים
+      const f = formRef.current
+      if (s === 2 && f.service === NATURAL && f.variants.length === 0) {
+        setTimeout(() => variantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      }
+      return
+    }
     const f = formRef.current
     const total = (f.service === NATURAL || f.service === LIFTING) ? 3 : 2
     setStep(cur => Math.min(cur + 1, total))
@@ -782,15 +792,39 @@ export default function BookingForm() {
 
               {/* בחירת סוג טיפול + מחיר — בחירה מרובה (טבעי בלבד) */}
               {isNatural && (
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Sparkles className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                  <span className="text-sm font-semibold text-brand-dark">
-                    סוג הטיפול
-                    <span className="text-brand-rose me-1" aria-hidden="true">*</span>
+              <div ref={variantRef} className="scroll-mt-24">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-brand-rose" aria-hidden="true" />
+                  <span className="text-base sm:text-lg font-bold text-brand-dark">
+                    בחרי סוג טיפול
+                    <span className="text-brand-rose ms-1" aria-hidden="true">*</span>
                   </span>
                 </div>
-                <p className="text-brand-muted text-xs mb-3">ניתן לבחור יותר מסוג טיפול אחד לאותו תור</p>
+
+                {/* קריאה בולטת — כל עוד לא נבחר סוג טיפול. הופכת לאדומה אם ניסו להמשיך */}
+                {form.variants.length === 0 && (
+                  <div
+                    role="status"
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-2xl px-4 py-3 mb-3 border-2',
+                      errors.variants
+                        ? 'bg-red-50 border-red-300 animate-pulse'
+                        : 'bg-brand-gold/15 border-brand-gold/50'
+                    )}
+                  >
+                    <ArrowDown
+                      className={cn('w-5 h-5 flex-shrink-0', errors.variants ? 'text-red-500' : 'text-brand-gold-dark')}
+                      aria-hidden="true"
+                    />
+                    <p className={cn('text-sm sm:text-base font-bold', errors.variants ? 'text-red-600' : 'text-brand-gold-text')}>
+                      {errors.variants
+                        ? 'רגע 🙂 יש לבחור סוג טיפול אחד לפחות כדי להמשיך'
+                        : 'כדי להמשיך — בחרי לפחות סוג טיפול אחד מהאפשרויות שלמטה'}
+                    </p>
+                  </div>
+                )}
+
+                <p className="text-brand-muted text-xs mb-3">אפשר לבחור יותר מסוג טיפול אחד לאותו תור</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {NATURAL_VARIANTS.map(v => {
                     const selected = form.variants.includes(v.id)
@@ -841,9 +875,6 @@ export default function BookingForm() {
                   <p className="text-left text-sm font-semibold text-brand-dark mt-3">
                     סה&quot;כ: <span className="text-brand-rose">₪{totalPrice}</span>
                   </p>
-                )}
-                {errors.variants && (
-                  <p className="text-red-500 text-xs mt-2">{errors.variants}</p>
                 )}
               </div>
               )}
