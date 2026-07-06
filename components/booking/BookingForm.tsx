@@ -212,6 +212,14 @@ export default function BookingForm() {
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
+  // ה-refs משקפים תמיד את ה-state העדכני, כך שהניווט בין השלבים מאמת מולו גם
+  // תחת עומס / רינדור איטי — מונע את השגיאה "בחרי טיפול" אחרי שכבר נבחר טיפול.
+  // מסונכרנים בכל רינדור (כאן), וגם באופן סינכרוני ברגע הבחירה (selectService).
+  const formRef = useRef(form)
+  const stepRef = useRef(step)
+  formRef.current = form
+  stepRef.current = step
+
   // משך טיפול לעיצוב גבות טבעי = 20 דקות. בודקים חפיפה מלאה — לא רק התחלה מדויקת
   const SLOT_DURATION = 20
   const toMin = (hhmm: string) => {
@@ -458,12 +466,14 @@ export default function BookingForm() {
   }
 
   const selectService = (name: string) => {
-    setForm(f => ({
-      ...f,
+    const next: FormData = {
+      ...formRef.current,
       service: name,
-      variants: name === NATURAL ? f.variants : [],
+      variants: name === NATURAL ? formRef.current.variants : [],
       date: '', time: '',
-    }))
+    }
+    formRef.current = next   // סינכרוני — זמין מיד גם אם הרינדור מתעכב
+    setForm(next)
     setSelectedDay(null)
     setErrors({})
     // Scroll the continue button into view after React commits the selection.
@@ -476,22 +486,28 @@ export default function BookingForm() {
     }, 100)
   }
 
-  // ── ניווט בין שלבים ──
+  // ── ניווט בין שלבים ── (מאמת מול ה-refs העדכניים, לא מול closure ישן)
   const validateStep = (s: number): boolean => {
+    const f = formRef.current
+    const isNat = f.service === NATURAL
+    const isCal = isNat || f.service === LIFTING
     const e: FieldErrors = {}
-    if (s === 1 && !form.service) e.service = 'יש לבחור טיפול'
-    if (s === 2 && isCalendar) {
-      if (isNatural && form.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
-      if (!form.date) e.date = 'יש לבחור תאריך'
-      if (!form.time) e.time = 'יש לבחור שעה'
+    if (s === 1 && !f.service) e.service = 'יש לבחור טיפול'
+    if (s === 2 && isCal) {
+      if (isNat && f.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
+      if (!f.date) e.date = 'יש לבחור תאריך'
+      if (!f.time) e.time = 'יש לבחור שעה'
     }
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
   const goNext = () => {
-    if (!validateStep(step)) return
-    setStep(s => Math.min(s + 1, totalSteps))
+    const s = stepRef.current
+    if (!validateStep(s)) return
+    const f = formRef.current
+    const total = (f.service === NATURAL || f.service === LIFTING) ? 3 : 2
+    setStep(cur => Math.min(cur + 1, total))
   }
   const goBack = () => {
     setErrors({})
