@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Script from 'next/script'
 
-const PIXEL_ID = '993610606754436'
+const PIXEL_ID = '1524910039137149'
 
 declare global {
   interface Window {
