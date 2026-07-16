@@ -29,3 +29,4 @@ npm-debug.log*
 # service account keys
 sm-brows-*.json
 *-service-account*.json
+video-originals/

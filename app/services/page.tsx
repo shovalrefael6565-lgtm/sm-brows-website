@@ -1,10 +1,14 @@
 import type { Metadata } from 'next'
 import PageHero from '@/components/ui/PageHero'
 import ServiceCard from '@/components/services/ServiceCard'
+import MicrobladingSpotlight from '@/components/services/MicrobladingSpotlight'
 import CourseCard from '@/components/services/CourseCard'
 import ServiceFaqSection from '@/components/services/ServiceFaqSection'
 import BookingSection from '@/components/home/BookingSection'
 import { services } from '@/lib/data'
+
+// מיקרובליידינג מקבל סקשן ספוטלייט ייעודי עם סרטונים — לכן מוסר מהרשימה הרגילה
+const listedServices = services.filter((s) => s.id !== 'microblading')
 
 export const metadata: Metadata = {
   title: 'טיפולים',
@@ -23,6 +27,9 @@ export default function ServicesPage() {
         description="טיפולים מקצועיים לגבות מושלמות וקורס פרימיום להפוך את התשוקה למקצוע."
       />
 
+      {/* מיקרובליידינג — סקשן ספוטלייט עם סרטונים, מעל שאר הטיפולים */}
+      <MicrobladingSpotlight />
+
       <section
         aria-labelledby="services-list-heading"
         className="section-padding bg-brand-cream"
@@ -31,7 +38,7 @@ export default function ServicesPage() {
           רשימת טיפולים
         </h2>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-24">
-          {services.map((service, i) => (
+          {listedServices.map((service, i) => (
             <ServiceCard key={service.id} service={service} index={i} />
           ))}
         </div>
