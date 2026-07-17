@@ -7,6 +7,8 @@ const BeforeAfterSection  = dynamic(() => import('@/components/home/BeforeAfterS
 const TestimonialsSection = dynamic(() => import('@/components/home/TestimonialsSection'))
 const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
 
+const MicrobladingTeaser  = dynamic(() => import('@/components/home/MicrobladingTeaser'))
+
 // סקשנים רחוקים — ssr:false מקטין את ה-bundle הראשוני
 const WhyChooseUs     = dynamic(() => import('@/components/home/WhyChooseUs'),     { ssr: false })
 const CourseBanner    = dynamic(() => import('@/components/home/CourseBanner'),    { ssr: false })
@@ -24,6 +26,7 @@ export default function HomePage() {
     <>
       <Hero />
       <BeforeAfterSection />
+      <MicrobladingTeaser />
       <TestimonialsSection />
       <ServicesPreview />
       <WhyChooseUs />

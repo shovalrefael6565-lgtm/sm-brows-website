@@ -90,8 +90,9 @@ export default function MicrobladingSpotlight() {
   return (
     <section
       ref={ref}
+      id="microblading"
       aria-labelledby="microblading-spotlight-heading"
-      className="relative overflow-hidden bg-brand-linen py-16 sm:py-20"
+      className="relative overflow-hidden bg-brand-linen py-16 sm:py-20 scroll-mt-24"
     >
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-60" />
