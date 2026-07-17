@@ -3,12 +3,13 @@
 import { useRef, useState, useEffect } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Check, Play, Clock } from 'lucide-react'
-import { cn, WHATSAPP_URL } from '@/lib/utils'
+import { WHATSAPP_URL } from '@/lib/utils'
 
 const REELS = [
   { src: '/micro-1.mp4', poster: '/micro-1-poster.webp' },
   { src: '/micro-2.mp4', poster: '/micro-2-poster.webp' },
   { src: '/micro-3.mp4', poster: '/micro-3-poster.webp' },
+  { src: '/micro-4.mp4', poster: '/micro-4-poster.webp' },
 ]
 
 const FEATURES = [
@@ -19,11 +20,11 @@ const FEATURES = [
 ]
 
 /**
- * ריל בודד. הריל המרכזי (featured) מתנגן אוטומטית — מושתק, בלופ — רק כשהוא
- * בתוך המסך (חוסך רוחב-פס וסוללה). הצדדיים נטענים רק בלחיצה (preload="none"),
- * כדי לא לפגוע במהירות הטעינה של העמוד.
+ * ריל בודד — מושתק, בלופ, מתנגן רק כשהוא בתוך המסך ונעצר כשיוצאים ממנו
+ * (IntersectionObserver). preload="none" — שום בייט לא נטען עד שגוללים לכאן,
+ * כך שמהירות הטעינה של העמוד לא נפגעת.
  */
-function Reel({ src, poster, featured }: { src: string; poster: string; featured?: boolean }) {
+function Reel({ src, poster }: { src: string; poster: string }) {
   const ref = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
 
@@ -34,7 +35,6 @@ function Reel({ src, poster, featured }: { src: string; poster: string; featured
   }
 
   useEffect(() => {
-    if (!featured) return
     const v = ref.current
     if (!v) return
     const io = new IntersectionObserver(
@@ -42,19 +42,14 @@ function Reel({ src, poster, featured }: { src: string; poster: string; featured
         if (entry.isIntersecting) v.play().then(() => setPlaying(true)).catch(() => {})
         else v.pause()
       },
-      { threshold: 0.4 },
+      { threshold: 0.35 },
     )
     io.observe(v)
     return () => io.disconnect()
-  }, [featured])
+  }, [])
 
   return (
-    <div
-      className={cn(
-        'relative rounded-3xl overflow-hidden shadow-soft-lg bg-brand-cream-dark cursor-pointer group',
-        featured && 'sm:-translate-y-3 ring-2 ring-brand-gold/50',
-      )}
-    >
+    <div className="relative rounded-3xl overflow-hidden shadow-soft-lg bg-brand-cream-dark cursor-pointer group ring-1 ring-brand-gold/30">
       <video
         ref={ref}
         src={src}
@@ -62,7 +57,7 @@ function Reel({ src, poster, featured }: { src: string; poster: string; featured
         muted
         loop
         playsInline
-        preload={featured ? 'metadata' : 'none'}
+        preload="none"
         onClick={play}
         aria-label="סרטון מיקרובליידינג"
         className="w-full h-full object-cover aspect-[9/16]"
@@ -128,10 +123,10 @@ export default function MicrobladingSpotlight() {
           initial={{ opacity: 0, y: 24 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-3 gap-3 sm:gap-5 max-w-xl mx-auto mb-10"
+          className="grid grid-cols-2 gap-3 sm:gap-5 max-w-md mx-auto mb-10"
         >
-          {REELS.map((reel, i) => (
-            <Reel key={reel.src} src={reel.src} poster={reel.poster} featured={i === 1} />
+          {REELS.map((reel) => (
+            <Reel key={reel.src} src={reel.src} poster={reel.poster} />
           ))}
         </motion.div>
 
