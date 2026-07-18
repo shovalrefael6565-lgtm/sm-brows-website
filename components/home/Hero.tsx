@@ -261,7 +261,7 @@ export default function Hero() {
                 <div className="relative">
                   <span className="absolute -top-2 -right-1 font-serif text-6xl text-brand-rose/20 leading-none select-none" aria-hidden="true">"</span>
                   <p className="text-brand-medium text-base sm:text-lg leading-relaxed text-center relative z-10 px-2">
-                    תמיד הייתה לי משהו עם גבות — שלי תמיד היו עבות, טבעיות, מסודרות. אנשים היו עוצרים אותי ברחוב ושואלים מה עשיתי להן. מתישהו הבנתי שזה לא סתם מחמאה — זו התשוקה שלי.
+                    תמיד היה לי משהו עם גבות — שלי תמיד היו עבות, טבעיות, מסודרות. אנשים היו עוצרים אותי ברחוב ושואלים מה עשיתי להן. מתישהו הבנתי שזה לא סתם מחמאה — זו התשוקה שלי.
                   </p>
                 </div>
 
