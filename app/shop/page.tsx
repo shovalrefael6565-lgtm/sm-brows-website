@@ -30,7 +30,7 @@ export default function ShopPage() {
           </h2>
 
           <p className="text-brand-muted text-base leading-relaxed mb-6">
-            אנחנו עובדות על משהו מיוחד! החנות תעלה בקרוב עם מוצרים מקצועיים שאני ממליצה עליהם.
+            אני עובדת על משהו מיוחד! החנות תעלה בקרוב עם מוצרים מקצועיים שאני ממליצה עליהם.
           </p>
 
           <div className="flex items-center justify-center gap-2 text-brand-gold font-semibold text-sm">

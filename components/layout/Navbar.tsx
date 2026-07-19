@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Search, ShoppingCart, Calendar, ChevronDown, ShoppingBag } from 'lucide-react'
 import { cn, WHATSAPP_URL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
 import { useCart } from '@/lib/cart'
-import { services, products } from '@/lib/data'
+import { services } from '@/lib/data'
 import SocialIcons from '@/components/ui/SocialIcons'
 
 const navLinks = [
@@ -122,15 +122,12 @@ export default function Navbar() {
   const searchResults = useMemo(() => {
     const q = searchQuery.trim()
     if (q.length < 2) return []
-    const serviceMatches = services
+    // מוצרי החנות לא מוצגים בחיפוש כל עוד עמוד החנות במצב "בקרוב",
+    // כדי לא להוביל לקוחות למוצרים שעדיין לא ניתן לרכוש.
+    return services
       .filter((s) => s.name.includes(q) || s.tagline.includes(q) || s.description.includes(q))
-      .slice(0, 3)
+      .slice(0, 5)
       .map((s) => ({ type: 'service' as const, id: s.id, name: s.name, sub: s.tagline, href: `/services#${s.id}` }))
-    const productMatches = products
-      .filter((p) => p.name.includes(q) || p.description.includes(q) || p.category.includes(q))
-      .slice(0, 2)
-      .map((p) => ({ type: 'product' as const, id: p.id, name: p.name, sub: p.price > 0 ? `₪${p.price}` : 'לפרטים', href: '/shop' }))
-    return [...serviceMatches, ...productMatches]
   }, [searchQuery])
 
   return (

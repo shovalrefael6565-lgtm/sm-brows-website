@@ -6,8 +6,8 @@ import { useReveal } from '@/lib/hooks/useReveal'
 const FEATURES = [
   {
     icon: <Clock className="w-6 h-6" aria-hidden="true" />,
-    title: 'זמינות גבוהה',
-    description: 'ניתן לקבוע תור בגמישות לאורך כל ימות השבוע, בשעות נוחות עבורך.',
+    title: 'זמינות נוחה',
+    description: 'תורים בימים ראשון–חמישי, בשעות הבוקר והערב — בזמן שמתאים לך.',
   },
   {
     icon: <Award className="w-6 h-6" aria-hidden="true" />,
@@ -16,8 +16,8 @@ const FEATURES = [
   },
   {
     icon: <ShieldCheck className="w-6 h-6" aria-hidden="true" />,
-    title: 'תוצאות מובטחות',
-    description: 'אני מתחייבת לתוצאה. לא מרוצה? אחזור על הטיפול עד שתהיי.',
+    title: 'ליווי עד לתוצאה',
+    description: 'לא נפרדות עד שאת מרוצה — טיפול חיזוק כלול ומעקב אישי אחרי הטיפול.',
   },
   {
     icon: <Heart className="w-6 h-6" aria-hidden="true" />,
