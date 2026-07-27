@@ -6,7 +6,9 @@ import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
   MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon,
 } from 'lucide-react'
+import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
+import { POLICY_VERSION, POLICY_PATH } from '@/lib/bookingPolicy'
 
 const NATURAL = 'עיצוב גבות טבעיות'
 const LIFTING = 'הרמת גבות'
@@ -134,12 +136,14 @@ interface FormData {
   date: string
   time: string
   notes: string
+  policyAccepted: boolean
 }
 
 type FieldErrors = Partial<Record<keyof FormData, string>>
 
 const EMPTY_FORM: FormData = {
   name: '', phone: '', service: '', variants: [], date: '', time: '', notes: '',
+  policyAccepted: false,
 }
 
 /**
@@ -525,12 +529,22 @@ export default function BookingForm() {
   }
 
   const validateFinal = () => {
+    const f = formRef.current
     const e: FieldErrors = {}
-    if (!form.name.trim()) e.name = 'שדה חובה'
-    if (!form.phone.trim()) e.phone = 'שדה חובה'
+    if (!f.name.trim()) e.name = 'שדה חובה'
+    if (!f.phone.trim()) e.phone = 'שדה חובה'
+    if (!f.policyAccepted) e.policyAccepted = 'יש לאשר את מדיניות התורים והביטולים כדי להמשיך'
     setErrors(e)
     return Object.keys(e).length === 0
   }
+
+  /** חותמת זמן ישראלית לרגע אישור המדיניות — נשלחת יחד עם בקשת התור */
+  const acceptedAtLabel = () =>
+    new Intl.DateTimeFormat('he-IL', {
+      timeZone: 'Asia/Jerusalem',
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date())
 
   const buildWhatsAppMessage = () => {
     const service = isCalendar ? summaryTreatment : form.service
@@ -548,6 +562,8 @@ export default function BookingForm() {
       ...(form.date ? [`📅 ${form.date}`] : []),
       ...(form.time ? [`⏰ ${isLifting ? liftingRange : form.time}`] : []),
       ...(form.notes.trim() ? ['', `📝 ${form.notes}`] : []),
+      '',
+      `✅ אישרה את מדיניות התורים והביטולים (גרסה ${POLICY_VERSION}) — ${acceptedAtLabel()}`,
     ]
     return encodeURIComponent(lines.join('\n'))
   }
@@ -616,6 +632,13 @@ export default function BookingForm() {
         </h2>
         <p className="text-brand-medium text-base leading-relaxed mb-2 max-w-md mx-auto">
           פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
+        </p>
+        <p className="text-brand-muted text-xs leading-relaxed mb-4 max-w-md mx-auto">
+          אישור הקביעה כולל הסכמה{' '}
+          <Link href={POLICY_PATH} className="underline hover:text-brand-rose transition-colors">
+            למדיניות השינויים והביטולים
+          </Link>{' '}
+          של S.M BROWS.
         </p>
         <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-brand-muted text-sm mb-8 bg-brand-cream rounded-2xl px-4 py-2">
           <span className="font-semibold text-brand-dark">{form.name}</span>
@@ -1170,6 +1193,63 @@ export default function BookingForm() {
                   rows={3}
                   className="w-full px-4 py-3 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold hover:border-brand-gold/50 resize-none"
                 />
+              </div>
+
+              {/* אישור מדיניות התורים — חובה לפני שליחת הבקשה */}
+              <div>
+                <label
+                  htmlFor="booking-policy"
+                  className={cn(
+                    'flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-colors',
+                    errors.policyAccepted
+                      ? 'border-red-300 bg-red-50'
+                      : form.policyAccepted
+                      ? 'border-brand-rose bg-brand-rose-bg'
+                      : 'border-brand-cream-dark bg-white hover:border-brand-rose/40',
+                  )}
+                >
+                  <input
+                    id="booking-policy"
+                    type="checkbox"
+                    checked={form.policyAccepted}
+                    onChange={(ev) => {
+                      const checked = ev.target.checked
+                      setForm((f) => ({ ...f, policyAccepted: checked }))
+                      setErrors((e) => ({ ...e, policyAccepted: undefined }))
+                    }}
+                    aria-required="true"
+                    aria-invalid={!!errors.policyAccepted}
+                    aria-describedby={errors.policyAccepted ? 'err-policy' : undefined}
+                    className="sr-only peer"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold peer-focus-visible:ring-offset-2',
+                      form.policyAccepted
+                        ? 'border-brand-rose bg-brand-rose'
+                        : 'border-brand-cream-dark bg-white',
+                    )}
+                  >
+                    {form.policyAccepted && <Check className="w-3 h-3 text-white" />}
+                  </span>
+                  <span className="text-sm text-brand-dark leading-relaxed">
+                    קראתי ואני מאשרת את{' '}
+                    <Link
+                      href={POLICY_PATH}
+                      target="_blank"
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                    >
+                      מדיניות קביעת התורים, השינויים והביטולים
+                    </Link>{' '}
+                    של S.M BROWS
+                    <span className="text-brand-rose ms-0.5" aria-hidden="true">*</span>
+                  </span>
+                </label>
+                {errors.policyAccepted && (
+                  <p id="err-policy" className="text-red-500 text-xs mt-2">{errors.policyAccepted}</p>
+                )}
               </div>
             </motion.div>
           )}

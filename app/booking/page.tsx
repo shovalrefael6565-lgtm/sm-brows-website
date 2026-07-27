@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import BookingForm from '@/components/booking/BookingForm'
 
 export const metadata: Metadata = {
@@ -38,6 +39,14 @@ export default function BookingPage() {
         {/* Note */}
         <p className="text-center text-brand-muted text-xs mt-6">
           לאחר השליחה תיפתח הודעת וואצאפ מוכנה עם כל הפרטים — פשוט שלחי אותה לאישור התור.
+        </p>
+        <p className="text-center text-brand-muted text-xs mt-2">
+          <Link
+            href="/booking-policy"
+            className="underline hover:text-brand-rose transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
+          >
+            מדיניות קביעת תורים, שינויים וביטולים
+          </Link>
         </p>
       </div>
     </main>
