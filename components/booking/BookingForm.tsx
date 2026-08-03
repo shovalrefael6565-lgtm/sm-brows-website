@@ -9,6 +9,7 @@ import {
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 import { POLICY_VERSION, POLICY_PATH } from '@/lib/bookingPolicy'
+import { specialSlotsFor, isSpecialDay } from '@/lib/specialAvailability'
 
 const NATURAL = 'עיצוב גבות טבעיות'
 const LIFTING = 'הרמת גבות'
@@ -257,7 +258,6 @@ export default function BookingForm() {
     const seed = dateSeed(viewYear, viewMonth, selectedDay)
     const offset = businessDayOffset(viewYear, viewMonth, selectedDay)
     let maxSlots = slotsForOffset(offset, seed)
-    if (maxSlots === 0) return []
 
     const nowParts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Jerusalem',
@@ -275,6 +275,16 @@ export default function BookingForm() {
       viewYear === nowYear
     // בהיום — להציג רק שעות לפחות 90 דק' מעכשיו (חלון הכנה, בלי הפתעות של רגע אחרון)
     const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 90 : 0
+
+    // ── זמינות מיוחדת (חריגה זמנית, מוגדרת ב-lib/specialAvailability.ts) ──
+    // תוספת בלבד: אותו חלון הכנה של 90 דק' ואותה בדיקת תפוסה מול Google Calendar.
+    // לתאריכים ללא חלון מיוחד המערך ריק והלוגיקה שמתחת נשארת כפי שהייתה.
+    const specialFree = specialSlotsFor(viewYear, viewMonth, selectedDay)
+      .filter(slot => toMin(slot) >= minStartMin)
+      .filter(slot => !isSlotTaken(slot))
+
+    // מעבר לחלון השבוע קדימה: רק הסלוטים המיוחדים (אם יש), אחרת אין זמינות
+    if (maxSlots === 0) return specialFree
 
     const free = timeSlots
       .filter(slot => toMin(slot) >= minStartMin)
@@ -357,7 +367,10 @@ export default function BookingForm() {
       }
     }
 
-    return picked.sort((a, b) => toMin(a) - toMin(b))
+    // איחוד עם הזמינות המיוחדת (אם התאריך נופל גם בחלון השבוע קדימה וגם בחלון
+    // המיוחד) — התוספת לא גורעת מהבחירה הרגילה ולא משנה אותה.
+    const merged = picked.concat(specialFree.filter(s => !picked.includes(s)))
+    return merged.sort((a, b) => toMin(a) - toMin(b))
   })()
 
   // הרמת גבות = 40 דק׳ → שני סלוטים רצופים. שעות ההתחלה האפשריות הן רק
@@ -411,7 +424,10 @@ export default function BookingForm() {
       if (date < t) continue
       const dow = date.getDay()
       if (dow === 5 || dow === 6) continue
-      if (businessDayOffset(viewYear, viewMonth, d) <= 6) {
+      if (
+        businessDayOffset(viewYear, viewMonth, d) <= 6 ||
+        isSpecialDay(viewYear, viewMonth, d)
+      ) {
         hasAvailable = true
         break
       }
@@ -441,9 +457,13 @@ export default function BookingForm() {
     const dow = new Date(viewYear, viewMonth, day).getDay()
     return dow === 5 || dow === 6
   }
-  /** מעבר ל-6 ימי עסקים מהיום — לא ניתן להזמין דרך האתר */
+  /**
+   * מעבר ל-6 ימי עסקים מהיום — לא ניתן להזמין דרך האתר,
+   * למעט תאריכים שנפתחו במפורש בזמינות המיוחדת (lib/specialAvailability.ts)
+   */
   const isBeyondWindow = (day: number) =>
-    businessDayOffset(viewYear, viewMonth, day) > 6
+    businessDayOffset(viewYear, viewMonth, day) > 6 &&
+    !isSpecialDay(viewYear, viewMonth, day)
   const isDisabled = (day: number) =>
     isPast(day) || isClosedDay(day) || isBeyondWindow(day)
 
