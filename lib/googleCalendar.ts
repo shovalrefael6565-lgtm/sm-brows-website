@@ -1,43 +1,8 @@
 import { google } from 'googleapis'
-
-const BUSINESS_START = 9   // 09:00 Israel time (בוקר)
-const BUSINESS_END   = 19  // 19:00 Israel time (ערב)
-const BUSINESS_START_MIN = BUSINESS_START * 60 // 540
-const BUSINESS_END_MIN   = BUSINESS_END * 60   // 1140
-const DAY_MIN = 24 * 60
-
-/** Format a UTC Date as HH:MM in Israel timezone (Asia/Jerusalem) */
-function fmtIsrael(d: Date): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Jerusalem',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(d)
-  const h = (parts.find(p => p.type === 'hour')?.value  ?? '00').padStart(2, '0')
-  const m = (parts.find(p => p.type === 'minute')?.value ?? '00').padStart(2, '0')
-  return `${h}:${m}`
-}
-
-/** The YYYY-MM-DD calendar date of an instant, in Israel time */
-function israelDateStr(d: Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Jerusalem',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(d)
-  const get = (t: string) => parts.find(p => p.type === t)!.value
-  return `${get('year')}-${get('month')}-${get('day')}`
-}
-
-/** Minutes from Israel midnight (00:00 → 0, 09:30 → 570) */
-function israelMinutes(d: Date): number {
-  const s = fmtIsrael(d)
-  return parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(3, 5), 10)
-}
-
-function minToHHMM(m: number): string {
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
-}
+import {
+  BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
+  israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
+} from './israelTime'
 
 const SERVICE_DURATIONS: Record<string, number> = {
   'עיצוב גבות טבעיות': 20,
@@ -68,18 +33,6 @@ function getCalendarId() {
 }
 
 /**
- * Build query bounds for a calendar date.
- * We query a 30-hour window (21:00 UTC day-before to 03:00 UTC day-after)
- * to fully cover the Israel day regardless of DST (UTC+2 / UTC+3).
- */
-function dayBounds(date: string): { timeMin: string; timeMax: string } {
-  const base = new Date(`${date}T00:00:00Z`)
-  const timeMin = new Date(base.getTime() - 3 * 60 * 60 * 1000)  // 21:00 UTC prev day
-  const timeMax = new Date(base.getTime() + 27 * 60 * 60 * 1000) // 03:00 UTC next day
-  return { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() }
-}
-
-/**
  * Busy time ranges (HH:MM Israel) for a date — a faithful reflection of the
  * real calendar: every timed event that overlaps the business window
  * (09:00–19:00 Israel) on that date is blocked, clamped to the window.
@@ -89,7 +42,7 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
   const calendarId = getCalendarId()
-  const { timeMin, timeMax } = dayBounds(date)
+  const { timeMin, timeMax } = dayBoundsUtc(date)
 
   const res = await calendar.events.list({
     calendarId,
@@ -151,7 +104,10 @@ export async function createBookingEvent(params: {
   const isoDate = parseHebrewDate(params.date)
   const durationMinutes = SERVICE_DURATIONS[params.service] ?? 60
 
-  const startDate = new Date(`${isoDate}T${params.time}:00`)
+  // israelWallTimeToUtc ולא new Date(`${isoDate}T${time}:00`) — השרת רץ ב-UTC
+  // (Vercel), ובניית תאריך ישיר מהמחרוזת הייתה מפרשת את השעה כ-UTC ולא
+  // כשעון קיר ישראלי, כלומר קובעת תור בפועל 2-3 שעות מוקדם/מאוחר מהמבוקש.
+  const startDate = israelWallTimeToUtc(isoDate, params.time)
   const endDate   = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
 
   const description = [

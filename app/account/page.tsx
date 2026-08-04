@@ -4,7 +4,10 @@ import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
 import { getSession } from '@/lib/auth/session'
 import { getCustomerById } from '@/lib/db/customers'
+import { listAppointmentsForCustomer, type AppointmentRow } from '@/lib/db/appointments'
 import { formatPhoneForDisplay } from '@/lib/phone'
+import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
+import { Calendar, Clock } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'האזור האישי שלי',
@@ -12,8 +15,75 @@ export const metadata: Metadata = {
 }
 
 /**
- * שלד האזור האישי — כרגע מאשר שההתחברות עובדת בלבד.
- * רשימת התורים, השינוי והביטול נבנים בשלבים הבאים.
+ * תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB
+ * (supabase/migrations/0001_customer_accounts.sql).
+ */
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  pending:                { label: 'ממתינה לאישור',      className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
+  confirmed:              { label: 'מאושר',               className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  completed:              { label: 'הושלם',                className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+  cancelled_by_customer:  { label: 'בוטל על ידך',          className: 'bg-red-50 text-red-600 border-red-200' },
+  cancelled_by_business:  { label: 'בוטל על ידי העסק',     className: 'bg-red-50 text-red-600 border-red-200' },
+  rescheduled:            { label: 'הוזז',                 className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  no_show:                { label: 'לא הגעת',              className: 'bg-red-50 text-red-600 border-red-200' },
+}
+
+/** תורים שנחשבים "קרובים" — לא הגיעו עדיין לסטטוס סופי */
+const ACTIVE_STATUSES = new Set(['pending', 'confirmed'])
+
+function treatmentLabel(appt: AppointmentRow): string {
+  if (appt.service_key === NATURAL_SERVICE) {
+    const labels = NATURAL_VARIANTS.filter(v => appt.variants.includes(v.id)).map(v => v.label)
+    return labels.length > 0 ? labels.join(' + ') : NATURAL_SERVICE
+  }
+  if (appt.service_key === LIFTING_SERVICE) return LIFTING_SERVICE
+  return appt.service_key
+}
+
+function formatDateTimeIL(iso: string): { date: string; time: string } {
+  const d = new Date(iso)
+  const date = new Intl.DateTimeFormat('he-IL', {
+    timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric',
+  }).format(d)
+  const time = new Intl.DateTimeFormat('he-IL', {
+    timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(d)
+  return { date, time }
+}
+
+function AppointmentCard({ appt }: { appt: AppointmentRow }) {
+  const { date, time } = formatDateTimeIL(appt.starts_at)
+  const status = STATUS_LABELS[appt.status] ?? { label: appt.status, className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' }
+  return (
+    <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h3 className="font-bold text-brand-dark text-sm">{treatmentLabel(appt)}</h3>
+        <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+          {status.label}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-brand-rose" aria-hidden="true" />
+          {date}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-brand-rose" aria-hidden="true" />
+          {time}
+        </span>
+        {appt.price_total != null && (
+          <span className="font-semibold text-brand-dark">₪{appt.price_total}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * האזור האישי — התורים והפרטים של הלקוחה המחוברת.
+ *
+ * שינוי מועד וביטול עדיין לא זמינים כאן (השלב הבא) — כרגע זו תצוגה
+ * בלבד, שמיועדת להראות מיד אחרי קביעת תור שהבקשה נשמרה ומה הסטטוס שלה.
  */
 export default async function AccountPage() {
   const session = await getSession()
@@ -23,11 +93,37 @@ export default async function AccountPage() {
   const customer = await getCustomerById(session.customerId)
   if (!customer) redirect('/login')
 
+  const appointments = await listAppointmentsForCustomer(customer.id)
+  const upcoming = appointments.filter(a => ACTIVE_STATUSES.has(a.status))
+  const history = appointments.filter(a => !ACTIVE_STATUSES.has(a.status))
+
   return (
     <>
       <PageHero tag="אזור אישי" title="שלום," titleHighlight={customer.full_name} />
       <section className="py-14 sm:py-20 px-4 sm:px-6">
-        <div className="w-full max-w-md mx-auto">
+        <div className="w-full max-w-md mx-auto space-y-8">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">התורים הקרובים שלך</h2>
+            {upcoming.length === 0 ? (
+              <div className="bg-brand-rose-bg border border-brand-rose-light rounded-2xl p-5 text-sm text-brand-medium leading-relaxed">
+                אין לך כרגע תורים ממתינים או מאושרים. ניתן לקבוע תור חדש דרך עמוד קביעת התור.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcoming.map(a => <AppointmentCard key={a.id} appt={a} />)}
+              </div>
+            )}
+          </div>
+
+          {history.length > 0 && (
+            <div>
+              <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">היסטוריית תורים</h2>
+              <div className="space-y-3">
+                {history.map(a => <AppointmentCard key={a.id} appt={a} />)}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white border border-brand-linen-dark rounded-2xl p-6 shadow-soft">
             <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">הפרטים שלך</h2>
             <dl className="space-y-3 text-sm">
@@ -44,12 +140,7 @@ export default async function AccountPage() {
             </dl>
           </div>
 
-          <div className="mt-6 bg-brand-rose-bg border border-brand-rose-light rounded-2xl p-5 text-sm text-brand-medium leading-relaxed">
-            רשימת התורים שלך, שינוי מועד וביטול יתווספו כאן בקרוב. בינתיים ניתן
-            לקבוע תור כרגיל דרך עמוד קביעת התור.
-          </div>
-
-          <div className="mt-8 text-center">
+          <div className="text-center">
             <LogoutButton />
           </div>
         </div>

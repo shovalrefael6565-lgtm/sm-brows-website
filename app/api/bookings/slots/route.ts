@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusyRanges } from '@/lib/googleCalendar'
+import { getDbBusyRangesForDate } from '@/lib/db/appointments'
 
 // Freshness is controlled by the cache header + in-memory TTL below, not by
 // force-dynamic — this lets Vercel's edge and a per-instance cache absorb
@@ -30,7 +31,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const busy = await getBusyRanges(date)
+    // Google Calendar משקף אירועים אמיתיים; DB משקף בקשות pending/confirmed
+    // שהמערכת עצמה יצרה. שני המקורות מתמזגים כדי שבקשה שממתינה לאישור לא
+    // תוצג כפנויה ללקוחה אחרת. תקלה בצד היומן לא חוסמת את מה שכבר ידוע ב-DB.
+    const [calendarBusy, dbBusy] = await Promise.all([
+      getBusyRanges(date).catch(err => { console.error('[slots] calendar', err); return [] }),
+      getDbBusyRangesForDate(date),
+    ])
+    const busy = [...calendarBusy, ...dbBusy]
     cache.set(date, { busy, expires: now + CACHE_TTL_MS })
 
     // Keep the map bounded — drop expired entries once it grows.

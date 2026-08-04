@@ -4,17 +4,17 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
-  MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon,
+  MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon, Loader2, ShieldCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 import { POLICY_VERSION, POLICY_PATH } from '@/lib/bookingPolicy'
 import { specialSlotsFor, isSpecialDay } from '@/lib/specialAvailability'
-
-const NATURAL = 'עיצוב גבות טבעיות'
-const LIFTING = 'הרמת גבות'
-const LIFTING_PRICE = 250
-const LIFTING_MINUTES = 40
+import { normalizePhone, isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
+import {
+  NATURAL_SERVICE as NATURAL, LIFTING_SERVICE as LIFTING,
+  LIFTING_PRICE, LIFTING_DURATION_MIN as LIFTING_MINUTES, NATURAL_VARIANTS,
+} from '@/lib/services'
 
 interface ServiceOption {
   name: string
@@ -27,19 +27,6 @@ const SERVICES: ServiceOption[] = [
   { name: 'מיקרובליידינג',  online: false, desc: 'קעקוע קוסמטי לגבות מושלמות עד שנה' },
   { name: LIFTING,          online: true,  desc: 'הרמה ועיצוב הגבות — 40 דקות' },
   { name: 'קורס מקצועי',    online: false, desc: 'הכשרה מקצועית לאמניות גבות' },
-]
-
-interface Variant {
-  id: string
-  label: string
-  desc: string
-  price: number
-}
-
-const NATURAL_VARIANTS: Variant[] = [
-  { id: 'עיצוב גבות טבעי',        label: 'עיצוב גבות טבעי',        desc: 'עיצוב מדויק והגדרת הגבה — כולל שפם',              price: 70 },
-  { id: 'עיצוב גבות + צביעה',     label: 'עיצוב גבות + צביעה',     desc: 'כולל צביעת גבות — האפקט נמשך כ-7 עד 10 ימים',     price: 85 },
-  { id: 'שעווה לכל הפנים',        label: 'שעווה לכל הפנים',        desc: 'הסרת שיער בשעווה לכל אזורי הפנים',                price: 40 },
 ]
 
 const MONTHS = [
@@ -135,6 +122,8 @@ interface FormData {
   service: string
   variants: string[]
   date: string
+  /** תאריך ISO (YYYY-MM-DD) הנלווה ל-date — נשלח לשרת, date היא רק לתצוגה */
+  isoDate: string
   time: string
   notes: string
   policyAccepted: boolean
@@ -143,8 +132,17 @@ interface FormData {
 type FieldErrors = Partial<Record<keyof FormData, string>>
 
 const EMPTY_FORM: FormData = {
-  name: '', phone: '', service: '', variants: [], date: '', time: '', notes: '',
+  name: '', phone: '', service: '', variants: [], date: '', isoDate: '', time: '', notes: '',
   policyAccepted: false,
+}
+
+/** מצב זרימת אימות הטלפון + שמירת הבקשה — רלוונטי רק לטיפולים עם יומן */
+type BookingPhase = 'form' | 'sending-otp' | 'awaiting-otp' | 'verifying-otp' | 'saving'
+
+interface SessionInfo {
+  loggedIn: boolean
+  phone?: string
+  fullName?: string
 }
 
 /**
@@ -217,6 +215,19 @@ export default function BookingForm() {
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
+  // ── אימות טלפון + שמירת הבקשה (רק לטיפולים עם יומן — natural/lifting) ──
+  const [session, setSession] = useState<SessionInfo | null>(null)
+  const [phase, setPhase] = useState<BookingPhase>('form')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [otpMaskedPhone, setOtpMaskedPhone] = useState('')
+  const [otpCooldown, setOtpCooldown] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  // חלון וואטסאפ שנפתח ריק בתוך אירוע הלחיצה הסינכרוני (ראה handleSubmit) —
+  // כדי שחוסמי פופאפים לא יחסמו את הניווט המאוחר יותר, אחרי אימות/שמירה
+  // אסינכרוניים. window.open בתוך async לאחר await כמעט תמיד נחסם.
+  const pendingWhatsAppWin = useRef<Window | null>(null)
+
   // ה-refs משקפים תמיד את ה-state העדכני, כך שהניווט בין השלבים מאמת מולו גם
   // תחת עומס / רינדור איטי — מונע את השגיאה "בחרי טיפול" אחרי שכבר נבחר טיפול.
   // מסונכרנים בכל רינדור (כאן), וגם באופן סינכרוני ברגע הבחירה (selectService).
@@ -247,6 +258,9 @@ export default function BookingForm() {
   const isNatural = form.service === NATURAL
   const isLifting = form.service === LIFTING
   const isCalendar = isNatural || isLifting
+  // מסך אימות הקוד מוצג רק אחרי שנשלח קוד בפועל, ולא בזמן השליחה עצמה
+  // (כדי לא להבזיק "הזינו קוד" עם מספר ממוסך ריק לפני שהוא נטען)
+  const otpPanelVisible = isCalendar && otpMaskedPhone !== '' && phase !== 'form' && phase !== 'sending-otp'
   const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
 
@@ -447,6 +461,34 @@ export default function BookingForm() {
     return () => clearInterval(id)
   }, [selectedDay, viewYear, viewMonth, fetchTakenSlots])
 
+  // בדיקת session חד-פעמית — כדי שלקוחה מחוברת לא תתבקש OTP שוב בקביעת תור
+  useEffect(() => {
+    let alive = true
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => { if (alive) setSession(data) })
+      .catch(() => { if (alive) setSession({ loggedIn: false }) })
+    return () => { alive = false }
+  }, [])
+
+  // מילוי מוקדם של שם/טלפון מה-session — רק אם השדה עדיין ריק, כדי לא
+  // לדרוס הקלדה שכבר התחילה
+  useEffect(() => {
+    if (!session?.loggedIn) return
+    setForm(f => ({
+      ...f,
+      phone: f.phone || (session.phone ? formatPhoneForDisplay(session.phone) : f.phone),
+      name: f.name || session.fullName || f.name,
+    }))
+  }, [session])
+
+  // ספירה לאחור ל"שליחה חוזרת" של קוד האימות
+  useEffect(() => {
+    if (otpCooldown <= 0) return
+    const id = setInterval(() => setOtpCooldown(c => Math.max(0, c - 1)), 1000)
+    return () => clearInterval(id)
+  }, [otpCooldown])
+
   const isPast = (day: number) => {
     const d = new Date(viewYear, viewMonth, day)
     const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -471,13 +513,13 @@ export default function BookingForm() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
     else setViewMonth(m => m - 1)
     setSelectedDay(null)
-    setForm(f => ({ ...f, date: '', time: '' }))
+    setForm(f => ({ ...f, date: '', isoDate: '', time: '' }))
   }
   const nextMonth = () => {
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
     else setViewMonth(m => m + 1)
     setSelectedDay(null)
-    setForm(f => ({ ...f, date: '', time: '' }))
+    setForm(f => ({ ...f, date: '', isoDate: '', time: '' }))
   }
 
   const toIsoDate = (year: number, month: number, day: number) =>
@@ -485,11 +527,12 @@ export default function BookingForm() {
 
   const selectDay = (day: number) => {
     if (isDisabled(day)) return
+    const iso = toIsoDate(viewYear, viewMonth, day)
     setSelectedDay(day)
     setBusyRanges([])
-    setForm(f => ({ ...f, date: fmtDate(viewYear, viewMonth, day), time: '' }))
+    setForm(f => ({ ...f, date: fmtDate(viewYear, viewMonth, day), isoDate: iso, time: '' }))
     setErrors(e => ({ ...e, date: undefined }))
-    fetchTakenSlots(toIsoDate(viewYear, viewMonth, day))
+    fetchTakenSlots(iso)
   }
 
   const selectService = (name: string) => {
@@ -550,9 +593,14 @@ export default function BookingForm() {
 
   const validateFinal = () => {
     const f = formRef.current
+    const isCal = f.service === NATURAL || f.service === LIFTING
     const e: FieldErrors = {}
     if (!f.name.trim()) e.name = 'שדה חובה'
     if (!f.phone.trim()) e.phone = 'שדה חובה'
+    // ולידציית פורמט טלפון מלאה רק לטיפולים עם יומן — הם היחידים שעוברים
+    // דרך OTP ו-DB, וצריכים מספר E.164 תקין. שאר הטיפולים (וואטסאפ בלבד)
+    // נשארים בהתנהגות הקיימת — כל שדה לא ריק מתקבל.
+    else if (isCal && !isValidIsraeliMobile(f.phone)) e.phone = 'יש להזין מספר נייד ישראלי תקין'
     if (!f.policyAccepted) e.policyAccepted = 'יש לאשר את מדיניות התורים והביטולים כדי להמשיך'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -588,27 +636,194 @@ export default function BookingForm() {
     return encodeURIComponent(lines.join('\n'))
   }
 
+  /**
+   * פותחת חלון וואטסאפ ריק *עכשיו*, בתוך אירוע הלחיצה הסינכרוני (לפני כל
+   * await) — כדי שחוסמי פופאפים לא יחסמו אותו. הניווט בפועל ל-URL קורה
+   * מאוחר יותר, אחרי שהשמירה/האימות האסינכרוניים הצליחו, דרך הפניית
+   * ה-window שכבר פתוח. window.open שנקרא אחרי await כמעט תמיד נחסם,
+   * ולכן אי אפשר פשוט לדחות את הפתיחה עצמה לרגע שבו יש כתובת.
+   */
+  const openBlankWhatsAppWindow = () => {
+    const win = window.open('', '_blank')
+    if (win) win.opener = null
+    pendingWhatsAppWin.current = win
+  }
+
+  /** מנווטת את החלון שנפתח מראש ל-URL הסופי, עם נפילה חזרה לניווט מלא */
+  const navigatePendingWhatsApp = (url: string) => {
+    const win = pendingWhatsAppWin.current
+    pendingWhatsAppWin.current = null
+    try {
+      if (win && !win.closed) {
+        win.location.href = url
+        return
+      }
+    } catch {
+      // ignore — נופלים לפתיחה/ניווט רגילים למטה
+    }
+    const fresh = window.open(url, '_blank')
+    if (fresh) fresh.opener = null
+    else window.location.href = url
+  }
+
+  const closePendingWhatsApp = () => {
+    try { pendingWhatsAppWin.current?.close() } catch { /* noop */ }
+    pendingWhatsAppWin.current = null
+  }
+
+  /** שולחת את בקשת התור ל-DB. מחזירה תוצאה מובנית — לעולם לא זורקת */
+  const saveAppointment = async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const f = formRef.current
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceKey: f.service,
+          variants: f.service === NATURAL ? f.variants : [],
+          isoDate: f.isoDate,
+          time: f.time,
+          notes: f.notes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) return { ok: false, message: data.message ?? 'לא הצלחנו לשמור את הבקשה.' }
+      return { ok: true }
+    } catch {
+      return { ok: false, message: 'אין חיבור לאינטרנט. נסי שוב.' }
+    }
+  }
+
+  /**
+   * שלב אחרון משותף לשני המסלולים (כבר מאומתת / הרגע אומתה): שמירה ב-DB,
+   * ורק אחרי הצלחה — ניווט חלון הוואטסאפ שכבר פתוח. אם השמירה נכשלת,
+   * החלון הריק נסגר ולא נפתחת שום הודעת וואטסאפ — הלקוחה לא רואה "נשלח"
+   * על בקשה שלא נשמרה.
+   */
+  const finalizeBooking = async () => {
+    setPhase('saving')
+    setSaveError(null)
+    const result = await saveAppointment()
+
+    if (!result.ok) {
+      setSaveError(result.message)
+      setPhase('form')
+      closePendingWhatsApp()
+      // יתכן שהשעה נתפסה הרגע (409) — מרעננים את הזמינות כדי שהסלוט
+      // התפוס ייעלם מהרשימה ולא תנסה שוב על אותה שעה
+      if (formRef.current.isoDate) fetchTakenSlots(formRef.current.isoDate)
+      return
+    }
+
+    window.gtag?.('event', 'booking_request', {
+      treatment: summaryTreatment,
+      selected_date: formRef.current.date,
+      selected_time: formRef.current.time,
+    })
+
+    setSubmitted(true)
+    navigatePendingWhatsApp(`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`)
+  }
+
+  /** שולחת קוד אימות למספר שהוזן, ועוברת למסך הזנת הקוד */
+  const requestOtp = async () => {
+    const normalized = normalizePhone(formRef.current.phone)
+    if (!normalized) {
+      setErrors(err => ({ ...err, phone: 'יש להזין מספר נייד ישראלי תקין' }))
+      return
+    }
+    setPhase('sending-otp')
+    setOtpError(null)
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalized, purpose: 'booking' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setOtpError(data.message ?? 'לא הצלחנו לשלוח את הקוד')
+        if (data.retryAfterSec) setOtpCooldown(Math.min(data.retryAfterSec, 300))
+        setPhase('form')
+        return
+      }
+      setOtpMaskedPhone(data.maskedPhone)
+      setOtpCooldown(60)
+      setOtpCode('')
+      setPhase('awaiting-otp')
+    } catch {
+      setOtpError('אין חיבור לאינטרנט. נסי שוב.')
+      setPhase('form')
+    }
+  }
+
+  /** מאמתת את הקוד שהוזן; בהצלחה — session נוצר בשרת וממשיכים לשמירה */
+  const verifyOtpAndSave = async () => {
+    if (!/^\d{6}$/.test(otpCode)) {
+      setOtpError('יש להזין קוד בן 6 ספרות')
+      return
+    }
+    const normalized = normalizePhone(formRef.current.phone)
+    if (!normalized) {
+      setOtpError('מספר הטלפון אינו תקין')
+      setPhase('form')
+      return
+    }
+    // פתיחת החלון הריק כאן — לחיצה על "אישור קוד" היא בעצמה מחווה משתמש
+    // סינכרונית, ולכן זו ההזדמנות האחרונה לפתוח בלי חסימה
+    openBlankWhatsAppWindow()
+    setPhase('verifying-otp')
+    setOtpError(null)
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: normalized, code: otpCode, purpose: 'booking', fullName: formRef.current.name,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setOtpError(data.message ?? 'הקוד שגוי')
+        setPhase('awaiting-otp')
+        closePendingWhatsApp()
+        return
+      }
+      setSession({ loggedIn: true, phone: normalized, fullName: formRef.current.name })
+      await finalizeBooking()
+    } catch {
+      setOtpError('אין חיבור לאינטרנט. נסי שוב.')
+      setPhase('awaiting-otp')
+      closePendingWhatsApp()
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (shabbat) return // נעילת שבת — הגנה נוספת מעבר להחלפת הטופס בכרטיס
     if (!validateFinal()) return
 
-    window.gtag?.('event', 'booking_request', {
-      treatment:     isCalendar ? summaryTreatment : form.service,
-      selected_date: form.date,
-      selected_time: form.time,
-    })
+    if (!isCalendar) {
+      // זרימת הוואטסאפ המקורית — ללא DB, ללא OTP, בלי שום שינוי מהקיים
+      window.gtag?.('event', 'booking_request', {
+        treatment: form.service, selected_date: form.date, selected_time: form.time,
+      })
+      setSubmitted(true)
+      const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
+      const win = window.open(url, '_blank')
+      if (win) win.opener = null
+      else window.location.href = url
+      return
+    }
 
-    setSubmitted(true)
-    const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
-    // פתיחה עמידה לדפדפנים פנימיים (אינסטגרם/פייסבוק/טיקטוק): מחרוזת features
-    // מפעילה חוסם-פופאפים ולכן הושמטה. אם הלשונית נחסמה — ניווט באותה לשונית
-    // כדי שוואצאפ ייפתח בכל זאת. (במסך ההצלחה יש גם קישור ידני כגיבוי אחרון.)
-    const win = window.open(url, '_blank')
-    if (win) {
-      win.opener = null // שומר על הגנת noopener בלי לעורר חוסם פופאפים
+    const normalized = normalizePhone(form.phone)
+    if (session?.loggedIn && session.phone === normalized) {
+      // כבר מאומתת לאותו מספר בדיוק — אין צורך ב-OTP נוסף
+      openBlankWhatsAppWindow() // עדיין בתוך הלחיצה הסינכרונית
+      void finalizeBooking()
     } else {
-      window.location.href = url
+      // מספר חדש / לא מחוברת / מחוברת עם מספר אחר — חובה אימות מחדש
+      void requestOtp()
     }
   }
 
@@ -618,6 +833,11 @@ export default function BookingForm() {
     setSelectedDay(null)
     setStep(1)
     setErrors({})
+    setPhase('form')
+    setOtpCode('')
+    setOtpError(null)
+    setOtpMaskedPhone('')
+    setSaveError(null)
   }
 
   const setField = (k: keyof FormData) => (
@@ -650,9 +870,17 @@ export default function BookingForm() {
         <h2 className="font-serif text-3xl font-bold text-brand-dark mb-3">
           תודה! הבקשה מוכנה 🌸
         </h2>
-        <p className="text-brand-medium text-base leading-relaxed mb-2 max-w-md mx-auto">
-          פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
-        </p>
+        {isCalendar ? (
+          <p className="text-brand-medium text-base leading-relaxed mb-2 max-w-md mx-auto">
+            הבקשה נשמרה במערכת בסטטוס{' '}
+            <span className="font-semibold text-brand-dark">ממתינה לאישור</span>.
+            פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ושובל תאשר את התור בהקדם.
+          </p>
+        ) : (
+          <p className="text-brand-medium text-base leading-relaxed mb-2 max-w-md mx-auto">
+            פתחתי לך חלון וואצאפ עם כל הפרטים — שלחי את ההודעה ואחזור אלייך בהקדם לאישור התור.
+          </p>
+        )}
         <p className="text-brand-muted text-xs leading-relaxed mb-4 max-w-md mx-auto">
           אישור הקביעה כולל הסכמה{' '}
           <Link href={POLICY_PATH} className="underline hover:text-brand-rose transition-colors">
@@ -689,6 +917,16 @@ export default function BookingForm() {
             קביעת תור נוסף
           </button>
         </div>
+        {isCalendar && (
+          <div className="mt-6">
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-1.5 text-brand-rose font-semibold text-sm underline hover:text-brand-rose/80 transition-colors cursor-pointer"
+            >
+              צפייה באזור האישי
+            </Link>
+          </div>
+        )}
       </motion.div>
     )
   }
@@ -1275,36 +1513,123 @@ export default function BookingForm() {
           )}
 
         {/* ── ניווט ── */}
-        <div ref={ctaRef} className="flex items-center gap-3 mt-9 pt-6 border-t border-brand-cream-dark">
-          {step > 1 && (
-            <button
-              type="button"
-              onClick={goBack}
-              className="inline-flex items-center gap-1.5 px-5 py-3.5 rounded-full border-2 border-brand-cream-dark text-brand-dark font-semibold text-sm hover:bg-brand-cream transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-            >
-              <ChevronRight className="w-4 h-4" aria-hidden="true" />
-              חזרה
-            </button>
+        <div ref={ctaRef} className="mt-9 pt-6 border-t border-brand-cream-dark">
+          {saveError && (
+            <p role="alert" className="text-red-500 text-sm text-center mb-4 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+              {saveError}
+            </p>
           )}
 
-          {step < totalSteps ? (
-            <button
-              type="button"
-              onClick={goNext}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
-            >
-              המשך
-              <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
-            </button>
+          {otpPanelVisible ? (
+            // ── אימות טלפון בעת קביעת תור: קוד נשלח, ממתינים להזנה ואישור ──
+            <div className="space-y-4">
+              <div className="bg-brand-cream border border-brand-cream-dark rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="w-4 h-4 text-brand-rose flex-shrink-0" aria-hidden="true" />
+                  <p className="text-sm font-bold text-brand-dark">אימות מספר טלפון</p>
+                </div>
+                <p className="text-xs text-brand-muted mb-3">
+                  שלחנו קוד אימות למספר{' '}
+                  <span dir="ltr" className="font-semibold text-brand-dark">{otpMaskedPhone}</span>
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  dir="ltr"
+                  placeholder="000000"
+                  value={otpCode}
+                  disabled={phase !== 'awaiting-otp'}
+                  onChange={ev => {
+                    setOtpCode(ev.target.value.replace(/\D/g, '').slice(0, 6))
+                    setOtpError(null)
+                  }}
+                  aria-invalid={!!otpError}
+                  aria-describedby={otpError ? 'err-otp' : undefined}
+                  className="w-full h-14 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark text-2xl text-center tracking-[0.5em] font-semibold outline-none focus:ring-2 focus:ring-brand-gold disabled:opacity-60"
+                />
+                {otpError && <p id="err-otp" role="alert" className="text-red-500 text-xs mt-2">{otpError}</p>}
+                <div className="flex items-center justify-between mt-3 text-xs">
+                  {phase === 'awaiting-otp' ? (
+                    <button
+                      type="button"
+                      onClick={() => { setPhase('form'); setOtpCode(''); setOtpError(null) }}
+                      className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer"
+                    >
+                      עריכת הפרטים
+                    </button>
+                  ) : <span aria-hidden="true" />}
+                  <button
+                    type="button"
+                    disabled={otpCooldown > 0 || phase !== 'awaiting-otp'}
+                    onClick={requestOtp}
+                    className="text-brand-gold-text font-semibold hover:underline disabled:text-brand-muted disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {otpCooldown > 0 ? `שליחה חוזרת בעוד ${otpCooldown}` : 'שליחה חוזרת'}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={verifyOtpAndSave}
+                disabled={phase !== 'awaiting-otp' || otpCode.length !== 6}
+                className="w-full inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+              >
+                {phase === 'verifying-otp' || phase === 'saving' ? (
+                  <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <WhatsAppIcon className="w-5 h-5" />
+                )}
+                {phase === 'verifying-otp'
+                  ? 'מאמתת קוד…'
+                  : phase === 'saving'
+                  ? 'שומרת את הבקשה…'
+                  : 'אישור קוד ושמירת התור'}
+              </button>
+            </div>
           ) : (
-            <button
-              type="submit"
-              aria-label="שליחת בקשה לתור"
-              className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
-            >
-              <WhatsAppIcon className="w-5 h-5" />
-              שליחת בקשה לתור
-            </button>
+            <div className="flex items-center gap-3">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="inline-flex items-center gap-1.5 px-5 py-3.5 rounded-full border-2 border-brand-cream-dark text-brand-dark font-semibold text-sm hover:bg-brand-cream transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                >
+                  <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                  חזרה
+                </button>
+              )}
+
+              {step < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+                >
+                  המשך
+                  <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  aria-label="שליחת בקשה לתור"
+                  disabled={phase === 'sending-otp' || phase === 'saving'}
+                  className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+                >
+                  {phase === 'sending-otp' || phase === 'saving' ? (
+                    <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <WhatsAppIcon className="w-5 h-5" />
+                  )}
+                  {phase === 'sending-otp'
+                    ? 'שולחת קוד…'
+                    : phase === 'saving'
+                    ? 'שומרת את הבקשה…'
+                    : 'שליחת בקשה לתור'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </form>
