@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await getSession()
-  if (!session) {
+  if (!session?.customerId) {
     return NextResponse.json(
       { error: 'unauthorized', message: 'יש לאמת את מספר הטלפון לפני שמירת הבקשה.' },
       { status: 401 },

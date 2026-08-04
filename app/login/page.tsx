@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LoginForm from '@/components/account/LoginForm'
 import { getSession } from '@/lib/auth/session'
+import { getCustomerById } from '@/lib/db/customers'
+import { isAdmin } from '@/lib/db/admins'
 
 export const metadata: Metadata = {
   // הסיומת "| S.M BROWS" מגיעה מה-template ב-app/layout.tsx
@@ -15,7 +17,18 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   // כבר מחוברת — אין טעם להציג מסך התחברות
   const session = await getSession()
-  if (session) redirect('/account')
+
+  // ה-cookie עצמו יכול להיות חתום ותקף גם אחרי שהחשבון שמאחוריו נמחק
+  // (למשל ניקוי נתוני בדיקה ב-Supabase). בלי הבדיקה הזו, /login מפנה
+  // ל-/account וזה מפנה בחזרה ל-/login — לולאה אינסופית. cookie כזה
+  // מטופל כלא מאומת: פשוט לא מפנים החוצה, ומציגים את מסך ההתחברות
+  // (מחיקת ה-cookie אפשרית רק ב-Route Handler/Server Action, לא כאן —
+  // הוא יוחלף בעצמו בכניסה הבאה).
+  if (session?.role === 'admin') {
+    if (await isAdmin(session.userId)) redirect('/admin')
+  } else if (session?.customerId) {
+    if (await getCustomerById(session.customerId)) redirect('/account')
+  }
 
   return (
     <>

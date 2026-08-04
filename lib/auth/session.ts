@@ -20,10 +20,21 @@ const COOKIE_NAME = 'sm_session'
 const SESSION_TTL_DAYS = 30
 const SESSION_TTL_SEC = SESSION_TTL_DAYS * 24 * 60 * 60
 
+export type SessionRole = 'customer' | 'admin'
+
 export interface SessionPayload {
-  /** auth.users.id — זהה ל-customers.id */
-  customerId: string
+  /** auth.users.id — זהה גם ל-customers.id וגם למקור ב-admins.user_id */
+  userId: string
   phone: string
+  /**
+   * רמז לניתוב בלבד (איזה מסך להראות מיד אחרי כניסה) — לעולם לא מקור
+   * ההרשאה. כל בדיקת גישה ל-/admin חייבת לשאול מחדש את טבלת admins
+   * (ראה lib/auth/adminGuard.ts), כדי שמחיקת הרשאה תיחסם מיד ולא רק
+   * אחרי שה-session הישן יפוג.
+   */
+  role: SessionRole
+  /** קיים רק כש-role === 'customer' */
+  customerId?: string
 }
 
 function getSecret(): Uint8Array {
@@ -38,9 +49,9 @@ function getSecret(): Uint8Array {
 
 /** יוצר cookie חתום ומצרף אותו לתגובה */
 export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await new SignJWT({ phone: payload.phone })
+  const token = await new SignJWT({ phone: payload.phone, role: payload.role })
     .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(payload.customerId)
+    .setSubject(payload.userId)
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL_DAYS}d`)
     .sign(getSecret())
@@ -60,6 +71,10 @@ export async function createSession(payload: SessionPayload): Promise<void> {
  *
  * זו הפונקציה שכל קריאת נתונים באזור האישי חייבת לעבור דרכה — היא המקור
  * היחיד למזהה הלקוחה, ואסור לקחת מזהה כזה מגוף הבקשה או מפרמטר ב-URL.
+ *
+ * תואם לאחור: session שנוצר לפני הוספת role/admins (מכיל רק sub+phone,
+ * בלי role) עדיין מפוענח בהצלחה כ-role: 'customer' — כך שלקוחות מחוברות
+ * לא מתנתקות כשהקוד הזה עולה לפרודקשן.
  */
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies()
@@ -69,7 +84,15 @@ export async function getSession(): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret(), { algorithms: ['HS256'] })
     if (!payload.sub || typeof payload.phone !== 'string') return null
-    return { customerId: payload.sub, phone: payload.phone }
+
+    const userId = payload.sub
+    const role: SessionRole = payload.role === 'admin' ? 'admin' : 'customer'
+    return {
+      userId,
+      phone: payload.phone,
+      role,
+      customerId: role === 'customer' ? userId : undefined,
+    }
   } catch {
     // תוקף פג, חתימה שגויה, או cookie מזויף — כולם מטופלים אותו דבר
     return null

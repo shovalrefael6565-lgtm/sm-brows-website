@@ -122,6 +122,78 @@ export interface AppointmentRow {
   created_at: string
 }
 
+export interface AdminAppointmentRow extends AppointmentRow {
+  customer_id: string
+  customer_full_name: string
+  customer_phone_e164: string
+}
+
+export interface PagedResult<T> {
+  rows: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/** גודל עמוד קבוע לרשימות הניהול — עצירה מכוונת לפני שהעמוד גדל בלי סוף */
+export const ADMIN_PAGE_SIZE = 20
+
+/**
+ * כל התורים לתצוגת מנהלת, עם שם וטלפון הלקוחה, מדופדף. סינון סטטוס
+ * אופציונלי (למשל 'pending' לרשימת הבקשות הממתינות).
+ *
+ * read-only בלבד — אין כאן שום עדכון סטטוס. אישור/דחייה/הזזה מגיעים
+ * בשלב הבא.
+ */
+export async function listAppointmentsAdmin(opts: {
+  status?: string
+  page?: number
+}): Promise<PagedResult<AdminAppointmentRow>> {
+  await expireStalePendingAppointments()
+  const db = createSupabaseAdminClient()
+  const page = Math.max(1, opts.page ?? 1)
+  const from = (page - 1) * ADMIN_PAGE_SIZE
+  const to = from + ADMIN_PAGE_SIZE - 1
+
+  let query = db
+    .from('appointments')
+    .select(
+      'id, service_key, variants, price_total, starts_at, duration_min, status, created_at, customer_id, customers(full_name, phone_e164)',
+      { count: 'exact' },
+    )
+    .order('starts_at', { ascending: false })
+    .range(from, to)
+
+  if (opts.status) query = query.eq('status', opts.status)
+
+  const { data, error, count } = await query
+  if (error) {
+    console.error('[appointments] admin list failed', error.message)
+    return { rows: [], total: 0, page, pageSize: ADMIN_PAGE_SIZE }
+  }
+
+  type JoinedRow = AppointmentRow & {
+    customer_id: string
+    customers: { full_name: string; phone_e164: string } | null
+  }
+
+  const rows = ((data ?? []) as unknown as JoinedRow[]).map(r => ({
+    id: r.id,
+    service_key: r.service_key,
+    variants: r.variants,
+    price_total: r.price_total,
+    starts_at: r.starts_at,
+    duration_min: r.duration_min,
+    status: r.status,
+    created_at: r.created_at,
+    customer_id: r.customer_id,
+    customer_full_name: r.customers?.full_name ?? '',
+    customer_phone_e164: r.customers?.phone_e164 ?? '',
+  }))
+
+  return { rows, total: count ?? 0, page, pageSize: ADMIN_PAGE_SIZE }
+}
+
 /** כל התורים של לקוחה, מהחדש לישן — לשימוש באזור האישי */
 export async function listAppointmentsForCustomer(customerId: string): Promise<AppointmentRow[]> {
   await expireStalePendingAppointments()

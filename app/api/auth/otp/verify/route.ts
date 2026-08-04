@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/phone'
 import { verifyOtp } from '@/lib/db/otpStore'
 import { findOrCreateCustomer } from '@/lib/db/customers'
+import { isAdmin } from '@/lib/db/admins'
 import { createSession } from '@/lib/auth/session'
 
 export const dynamic = 'force-dynamic'
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // findOrCreateCustomer מוודאת שיש auth.users לזהות הזו — משותף ללקוחות
+  // ולמנהלים כאחד (ראה lib/db/customers.ts). ההפרדה בין השניים מתבצעת
+  // אך ורק לפי הימצאות ב-admins, לא לפי מספר טלפון או קלט מהלקוח.
   const { customer, error } = await findOrCreateCustomer(phone, body.fullName)
   if (!customer) {
     console.error('[otp/verify] customer resolution failed', error)
@@ -53,6 +57,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (await isAdmin(customer.id)) {
+    await createSession({ userId: customer.id, phone: customer.phone_e164, role: 'admin' })
+    return NextResponse.json({ ok: true, redirectTo: '/admin' })
+  }
+
   if (customer.is_blocked) {
     return NextResponse.json(
       { error: 'blocked', message: 'לא ניתן להתחבר. יש ליצור קשר בוואטסאפ.' },
@@ -60,10 +69,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  await createSession({ customerId: customer.id, phone: customer.phone_e164 })
+  await createSession({
+    userId: customer.id,
+    customerId: customer.id,
+    phone: customer.phone_e164,
+    role: 'customer',
+  })
 
   return NextResponse.json({
     ok: true,
+    redirectTo: '/account',
     customer: { fullName: customer.full_name },
   })
 }

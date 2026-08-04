@@ -90,7 +90,7 @@ function AppointmentCard({ appt }: { appt: AppointmentRow }) {
  */
 export default async function AccountPage() {
   const session = await getSession()
-  if (!session) redirect('/login')
+  if (!session?.customerId) redirect('/login')
 
   // הנתונים נשלפים לפי המזהה מה-session בלבד — לעולם לא מפרמטר ב-URL
   const customer = await getCustomerById(session.customerId)

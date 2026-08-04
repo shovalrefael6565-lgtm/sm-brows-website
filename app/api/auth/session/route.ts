@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const session = await getSession()
-  if (!session) return NextResponse.json({ loggedIn: false })
+  if (!session?.customerId) return NextResponse.json({ loggedIn: false })
 
   const customer = await getCustomerById(session.customerId)
   if (!customer || customer.is_blocked) return NextResponse.json({ loggedIn: false })

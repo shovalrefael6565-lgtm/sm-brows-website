@@ -13,7 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession()
-  if (!session) {
+  if (!session?.customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

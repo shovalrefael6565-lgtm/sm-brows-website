@@ -91,7 +91,7 @@ export default function LoginForm() {
         return
       }
 
-      router.push('/account')
+      router.push(data.redirectTo ?? '/account')
       router.refresh()
     } catch {
       setError('אין חיבור לאינטרנט. בדקי את החיבור ונסי שוב.')
