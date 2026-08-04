@@ -1,8 +1,9 @@
 /**
  * בדיקת שלב 4 מול Postgres אמיתי (PGlite — לא מול הפרויקט האמיתי ב-Supabase,
- * בדיוק כמו test-migration.mjs): מריצה 0001 ואז 0002, ובודקת את הפונקציות
- * שחלק 3–5 של המסירה מתארים — תפוגת pending, אכיפת המגבלה, ביטול, והמשך
- * תוקף ה-EXCLUDE constraint.
+ * בדיוק כמו test-migration.mjs): מריצה 0001, ואז 0002 ו-0003 כשני db.exec
+ * נפרדים (כך שכל אחד רץ ב"סבב" משלו, בדיוק כמו שני "Run" נפרדים ב-Supabase
+ * SQL Editor) — ובודקת את הפונקציות שחלק 3–5 של המסירה מתארים: תפוגת
+ * pending, אכיפת המגבלה, ביטול, והמשך תוקף ה-EXCLUDE constraint.
  *
  * הרצה:  node scripts/test-pending-expiration.mjs
  */
@@ -12,7 +13,8 @@ import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist'
 import { readFileSync } from 'fs'
 
 const SQL_0001 = readFileSync(new URL('../supabase/migrations/0001_customer_accounts.sql', import.meta.url), 'utf8')
-const SQL_0002 = readFileSync(new URL('../supabase/migrations/0002_pending_expiration.sql', import.meta.url), 'utf8')
+const SQL_0002_ENUM = readFileSync(new URL('../supabase/migrations/0002_pending_expiration_enum_values.sql', import.meta.url), 'utf8')
+const SQL_0003 = readFileSync(new URL('../supabase/migrations/0003_pending_expiration.sql', import.meta.url), 'utf8')
 
 const results = []
 const chk = (name, ok = true, extra = '') => {
@@ -36,7 +38,7 @@ await db.exec(`
   create role anon;
 `)
 
-// ── 1. run both migrations in order ─────────────────────────────────────────
+// ── 1. run all migrations in order, 0002 ו-0003 כשני exec נפרדים ───────────
 try {
   await db.exec(SQL_0001)
   chk('0001 רצה במלואה ללא שגיאה')
@@ -45,10 +47,17 @@ try {
   process.exit(1)
 }
 try {
-  await db.exec(SQL_0002)
-  chk('0002 רצה במלואה ללא שגיאה, בלי לגעת ב-0001')
+  await db.exec(SQL_0002_ENUM)
+  chk('0002 (ערכי enum) רץ במלואו ללא שגיאה')
 } catch (e) {
-  chk('0002 רצה במלואה ללא שגיאה, בלי לגעת ב-0001', false, e.message)
+  chk('0002 (ערכי enum) רץ במלואו ללא שגיאה', false, e.message)
+  process.exit(1)
+}
+try {
+  await db.exec(SQL_0003)
+  chk('0003 רץ במלואו ללא שגיאה, בלי לגעת ב-0001/0002')
+} catch (e) {
+  chk('0003 רץ במלואו ללא שגיאה, בלי לגעת ב-0001/0002', false, e.message)
   process.exit(1)
 }
 
