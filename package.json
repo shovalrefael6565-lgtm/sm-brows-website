@@ -6,7 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:migration && npm run test:pending-expiration && npm run test:booking-core && npm run test:account-core",
+    "test:migration": "node scripts/test-migration.mjs",
+    "test:pending-expiration": "node scripts/test-pending-expiration.mjs",
+    "test:booking-core": "tsx scripts/test-booking-core.mjs",
+    "test:account-core": "tsx --conditions=react-server scripts/test-account-core.mjs",
+    "test:live": "npm run test:live:pending-expiration && npm run test:live:approval",
+    "test:live:pending-expiration": "node scripts/test-pending-expiration-live.mjs",
+    "test:live:approval": "node scripts/test-appointment-approval-live.mjs",
+    "test:live:orphaned-session": "node scripts/test-orphaned-session-live.mjs"
   },
   "dependencies": {
     "@hebcal/core": "^6.6.0",
@@ -35,6 +45,7 @@
     "postcss": "^8.4.44",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.10",
+    "tsx": "^4.23.5",
     "typescript": "^5.5.4"
   }
 }

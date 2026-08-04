@@ -6,7 +6,7 @@
  * שם "TEST — מחיקה אוטומטית") ומוחקת את כולן + כל מה שהן יצרו בסיום —
  * גם אם בדיקה כלשהי נכשלת (ה-cleanup רץ תמיד, ב-finally).
  *
- * הרצה:  node scripts/test-pending-expiration-live.mjs
+ * הרצה:  npm run test:live:pending-expiration
  */
 
 import { readFileSync, existsSync } from 'fs'

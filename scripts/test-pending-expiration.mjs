@@ -5,7 +5,7 @@
  * SQL Editor) — ובודקת את הפונקציות שחלק 3–5 של המסירה מתארים: תפוגת
  * pending, אכיפת המגבלה, ביטול, והמשך תוקף ה-EXCLUDE constraint.
  *
- * הרצה:  node scripts/test-pending-expiration.mjs
+ * הרצה:  npm run test:pending-expiration
  */
 
 import { PGlite } from '@electric-sql/pglite'

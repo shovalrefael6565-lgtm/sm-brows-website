@@ -2,11 +2,16 @@
  * בדיקות ללוגיקה הטהורה של האזור האישי — נירמול טלפון, מדיניות שינוי/ביטול,
  * וקודי אימות והגבלת קצב. לא נדרש בסיס נתונים ולא ספק SMS.
  *
- * הרצה:
- *   npx tsx --conditions=react-server scripts/test-account-core.mjs
+ * הרצה:  npm run test:account-core
  *
- * (הדגל --conditions=react-server נדרש כדי ש-'server-only' ייפתר לגרסה הריקה
- *  שלו מחוץ ל-Next.js. בלעדיו הייבוא של lib/otp.ts ייכשל בכוונה.)
+ * ⚠️ אין להריץ עם `node` ישירות. הסקריפט חייב לרוץ תחת tsx ועם הדגל
+ * --conditions=react-server (שניהם מקובעים ב-package.json):
+ *   • tsx — כי הייבוא עובר דרך קבצי .ts שמייבאים זה את זה בלי סיומת
+ *     (סגנון bundler, כמו ב-tsconfig), ו-node לא יודע לפתור אותם.
+ *   • --conditions=react-server — כדי ש-'server-only' ייפתר לגרסה הריקה
+ *     שלו מחוץ ל-Next.js. בלעדיו הייבוא של lib/otp.ts ייכשל *בכוונה*
+ *     עם "This module cannot be imported from a Client Component module",
+ *     וזו התנהגות תקינה של החבילה — לא באג בקוד.
  */
 
 process.env.OTP_PEPPER ??= 'test-pepper'

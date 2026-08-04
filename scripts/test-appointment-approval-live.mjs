@@ -16,7 +16,7 @@
  *     ישירות דרך isAdmin(), לא דרך HTTP.
  *   • זרימת WhatsApp בדפדפן בפועל (פתיחת חלון, fallback לפופאפ חסום).
  *
- * הרצה:  node scripts/test-appointment-approval-live.mjs
+ * הרצה:  npm run test:live:approval
  */
 
 import { readFileSync, existsSync } from 'fs'

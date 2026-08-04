@@ -8,7 +8,7 @@
  * ומוחקת אותה + כל מה שהיא יצרה בסיום — גם אם בדיקה כלשהי נכשלת.
  *
  * דורש שרת dev פעיל בפורט 3000:  npx next dev
- * הרצה:  node scripts/test-orphaned-session-live.mjs
+ * הרצה:  npm run test:live:orphaned-session
  */
 
 import { readFileSync, existsSync } from 'fs'

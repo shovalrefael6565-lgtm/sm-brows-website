@@ -2,8 +2,11 @@
  * בדיקות ללוגיקה הטהורה של קביעת התור: חשבון אזור הזמן (lib/israelTime.ts)
  * וחלון הזמינות בצד השרת (lib/bookingWindow.ts). לא נדרש בסיס נתונים.
  *
- * הרצה:
- *   npx tsx scripts/test-booking-core.mjs
+ * הרצה:  npm run test:booking-core
+ *
+ * ⚠️ אין להריץ עם `node` ישירות: lib/bookingWindow.ts מייבא את
+ * './specialAvailability' בלי סיומת (סגנון bundler, כמו ב-tsconfig),
+ * ו-node נכשל שם עם ERR_MODULE_NOT_FOUND. tsx פותר את זה.
  */
 
 const results = []
