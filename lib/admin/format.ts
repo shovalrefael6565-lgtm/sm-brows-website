@@ -22,6 +22,17 @@ export function treatmentLabel(appt: Pick<AppointmentRow, 'service_key' | 'varia
   return appt.service_key
 }
 
+/** "כמה זמן נשאר עד תפוגת בקשת pending" — null אם אין תפוגה או שכבר עברה */
+export function formatTimeRemaining(pendingExpiresAt: string | null): string | null {
+  if (!pendingExpiresAt) return null
+  const diffMs = new Date(pendingExpiresAt).getTime() - Date.now()
+  if (diffMs <= 0) return null
+  const hours = Math.floor(diffMs / (60 * 60 * 1000))
+  const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))
+  if (hours > 0) return `נותרו ${hours} שע' ו-${minutes} דק' לתפוגה`
+  return `נותרו ${minutes} דק' לתפוגה`
+}
+
 export function formatDateTimeIL(iso: string): { date: string; time: string } {
   const d = new Date(iso)
   const date = new Intl.DateTimeFormat('he-IL', {

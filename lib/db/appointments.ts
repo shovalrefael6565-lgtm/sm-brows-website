@@ -122,10 +122,61 @@ export interface AppointmentRow {
   created_at: string
 }
 
+const ADMIN_APPOINTMENT_COLUMNS =
+  'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
+  'pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_error, ' +
+  'calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
+  'customer_id, customers(full_name, phone_e164)'
+
 export interface AdminAppointmentRow extends AppointmentRow {
+  ends_at: string
   customer_id: string
   customer_full_name: string
   customer_phone_e164: string
+  pending_expires_at: string | null
+  google_event_id: string | null
+  calendar_sync_status: string
+  calendar_sync_error: string | null
+  calendar_sync_started_at: string | null
+  calendar_synced_at: string | null
+  calendar_sync_attempt_count: number
+}
+
+type JoinedAdminRow = AppointmentRow & {
+  ends_at: string
+  pending_expires_at: string | null
+  google_event_id: string | null
+  calendar_sync_status: string
+  calendar_sync_error: string | null
+  calendar_sync_started_at: string | null
+  calendar_synced_at: string | null
+  calendar_sync_attempt_count: number
+  customer_id: string
+  customers: { full_name: string; phone_e164: string } | null
+}
+
+function toAdminRow(r: JoinedAdminRow): AdminAppointmentRow {
+  return {
+    id: r.id,
+    service_key: r.service_key,
+    variants: r.variants,
+    price_total: r.price_total,
+    starts_at: r.starts_at,
+    ends_at: r.ends_at,
+    duration_min: r.duration_min,
+    status: r.status,
+    created_at: r.created_at,
+    pending_expires_at: r.pending_expires_at,
+    google_event_id: r.google_event_id,
+    calendar_sync_status: r.calendar_sync_status,
+    calendar_sync_error: r.calendar_sync_error,
+    calendar_sync_started_at: r.calendar_sync_started_at,
+    calendar_synced_at: r.calendar_synced_at,
+    calendar_sync_attempt_count: r.calendar_sync_attempt_count,
+    customer_id: r.customer_id,
+    customer_full_name: r.customers?.full_name ?? '',
+    customer_phone_e164: r.customers?.phone_e164 ?? '',
+  }
 }
 
 export interface PagedResult<T> {
@@ -157,10 +208,7 @@ export async function listAppointmentsAdmin(opts: {
 
   let query = db
     .from('appointments')
-    .select(
-      'id, service_key, variants, price_total, starts_at, duration_min, status, created_at, customer_id, customers(full_name, phone_e164)',
-      { count: 'exact' },
-    )
+    .select(ADMIN_APPOINTMENT_COLUMNS, { count: 'exact' })
     .order('starts_at', { ascending: false })
     .range(from, to)
 
@@ -172,26 +220,140 @@ export async function listAppointmentsAdmin(opts: {
     return { rows: [], total: 0, page, pageSize: ADMIN_PAGE_SIZE }
   }
 
-  type JoinedRow = AppointmentRow & {
-    customer_id: string
-    customers: { full_name: string; phone_e164: string } | null
-  }
-
-  const rows = ((data ?? []) as unknown as JoinedRow[]).map(r => ({
-    id: r.id,
-    service_key: r.service_key,
-    variants: r.variants,
-    price_total: r.price_total,
-    starts_at: r.starts_at,
-    duration_min: r.duration_min,
-    status: r.status,
-    created_at: r.created_at,
-    customer_id: r.customer_id,
-    customer_full_name: r.customers?.full_name ?? '',
-    customer_phone_e164: r.customers?.phone_e164 ?? '',
-  }))
+  const rows = ((data ?? []) as unknown as JoinedAdminRow[]).map(toAdminRow)
 
   return { rows, total: count ?? 0, page, pageSize: ADMIN_PAGE_SIZE }
+}
+
+/**
+ * בקשות pending שממתינות למנהלת, ובנוסף תורים confirmed שהסנכרון שלהם
+ * ליומן לא הושלם (calendar_sync_status pending/failed/syncing) — כדי
+ * שכפתור "נסה לסנכרן שוב" יהיה נגיש גם אחרי שהבקשה כבר עזבה את סטטוס
+ * pending (ראה חלק 3 בהנחיות שלב 6: כשל Google לא יכול "לאבד" תור).
+ * ללא דפדוף — במינוח מספרי הסטודיו כמות כזו קטנה מאוד תמיד.
+ */
+export async function listAppointmentsNeedingAdminAction(): Promise<AdminAppointmentRow[]> {
+  await expireStalePendingAppointments()
+  const db = createSupabaseAdminClient()
+
+  const { data, error } = await db
+    .from('appointments')
+    .select(ADMIN_APPOINTMENT_COLUMNS)
+    .or(
+      'status.eq.pending,' +
+        'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing))',
+    )
+    .order('starts_at', { ascending: true })
+
+  if (error) {
+    console.error('[appointments] needs-action list failed', error.message)
+    return []
+  }
+
+  return ((data ?? []) as unknown as JoinedAdminRow[]).map(toAdminRow)
+}
+
+/** תור בודד לתצוגת/פעולת ניהול, עם פרטי הלקוחה */
+export async function getAppointmentForAdmin(appointmentId: string): Promise<AdminAppointmentRow | null> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('appointments')
+    .select(ADMIN_APPOINTMENT_COLUMNS)
+    .eq('id', appointmentId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[appointments] admin detail failed', error.message)
+    return null
+  }
+  if (!data) return null
+  return toAdminRow(data as unknown as JoinedAdminRow)
+}
+
+export type ApprovalRpcError = 'not_pending' | 'db_error'
+
+/** מאשרת בקשת pending → confirmed. אין כאן שום אינטראקציה עם Calendar. */
+export async function approvePendingAppointment(
+  appointmentId: string,
+  adminId: string,
+): Promise<{ ok: true } | { ok: false; error: ApprovalRpcError }> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('approve_pending_appointment', {
+    p_appointment_id: appointmentId,
+    p_admin_id: adminId,
+  })
+  if (error) {
+    if (error.message?.includes('NOT_PENDING')) return { ok: false, error: 'not_pending' }
+    console.error('[appointments] approve failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+  return { ok: true }
+}
+
+/** דוחה בקשת pending → cancelled_by_business. אין כאן אינטראקציה עם Calendar. */
+export async function rejectPendingAppointment(
+  appointmentId: string,
+  adminId: string,
+): Promise<{ ok: true } | { ok: false; error: ApprovalRpcError }> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('reject_pending_appointment', {
+    p_appointment_id: appointmentId,
+    p_admin_id: adminId,
+  })
+  if (error) {
+    if (error.message?.includes('NOT_PENDING')) return { ok: false, error: 'not_pending' }
+    console.error('[appointments] reject failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+  return { ok: true }
+}
+
+export type SyncClaimError = 'not_claimable' | 'db_error'
+
+/**
+ * תופסת claim לסנכרון היומן (pending/failed/syncing-שפג → syncing).
+ * ראה claim_calendar_sync ב-0004 — ה-WHERE שם, לא כאן, הוא ההגנה האמיתית
+ * מפני שני ניסיונות סנכרון מקבילים.
+ */
+export async function claimCalendarSync(
+  appointmentId: string,
+): Promise<{ ok: true; appointment: AppointmentRow } | { ok: false; error: SyncClaimError }> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('claim_calendar_sync', { p_appointment_id: appointmentId })
+  if (error) {
+    if (error.message?.includes('NOT_CLAIMABLE')) return { ok: false, error: 'not_claimable' }
+    console.error('[appointments] claim_calendar_sync failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+  return { ok: true, appointment: data as AppointmentRow }
+}
+
+/** סוגרת claim בהצלחה — שומרת google_event_id ומסמנת synced. */
+export async function completeCalendarSync(appointmentId: string, googleEventId: string): Promise<boolean> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('complete_calendar_sync', {
+    p_appointment_id: appointmentId,
+    p_google_event_id: googleEventId,
+  })
+  if (error) {
+    console.error('[appointments] complete_calendar_sync failed', error.message)
+    return false
+  }
+  return true
+}
+
+/** סוגרת claim בכישלון — שומרת הודעת שגיאה מסוננת בלבד (ראה sanitizeGoogleError). */
+export async function failCalendarSync(appointmentId: string, errorMessage: string): Promise<boolean> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('fail_calendar_sync', {
+    p_appointment_id: appointmentId,
+    p_error: errorMessage,
+  })
+  if (error) {
+    console.error('[appointments] fail_calendar_sync failed', error.message)
+    return false
+  }
+  return true
 }
 
 /** כל התורים של לקוחה, מהחדש לישן — לשימוש באזור האישי */

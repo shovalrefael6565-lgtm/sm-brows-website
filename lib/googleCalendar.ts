@@ -126,6 +126,214 @@ export async function createBookingEvent(params: {
   })
 }
 
+// ============================================================================
+// שלב 6 — אישור בקשות תור: אירוע ביומן עם idempotency אמיתי.
+//
+// Google Calendar ו-Supabase אינם אותה מערכת (אין transaction משותף), אז
+// אי אפשר להסתמך על "לא ניסינו קודם" כדי למנוע אירוע כפול. הפתרון: מזהה
+// אירוע דטרמיניסטי שנגזר אך ורק מ-appointment.id (ראה deterministicEventId
+// למטה) — כל ניסיון חוזר (אחרי כשל DB, timeout, לחיצה כפולה) מנסה ליצור
+// בדיוק את אותו ID. Google דוחה יצירה שנייה עם אותו ID (409), ואז השחזור
+// הוא GET רגיל על אותו מזהה — לא חיפוש, לא ניחוש.
+// ============================================================================
+
+const CALENDAR_EVENT_SOURCE = 'sm_brows_website'
+
+/**
+ * Google Calendar event IDs must be lowercase, match [a-v0-9]{5,1024}.
+ * UUID hex digits (0-9a-f) are already a subset of that range, so a prefix +
+ * the UUID without hyphens is always valid — and always the same for the
+ * same appointment, which is the whole point.
+ *
+ * ⚠️ The prefix itself must also stay inside a-v — no w/x/y/z. "smbappt"
+ * was chosen specifically to avoid the 'w' in "smbrows" (w=23rd letter,
+ * outside a-v which stops at v=22), which Google rejected outright.
+ */
+export function deterministicEventId(appointmentId: string): string {
+  return `smbappt${appointmentId.replace(/-/g, '')}`
+}
+
+function isGoogleApiError(err: unknown): err is { code?: number | string; response?: { status?: number } } {
+  return typeof err === 'object' && err !== null
+}
+
+function googleErrorStatus(err: unknown): number | undefined {
+  if (!isGoogleApiError(err)) return undefined
+  const status = err.response?.status
+  if (typeof status === 'number') return status
+  const code = err.code
+  if (typeof code === 'number') return code
+  if (typeof code === 'string' && /^\d+$/.test(code)) return Number(code)
+  return undefined
+}
+
+/** הודעת שגיאה קצרה ובטוחה לשמירה ב-DB — לעולם לא JSON מלא/tokens/headers */
+export function sanitizeGoogleError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err)
+  return message.slice(0, 300)
+}
+
+export interface AppointmentCalendarEvent {
+  eventId: string
+  appointmentId: string | null
+  start: Date
+  end: Date
+}
+
+/**
+ * כל האירועים (לא מבוטלים) שחופפים לטווח נתון באותו יום, עם appointment_id
+ * מתוך extendedProperties.private אם קיים. משמש הן לבדיקת התנגשות (ownership
+ * matters: אירוע שהוא שלנו לא ייחשב חוסם) והן ל-reconciliation (מציאת
+ * האירוע שלנו אם הוא כבר קיים ביומן בלי שה-DB יודע על כך).
+ */
+async function listAppointmentEventsForDate(isoDate: string): Promise<AppointmentCalendarEvent[]> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+  const { timeMin, timeMax } = dayBoundsUtc(isoDate)
+
+  const res = await calendar.events.list({
+    calendarId,
+    timeMin,
+    timeMax,
+    singleEvents: true,
+    orderBy: 'startTime',
+  })
+
+  const events = res.data.items ?? []
+  const result: AppointmentCalendarEvent[] = []
+  for (const event of events) {
+    if (event.status === 'cancelled') continue
+    const startStr = event.start?.dateTime
+    const endStr = event.end?.dateTime
+    if (!startStr || !endStr || !event.id) continue
+
+    const props = event.extendedProperties?.private
+    const appointmentId =
+      props?.source === CALENDAR_EVENT_SOURCE && typeof props?.appointment_id === 'string'
+        ? props.appointment_id
+        : null
+
+    result.push({
+      eventId: event.id,
+      appointmentId,
+      start: new Date(startStr),
+      end: new Date(endStr),
+    })
+  }
+  return result
+}
+
+export interface CalendarConflict {
+  eventId: string
+}
+
+/**
+ * בודקת התנגשות אמיתית מול היומן לטווח [startsAt, endsAt) של תור מסוים.
+ * אירוע ששייך לאותו appointment (לפי extendedProperties) אינו נחשב
+ * התנגשות — הוא "אנחנו", לא זר. כל חפיפה אחרת (ידנית או תור אחר) חוסמת.
+ */
+export async function findConflictingCalendarEvent(
+  isoDate: string,
+  startsAt: Date,
+  endsAt: Date,
+  appointmentId: string,
+): Promise<CalendarConflict | null> {
+  const events = await listAppointmentEventsForDate(isoDate)
+  for (const event of events) {
+    if (event.appointmentId === appointmentId) continue // אנחנו — לא התנגשות
+    const overlaps = event.start.getTime() < endsAt.getTime() && event.end.getTime() > startsAt.getTime()
+    if (overlaps) return { eventId: event.eventId }
+  }
+  return null
+}
+
+/**
+ * מוצאת את האירוע של appointment ספציפי ביומן, אם קיים — לפי המזהה
+ * הדטרמיניסטי. משמשת ל-reconciliation: Google הצליח בעבר אך ה-DB לא
+ * הספיק להירשם (כשל/timeout), וניסיון חוזר צריך לזהות זאת ולא ליצור שוב.
+ */
+export async function findExistingAppointmentEvent(appointmentId: string): Promise<{ eventId: string } | null> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+  const eventId = deterministicEventId(appointmentId)
+
+  try {
+    const res = await calendar.events.get({ calendarId, eventId })
+    if (res.data.status === 'cancelled') return null
+    const props = res.data.extendedProperties?.private
+    if (props?.source !== CALENDAR_EVENT_SOURCE || props?.appointment_id !== appointmentId) return null
+    return { eventId }
+  } catch (err) {
+    if (googleErrorStatus(err) === 404) return null
+    throw err
+  }
+}
+
+export interface CreateAppointmentEventParams {
+  appointmentId: string
+  customerName: string
+  phone: string
+  treatment: string
+  isoDate: string
+  startHHMM: string
+  durationMin: number
+}
+
+/**
+ * יוצרת (או משחזרת) את אירוע היומן לתור מאושר, עם ה-ID הדטרמיניסטי.
+ *
+ * אם ה-INSERT נכשל כי ה-ID כבר קיים (409) — זה תמיד האירוע שלנו עצמו
+ * (אף גורם אחר לא יכול להתנגש על ID שנגזר מה-UUID שלנו), אז זו לא שגיאה
+ * אלא אישור שהיצירה כבר הצליחה בעבר: מאמתים בעלות ומחזירים הצלחה, בלי
+ * ליצור אירוע שני.
+ */
+export async function createAppointmentEvent(
+  params: CreateAppointmentEventParams,
+): Promise<{ eventId: string }> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+  const eventId = deterministicEventId(params.appointmentId)
+
+  const startDate = israelWallTimeToUtc(params.isoDate, params.startHHMM)
+  const endDate = new Date(startDate.getTime() + params.durationMin * 60 * 1000)
+
+  const description = [
+    `טלפון: ${params.phone}`,
+    `טיפול: ${params.treatment}`,
+    `מזהה תור: ${params.appointmentId}`,
+    'נקבע דרך אתר SM Brows',
+  ].join('\n')
+
+  try {
+    await calendar.events.insert({
+      calendarId,
+      requestBody: {
+        id: eventId,
+        summary: `🌸 ${params.customerName} | ${params.treatment}`,
+        description,
+        start: { dateTime: startDate.toISOString(), timeZone: 'Asia/Jerusalem' },
+        end: { dateTime: endDate.toISOString(), timeZone: 'Asia/Jerusalem' },
+        extendedProperties: {
+          private: {
+            appointment_id: params.appointmentId,
+            source: CALENDAR_EVENT_SOURCE,
+          },
+        },
+      },
+    })
+    return { eventId }
+  } catch (err) {
+    if (googleErrorStatus(err) === 409) {
+      const existing = await findExistingAppointmentEvent(params.appointmentId)
+      if (existing) return existing
+    }
+    throw err
+  }
+}
+
 const HEBREW_MONTHS: Record<string, number> = {
   'ינואר': 1, 'פברואר': 2, 'מרץ': 3, 'אפריל': 4,
   'מאי': 5, 'יוני': 6, 'יולי': 7, 'אוגוסט': 8,
