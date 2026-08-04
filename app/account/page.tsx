@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
+import CancelPendingButton from '@/components/account/CancelPendingButton'
 import { getSession } from '@/lib/auth/session'
 import { getCustomerById } from '@/lib/db/customers'
 import { listAppointmentsForCustomer, type AppointmentRow } from '@/lib/db/appointments'
@@ -26,6 +27,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   cancelled_by_business:  { label: 'בוטל על ידי העסק',     className: 'bg-red-50 text-red-600 border-red-200' },
   rescheduled:            { label: 'הוזז',                 className: 'bg-blue-50 text-blue-700 border-blue-200' },
   no_show:                { label: 'לא הגעת',              className: 'bg-red-50 text-red-600 border-red-200' },
+  expired:                { label: 'תוקף הבקשה פג',        className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
 }
 
 /** תורים שנחשבים "קרובים" — לא הגיעו עדיין לסטטוס סופי */
@@ -75,6 +77,7 @@ function AppointmentCard({ appt }: { appt: AppointmentRow }) {
           <span className="font-semibold text-brand-dark">₪{appt.price_total}</span>
         )}
       </div>
+      {appt.status === 'pending' && <CancelPendingButton appointmentId={appt.id} />}
     </div>
   )
 }

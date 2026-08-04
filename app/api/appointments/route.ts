@@ -4,6 +4,7 @@ import { getCustomerById } from '@/lib/db/customers'
 import { createPendingAppointment } from '@/lib/db/appointments'
 import { getBusyRanges } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
   NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS,
   LIFTING_PRICE, LIFTING_DURATION_MIN, NATURAL_DURATION_MIN,
@@ -29,6 +30,13 @@ export const dynamic = 'force-dynamic'
  *   5. ה-EXCLUDE constraint ב-DB — ההגנה האמיתית מפני התנגשות, כולל race.
  */
 export async function POST(req: NextRequest) {
+  if (!isNewBookingSystemEnabled()) {
+    return NextResponse.json(
+      { error: 'feature_disabled', message: 'קביעת תור דרך האתר אינה זמינה כרגע. יש לשלוח בקשה בוואטסאפ.' },
+      { status: 403 },
+    )
+  }
+
   if (isShabbat()) {
     return NextResponse.json(
       { error: 'shabbat', message: 'המערכת אינה פעילה בשבת. נשמח לעמוד לרשותך במוצאי שבת.' },
@@ -167,6 +175,15 @@ export async function POST(req: NextRequest) {
   if (result.error === 'slot_taken') {
     return NextResponse.json(
       { error: 'slot_taken', message: 'השעה שנבחרה נתפסה הרגע. יש לבחור שעה אחרת.' },
+      { status: 409 },
+    )
+  }
+  if (result.error === 'pending_limit_reached') {
+    return NextResponse.json(
+      {
+        error: 'pending_limit_reached',
+        message: 'יש לך כבר בקשות שממתינות לאישור. ניתן להגיש בקשה נוספת לאחר שאחת מהן תטופל.',
+      },
       { status: 409 },
     )
   }

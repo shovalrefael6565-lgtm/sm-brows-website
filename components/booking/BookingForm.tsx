@@ -201,7 +201,17 @@ function ShabbatClosedCard() {
   )
 }
 
-export default function BookingForm() {
+interface BookingFormProps {
+  /**
+   * מגיע מ-lib/featureFlags.ts דרך app/booking/page.tsx (server component) —
+   * הקומפוננטה הזו לעולם לא קוראת process.env בעצמה. כשכבוי, גם טיפולי
+   * יומן (הרמת גבות / עיצוב טבעי) חוזרים לזרימת הוואטסאפ הישנה בלבד,
+   * בדיוק כמו לפני שלבים 1–3.
+   */
+  newBookingSystemEnabled: boolean
+}
+
+export default function BookingForm({ newBookingSystemEnabled }: BookingFormProps) {
   const shabbat = useShabbat()
   const today  = getIsraelToday()
   const ctaRef = useRef<HTMLDivElement>(null)
@@ -258,6 +268,9 @@ export default function BookingForm() {
   const isNatural = form.service === NATURAL
   const isLifting = form.service === LIFTING
   const isCalendar = isNatural || isLifting
+  // כשהדגל כבוי, גם טיפולי יומן נשארים בזרימת הוואטסאפ הישנה — אין OTP
+  // ואין שמירה ב-Supabase, בדיוק כמו לפני שלבים 1–3.
+  const newFlowActive = newBookingSystemEnabled && isCalendar
   // מסך אימות הקוד מוצג רק אחרי שנשלח קוד בפועל, ולא בזמן השליחה עצמה
   // (כדי לא להבזיק "הזינו קוד" עם מספר ממוסך ריק לפני שהוא נטען)
   const otpPanelVisible = isCalendar && otpMaskedPhone !== '' && phase !== 'form' && phase !== 'sending-otp'
@@ -798,21 +811,29 @@ export default function BookingForm() {
     }
   }
 
+  /**
+   * זרימת הוואטסאפ המקורית — ללא DB, ללא OTP, בלי שום שינוי מהקיים.
+   * משמשת גם כשהדגל כבוי (ואז זו הזרימה היחידה) וגם כאפשרות המשנית
+   * "בלי להתחבר" כשהדגל פעיל לטיפולי יומן.
+   */
+  const openLegacyWhatsApp = () => {
+    window.gtag?.('event', 'booking_request', {
+      treatment: form.service, selected_date: form.date, selected_time: form.time,
+    })
+    setSubmitted(true)
+    const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
+    const win = window.open(url, '_blank')
+    if (win) win.opener = null
+    else window.location.href = url
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (shabbat) return // נעילת שבת — הגנה נוספת מעבר להחלפת הטופס בכרטיס
     if (!validateFinal()) return
 
-    if (!isCalendar) {
-      // זרימת הוואטסאפ המקורית — ללא DB, ללא OTP, בלי שום שינוי מהקיים
-      window.gtag?.('event', 'booking_request', {
-        treatment: form.service, selected_date: form.date, selected_time: form.time,
-      })
-      setSubmitted(true)
-      const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
-      const win = window.open(url, '_blank')
-      if (win) win.opener = null
-      else window.location.href = url
+    if (!newFlowActive) {
+      openLegacyWhatsApp()
       return
     }
 
@@ -825,6 +846,13 @@ export default function BookingForm() {
       // מספר חדש / לא מחוברת / מחוברת עם מספר אחר — חובה אימות מחדש
       void requestOtp()
     }
+  }
+
+  /** אפשרות המשנה: "בלי להתחבר" — זהה לגמרי לזרימה הישנה, גם כשהדגל פעיל */
+  const handleWhatsAppWithoutLogin = () => {
+    if (shabbat) return
+    if (!validateFinal()) return
+    openLegacyWhatsApp()
   }
 
   const resetAll = () => {
@@ -1629,6 +1657,19 @@ export default function BookingForm() {
                     : 'שליחת בקשה לתור'}
                 </button>
               )}
+            </div>
+          )}
+
+          {/* אפשרות משנית: קביעה בלי אזור אישי — זהה לזרימה הישנה, ללא OTP */}
+          {newFlowActive && !otpPanelVisible && step === totalSteps && (
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={handleWhatsAppWithoutLogin}
+                className="text-xs text-brand-muted underline hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
+              >
+                מעדיפה בלי להתחבר? שלחי בקשה בוואטסאפ
+              </button>
             </div>
           )}
         </div>

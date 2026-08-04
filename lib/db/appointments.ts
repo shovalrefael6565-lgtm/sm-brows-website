@@ -14,9 +14,14 @@ import {
  * ב-DB עם קוד השגיאה 23P01. בדיקה מוקדמת ב-JS הייתה מספקת רק אשליית
  * בטיחות — יש חלון זמן (race) בין הבדיקה לכתיבה שבו שתי בקשות יכולות
  * לעבור אותה יחד.
+ *
+ * היצירה עצמה עוברת דרך create_pending_appointment (0002_pending_expiration),
+ * לא INSERT ישיר: הפונקציה מטפלת קודם בתפוגת בקשות pending ישנות ורק
+ * אח"כ מנסה את ה-INSERT, הכול בטרנזקציה אחת — כך שבקשה שפג תוקפה לא
+ * יכולה לחסום בקשה חדשה, וההגנה מפני חפיפה (EXCLUDE) עדיין נבדקת כרגיל.
  */
 
-export type AppointmentCreateError = 'slot_taken' | 'db_error'
+export type AppointmentCreateError = 'slot_taken' | 'pending_limit_reached' | 'db_error'
 
 export interface CreateAppointmentInput {
   customerId: string
@@ -47,44 +52,63 @@ export async function createPendingAppointment(
   const db = createSupabaseAdminClient()
   const startsAt = israelWallTimeToUtc(input.isoDate, input.time)
 
-  const { data, error } = await db
-    .from('appointments')
-    .insert({
-      customer_id: input.customerId,
-      service_key: input.serviceKey,
-      variants: input.variants,
-      price_total: input.priceTotal,
-      starts_at: startsAt.toISOString(),
-      duration_min: input.durationMin,
-      status: 'pending',
-      notes: input.notes,
-      policy_version: input.policyVersion,
-    })
-    .select('id, status, starts_at')
-    .single()
+  const { data, error } = await db.rpc('create_pending_appointment', {
+    p_customer_id: input.customerId,
+    p_service_key: input.serviceKey,
+    p_variants: input.variants,
+    p_price_total: input.priceTotal,
+    p_starts_at: startsAt.toISOString(),
+    p_duration_min: input.durationMin,
+    p_notes: input.notes,
+    p_policy_version: input.policyVersion,
+  })
 
   if (error) {
     // 23P01 = exclusion_violation — התנגשות עם תור פעיל אחר על אותו טווח זמן
     if (error.code === '23P01') return { error: 'slot_taken' }
-    console.error('[appointments] insert failed', error.message)
+    if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
+    console.error('[appointments] create_pending_appointment failed', error.message)
     return { error: 'db_error' }
   }
 
-  // רישום בהיסטוריה — best-effort. כישלון כאן לא אמור להפוך תור שכבר
-  // נשמר בהצלחה לכישלון עבור הלקוחה; זה יומן ביקורת, לא ערובה עסקית.
-  const { error: historyErr } = await db.from('appointment_history').insert({
-    appointment_id: data.id,
-    action: 'created',
-    from_status: null,
-    to_status: 'pending',
-    actor: 'customer',
-    actor_id: input.customerId,
-  })
-  if (historyErr) {
-    console.error('[appointments] history insert failed', historyErr.message)
-  }
-
   return { appointment: data as AppointmentSummary }
+}
+
+export type AppointmentCancelError = 'not_found' | 'db_error'
+
+/**
+ * ביטול בקשת pending ע"י הלקוחה שיצרה אותה. הבעלות והסטטוס נבדקים בתוך
+ * cancel_pending_appointment עצמה (ב-DB) — לא כאן, כדי למנוע race.
+ */
+export async function cancelPendingAppointment(
+  appointmentId: string,
+  customerId: string,
+): Promise<{ ok: true } | { ok: false; error: AppointmentCancelError }> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('cancel_pending_appointment', {
+    p_appointment_id: appointmentId,
+    p_customer_id: customerId,
+  })
+
+  if (error) {
+    if (error.message?.includes('NOT_FOUND')) return { ok: false, error: 'not_found' }
+    console.error('[appointments] cancel_pending_appointment failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+  return { ok: true }
+}
+
+/**
+ * מסמנת בקשות pending שפג תוקפן כ-expired (+ היסטוריה). best-effort —
+ * נקראת יזום לפני קריאה, כדי שסלוט ישתחרר ותור יוצג כ-expired גם בלי
+ * שמישהי מנסה לקבוע תור חדש באותו רגע.
+ */
+export async function expireStalePendingAppointments(): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('expire_stale_pending_appointments')
+  if (error) {
+    console.error('[appointments] expire sweep failed', error.message)
+  }
 }
 
 export interface AppointmentRow {
@@ -100,6 +124,7 @@ export interface AppointmentRow {
 
 /** כל התורים של לקוחה, מהחדש לישן — לשימוש באזור האישי */
 export async function listAppointmentsForCustomer(customerId: string): Promise<AppointmentRow[]> {
+  await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const { data, error } = await db
     .from('appointments')
@@ -121,6 +146,7 @@ export async function listAppointmentsForCustomer(customerId: string): Promise<A
  * לוגיקת ה-clamping של getBusyRanges ב-lib/googleCalendar.ts.
  */
 export async function getDbBusyRangesForDate(isoDate: string): Promise<{ start: string; end: string }[]> {
+  await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const { timeMin, timeMax } = dayBoundsUtc(isoDate)
 

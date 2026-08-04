@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import BookingForm from '@/components/booking/BookingForm'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const metadata: Metadata = {
   title: 'קביעת תור',
@@ -33,7 +34,7 @@ export default function BookingPage() {
 
         {/* Form card */}
         <div className="bg-white rounded-3xl shadow-soft-lg border border-brand-cream-dark/50 p-6 sm:p-10">
-          <BookingForm />
+          <BookingForm newBookingSystemEnabled={isNewBookingSystemEnabled()} />
         </div>
 
         {/* Note */}
