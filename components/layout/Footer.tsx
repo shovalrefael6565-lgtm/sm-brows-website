@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Phone, Mail, MapPin } from 'lucide-react'
-import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
+import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
+import GoogleIcon from '@/components/ui/GoogleIcon'
 
 const col2Links = [
   { href: '/contact', label: 'יצירת קשר', external: false },
@@ -73,6 +74,16 @@ export default function Footer() {
                 className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#1877F2]/20 hover:text-[#1877F2] text-white/60 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 <FacebookIcon className="w-4 h-4" />
+              </a>
+              <a
+                href={GOOGLE_BUSINESS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="פרופיל העסק בגוגל"
+                role="listitem"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#4285F4]/20 hover:text-[#4285F4] text-white/60 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+              >
+                <GoogleIcon className="w-4 h-4" />
               </a>
             </div>
           </div>

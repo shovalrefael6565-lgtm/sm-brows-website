@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Search, ShoppingCart, Calendar, ChevronDown, ShoppingBag } from 'lucide-react'
-import { cn, WHATSAPP_URL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
+import { cn, WHATSAPP_URL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
+import GoogleIcon from '@/components/ui/GoogleIcon'
 import { useCart } from '@/lib/cart'
 import { services } from '@/lib/data'
 import SocialIcons from '@/components/ui/SocialIcons'
@@ -197,6 +198,15 @@ export default function Navbar() {
                 className="w-5 h-5 rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 <InstagramIcon className="w-2.5 h-2.5" />
+              </a>
+              <a
+                href={GOOGLE_BUSINESS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="פרופיל העסק בגוגל"
+                className="w-5 h-5 rounded-full bg-[#4285F4] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+              >
+                <GoogleIcon className="w-2.5 h-2.5" />
               </a>
             </div>
             </div>

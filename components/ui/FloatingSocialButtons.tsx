@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
+import { INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
+import GoogleIcon from '@/components/ui/GoogleIcon'
 
 const buttons = [
   {
@@ -21,6 +22,12 @@ const buttons = [
     label: 'S.M BROWS באינסטגרם',
     bg: 'bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:opacity-90',
     icon: <InstagramIcon className="w-5 h-5" />,
+  },
+  {
+    href: GOOGLE_BUSINESS_URL,
+    label: 'פרופיל העסק בגוגל',
+    bg: 'bg-[#4285F4] hover:bg-[#3367d6]',
+    icon: <GoogleIcon className="w-5 h-5" />,
   },
 ]
 

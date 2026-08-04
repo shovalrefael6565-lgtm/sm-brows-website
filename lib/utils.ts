@@ -19,3 +19,5 @@ export const EMAIL = 'shoval3654579@gmail.com'
 export const INSTAGRAM_URL = 'https://www.instagram.com/shovalmeira/'
 export const FACEBOOK_URL = 'https://www.facebook.com/shovalvahdy'
 export const TIKTOK_URL = 'https://www.tiktok.com/@shovalbrows?_r=1&_t=ZS-96W3SJ62zyc'
+/** פרופיל העסק בגוגל (Google Business Profile) */
+export const GOOGLE_BUSINESS_URL = 'https://share.google/X2mvO3sEyQttxMydz'

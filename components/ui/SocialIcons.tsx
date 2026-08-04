@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
-import { INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL } from '@/lib/utils'
+import { INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
+import GoogleIcon from '@/components/ui/GoogleIcon'
 
 interface Props {
   className?: string
@@ -26,6 +27,12 @@ export default function SocialIcons({ className, iconClassName, label }: Props) 
       ariaLabel: 'S.M BROWS בטיקטוק',
       icon: <TikTokIcon />,
       hoverColor: 'hover:text-[#010101]',
+    },
+    {
+      href: GOOGLE_BUSINESS_URL,
+      ariaLabel: 'פרופיל העסק בגוגל',
+      icon: <GoogleIcon className="w-full h-full" />,
+      hoverColor: 'hover:text-[#4285F4]',
     },
   ]
 
