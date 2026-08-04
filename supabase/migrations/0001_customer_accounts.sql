@@ -86,9 +86,12 @@ create table public.appointments (
 
   starts_at          timestamptz not null,
   duration_min       integer not null check (duration_min between 5 and 480),
-  -- נגזר אוטומטית; משמש גם ל-EXCLUDE constraint למטה
-  ends_at            timestamptz generated always as
-                     (starts_at + make_interval(mins => duration_min)) stored,
+  -- נגזר מ-starts_at + duration_min, אך **לא** כעמודה מחושבת:
+  -- timestamptz + interval הוא STABLE ולא IMMUTABLE (התוצאה תלויה באזור
+  -- הזמן של הסשן), ו-Postgres דורש IMMUTABLE גם בעמודה מחושבת וגם בביטוי
+  -- של אינדקס/constraint. לכן הערך נכתב ע"י טריגר (ראה set_appointment_end).
+  -- הטריגר הוא BEFORE, ולכן הערך מוכן לפני שה-EXCLUDE constraint נבדק.
+  ends_at            timestamptz not null,
 
   status             appointment_status not null default 'pending',
 
@@ -101,8 +104,27 @@ create table public.appointments (
   notes              text,
 
   created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now()
+  updated_at         timestamptz not null default now(),
+
+  constraint appointments_ends_after_starts check (ends_at > starts_at)
 );
+
+-- ends_at נגזר תמיד מהשרת, לעולם לא מקלט המשתמש. הטריגר דורס כל ערך שנשלח,
+-- כך שגם קריאת API שתנסה לשלוח ends_at משלה לא תוכל לזייף אורך תור ולעקוף
+-- בכך את בדיקת החפיפה.
+create or replace function public.set_appointment_end()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.ends_at := new.starts_at + make_interval(mins => new.duration_min);
+  return new;
+end;
+$$;
+
+create trigger appointments_set_end
+  before insert or update of starts_at, duration_min on public.appointments
+  for each row execute function public.set_appointment_end();
 
 -- 🔒 מניעת התנגשות סלוטים ברמת בסיס הנתונים.
 -- שתי בקשות מקבילות על אותו זמן — אחת תיכשל עם 23P01 והמערכת תבקש מהלקוחה
