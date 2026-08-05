@@ -334,6 +334,153 @@ export async function createAppointmentEvent(
   }
 }
 
+// ============================================================================
+// שלב 7 — שינוי מועד וביטול ע"י הלקוחה: עדכון ומחיקה של האירוע הקיים.
+//
+// שני הכללים שמנחים את כל מה שלמטה:
+//   1. לעולם לא ליצור אירוע שני. עדכון מועד הוא patch על האירוע הקיים,
+//      ורק אם הוא באמת נעלם — יצירה מחדש עם אותו ID דטרמיניסטי.
+//   2. לעולם לא לגעת באירוע שאינו שלנו. לפני כל patch/delete מאמתים
+//      extendedProperties.private (source + appointment_id). אירוע ידני
+//      של שובל ואירוע של appointment אחר נשארים בדיוק כפי שהם.
+// ============================================================================
+
+/**
+ * מזהי האירוע המועמדים לתור, לפי סדר עדיפות: המזהה השמור ב-DB (אם יש),
+ * ואחריו המזהה הדטרמיניסטי.
+ *
+ * ⚠️ google_event_id ריק אינו מוכיח שאין אירוע ביומן — ייתכן שהיצירה
+ * הצליחה ורק שמירת המזהה ב-Supabase נכשלה (תרחיש 1 בשלב 6). לכן המזהה
+ * הדטרמיניסטי תמיד נבדק, גם כשהעמודה ריקה.
+ */
+function candidateEventIds(appointmentId: string, googleEventId: string | null): string[] {
+  const deterministic = deterministicEventId(appointmentId)
+  return googleEventId && googleEventId !== deterministic
+    ? [googleEventId, deterministic]
+    : [deterministic]
+}
+
+function isOwnedBy(
+  event: { extendedProperties?: { private?: Record<string, string> | null } | null },
+  appointmentId: string,
+): boolean {
+  const props = event.extendedProperties?.private
+  return props?.source === CALENDAR_EVENT_SOURCE && props?.appointment_id === appointmentId
+}
+
+interface FoundEvent {
+  eventId: string
+  owned: boolean
+}
+
+/** מאתר את האירוע של התור לפי המזהים המועמדים. null = לא קיים אף אחד מהם. */
+async function findEventByCandidates(
+  appointmentId: string,
+  googleEventId: string | null,
+): Promise<FoundEvent | null> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  for (const eventId of candidateEventIds(appointmentId, googleEventId)) {
+    try {
+      const res = await calendar.events.get({ calendarId, eventId })
+      if (res.data.status === 'cancelled') continue
+      return { eventId, owned: isOwnedBy(res.data, appointmentId) }
+    } catch (err) {
+      const status = googleErrorStatus(err)
+      if (status === 404 || status === 410) continue
+      throw err
+    }
+  }
+  return null
+}
+
+export interface UpdateAppointmentEventParams extends CreateAppointmentEventParams {
+  /** המזהה השמור ב-DB, אם קיים. null → מחפשים לפי המזהה הדטרמיניסטי בלבד. */
+  googleEventId: string | null
+}
+
+export type UpdateEventResult =
+  | { ok: true; eventId: string; created: boolean }
+  | { ok: false; reason: 'not_ours' }
+
+/**
+ * מעדכנת את שעת האירוע הקיים של התור — start/end בלבד.
+ *
+ * events.patch ולא events.update: patch משנה רק את השדות שנשלחו ומשמר
+ * summary, description ו-extendedProperties (כלומר את זהות ה-appointment)
+ * כפי שהם. אם האירוע נעלם מהיומן לגמרי — נוצר מחדש עם אותו ID דטרמיניסטי,
+ * ולכן גם כאן לא ייווצר אירוע שני.
+ */
+export async function updateAppointmentEventTime(
+  params: UpdateAppointmentEventParams,
+): Promise<UpdateEventResult> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  const found = await findEventByCandidates(params.appointmentId, params.googleEventId)
+
+  if (!found) {
+    const created = await createAppointmentEvent(params)
+    return { ok: true, eventId: created.eventId, created: true }
+  }
+  if (!found.owned) {
+    // מזהה שקיים ביומן אך אינו נושא את חתימת המערכת — לא נוגעים בו.
+    return { ok: false, reason: 'not_ours' }
+  }
+
+  const startDate = israelWallTimeToUtc(params.isoDate, params.startHHMM)
+  const endDate = new Date(startDate.getTime() + params.durationMin * 60 * 1000)
+
+  await calendar.events.patch({
+    calendarId,
+    eventId: found.eventId,
+    requestBody: {
+      start: { dateTime: startDate.toISOString(), timeZone: 'Asia/Jerusalem' },
+      end: { dateTime: endDate.toISOString(), timeZone: 'Asia/Jerusalem' },
+    },
+  })
+
+  return { ok: true, eventId: found.eventId, created: false }
+}
+
+export type DeleteEventResult =
+  | { ok: true; deleted: boolean }
+  | { ok: false; reason: 'not_ours' }
+
+/**
+ * מוחקת את אירוע היומן של התור — ורק אותו.
+ *
+ * • לא נמצא אירוע כלל (או 404/410 בזמן המחיקה) → הצלחה idempotent.
+ *   מבחינת המערכת המצב הרצוי הושג: אין אירוע ביומן.
+ * • נמצא אירוע שאינו נושא את חתימת המערכת (אירוע ידני של שובל, או אירוע
+ *   של appointment אחר) → כשל בטוח, בלי מחיקה.
+ */
+export async function deleteAppointmentEvent(
+  appointmentId: string,
+  googleEventId: string | null,
+): Promise<DeleteEventResult> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  const found = await findEventByCandidates(appointmentId, googleEventId)
+  if (!found) return { ok: true, deleted: false }
+  if (!found.owned) return { ok: false, reason: 'not_ours' }
+
+  try {
+    await calendar.events.delete({ calendarId, eventId: found.eventId })
+    return { ok: true, deleted: true }
+  } catch (err) {
+    const status = googleErrorStatus(err)
+    // נמחק בין ה-get למחיקה — בדיוק התוצאה שרצינו
+    if (status === 404 || status === 410) return { ok: true, deleted: false }
+    throw err
+  }
+}
+
 const HEBREW_MONTHS: Record<string, number> = {
   'ינואר': 1, 'פברואר': 2, 'מרץ': 3, 'אפריל': 4,
   'מאי': 5, 'יוני': 6, 'יולי': 7, 'אוגוסט': 8,

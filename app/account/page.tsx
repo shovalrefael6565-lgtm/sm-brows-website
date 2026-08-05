@@ -3,12 +3,17 @@ import { redirect } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
 import CancelPendingButton from '@/components/account/CancelPendingButton'
+import AppointmentActions from '@/components/account/AppointmentActions'
 import { getSession } from '@/lib/auth/session'
 import { getCustomerById } from '@/lib/db/customers'
-import { listAppointmentsForCustomer, type AppointmentRow } from '@/lib/db/appointments'
+import { listAppointmentsForCustomer, type CustomerAppointmentRow } from '@/lib/db/appointments'
+import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
+import { capabilitiesFor } from '@/lib/appointmentSelfService'
+import { type AppointmentPolicy } from '@/lib/appointmentPolicy'
 import { formatPhoneForDisplay } from '@/lib/phone'
 import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
-import { Calendar, Clock } from 'lucide-react'
+import { fmtIsrael, israelDateStr } from '@/lib/israelTime'
+import { Calendar, Clock, RefreshCw } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'האזור האישי שלי',
@@ -33,7 +38,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 /** תורים שנחשבים "קרובים" — לא הגיעו עדיין לסטטוס סופי */
 const ACTIVE_STATUSES = new Set(['pending', 'confirmed'])
 
-function treatmentLabel(appt: AppointmentRow): string {
+function treatmentLabel(appt: CustomerAppointmentRow): string {
   if (appt.service_key === NATURAL_SERVICE) {
     const labels = NATURAL_VARIANTS.filter(v => appt.variants.includes(v.id)).map(v => v.label)
     return labels.length > 0 ? labels.join(' + ') : NATURAL_SERVICE
@@ -53,9 +58,27 @@ function formatDateTimeIL(iso: string): { date: string; time: string } {
   return { date, time }
 }
 
-function AppointmentCard({ appt }: { appt: AppointmentRow }) {
+interface CardProps {
+  appt: CustomerAppointmentRow
+  /** null כשלא ניתן היה לטעון מדיניות — אז לא מוצגים כפתורי פעולה כלל */
+  policy: AppointmentPolicy | null
+}
+
+function AppointmentCard({ appt, policy }: CardProps) {
   const { date, time } = formatDateTimeIL(appt.starts_at)
   const status = STATUS_LABELS[appt.status] ?? { label: appt.status, className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' }
+
+  // כפתורי ניהול עצמי — רק לתור מאושר שטרם התחיל, ורק כשהמדיניות נטענה.
+  // pending ממשיך לקבל את כפתור ביטול הבקשה הקיים משלב 4.
+  const isFuture = new Date(appt.starts_at).getTime() > Date.now()
+  const canSelfManage = appt.status === 'confirmed' && isFuture && policy !== null
+  const capabilities = canSelfManage && policy ? capabilitiesFor(appt, policy) : null
+
+  // אירוע יומן שעדיין לא סונכרן — הלקוחה צריכה לדעת שהמערכת מודעת לזה
+  const syncPending =
+    appt.status === 'confirmed' &&
+    ['pending', 'failed', 'syncing'].includes(appt.calendar_sync_status)
+
   return (
     <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -71,13 +94,41 @@ function AppointmentCard({ appt }: { appt: AppointmentRow }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-brand-rose" aria-hidden="true" />
-          {time}
+          {time} · {appt.duration_min} דק׳
         </span>
         {appt.price_total != null && (
           <span className="font-semibold text-brand-dark">₪{appt.price_total}</span>
         )}
       </div>
+
+      {syncPending && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-brand-gold-text">
+          <RefreshCw className="w-3 h-3" aria-hidden="true" />
+          הסנכרון ליומן נמצא בטיפול. התור שמור במערכת.
+        </p>
+      )}
+
       {appt.status === 'pending' && <CancelPendingButton appointmentId={appt.id} />}
+
+      {capabilities && policy && (
+        <AppointmentActions
+          appointmentId={appt.id}
+          currentStartsAt={appt.starts_at}
+          whenLabel={`${date} בשעה ${time}`}
+          treatment={treatmentLabel(appt)}
+          durationMin={appt.duration_min}
+          ownBusy={{
+            isoDate: israelDateStr(new Date(appt.starts_at)),
+            start: fmtIsrael(new Date(appt.starts_at)),
+            end: fmtIsrael(new Date(appt.ends_at)),
+          }}
+          reschedule={{ allowed: capabilities.reschedule.allowed, message: capabilities.reschedule.message }}
+          cancel={{ allowed: capabilities.cancel.allowed, message: capabilities.cancel.message }}
+          cancelPolicyNote={`לפי המדיניות ניתן לבטל עד ${policy.cancelCutoffHours} שעות לפני מועד התור.`}
+          rescheduleCount={capabilities.rescheduleCount}
+          maxReschedules={capabilities.maxReschedules}
+        />
+      )}
     </div>
   )
 }
@@ -85,8 +136,9 @@ function AppointmentCard({ appt }: { appt: AppointmentRow }) {
 /**
  * האזור האישי — התורים והפרטים של הלקוחה המחוברת.
  *
- * שינוי מועד וביטול עדיין לא זמינים כאן (השלב הבא) — כרגע זו תצוגה
- * בלבד, שמיועדת להראות מיד אחרי קביעת תור שהבקשה נשמרה ומה הסטטוס שלה.
+ * משלב 7 אפשר גם לשנות מועד ולבטל תור מאושר. מה שמוצג מחושב כאן, בשרת,
+ * מול המדיניות ב-business_settings ולפי שעון ישראל — אבל זו הצגה בלבד:
+ * כל פעולה נבדקת שוב במלואה ב-API וב-RPC (ראה lib/appointmentSelfService.ts).
  */
 export default async function AccountPage() {
   const session = await getSession()
@@ -96,7 +148,15 @@ export default async function AccountPage() {
   const customer = await getCustomerById(session.customerId)
   if (!customer) redirect('/login')
 
-  const appointments = await listAppointmentsForCustomer(customer.id)
+  const [appointments, policyResult] = await Promise.all([
+    listAppointmentsForCustomer(customer.id),
+    loadAppointmentPolicy(),
+  ])
+
+  // כשל בטעינת המדיניות → אין כפתורי פעולה בכלל. עדיף להסתיר מאשר להציג
+  // כפתור שנשען על מדיניות שלא באמת נקראה (ראה lib/db/businessSettings.ts).
+  const policy = policyResult.ok ? policyResult.policy : null
+
   const upcoming = appointments.filter(a => ACTIVE_STATUSES.has(a.status))
   const history = appointments.filter(a => !ACTIVE_STATUSES.has(a.status))
 
@@ -113,7 +173,7 @@ export default async function AccountPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {upcoming.map(a => <AppointmentCard key={a.id} appt={a} />)}
+                {upcoming.map(a => <AppointmentCard key={a.id} appt={a} policy={policy} />)}
               </div>
             )}
           </div>
@@ -122,7 +182,7 @@ export default async function AccountPage() {
             <div>
               <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">היסטוריית תורים</h2>
               <div className="space-y-3">
-                {history.map(a => <AppointmentCard key={a.id} appt={a} />)}
+                {history.map(a => <AppointmentCard key={a.id} appt={a} policy={policy} />)}
               </div>
             </div>
           )}

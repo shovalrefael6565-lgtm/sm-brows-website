@@ -124,9 +124,11 @@ export interface AppointmentRow {
 
 const ADMIN_APPOINTMENT_COLUMNS =
   'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
-  'pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_error, ' +
-  'calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
+  'pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_operation, ' +
+  'calendar_sync_error, calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
   'customer_id, customers(full_name, phone_e164)'
+
+export type CalendarSyncOperation = 'upsert' | 'delete'
 
 export interface AdminAppointmentRow extends AppointmentRow {
   ends_at: string
@@ -136,6 +138,7 @@ export interface AdminAppointmentRow extends AppointmentRow {
   pending_expires_at: string | null
   google_event_id: string | null
   calendar_sync_status: string
+  calendar_sync_operation: CalendarSyncOperation
   calendar_sync_error: string | null
   calendar_sync_started_at: string | null
   calendar_synced_at: string | null
@@ -147,6 +150,7 @@ type JoinedAdminRow = AppointmentRow & {
   pending_expires_at: string | null
   google_event_id: string | null
   calendar_sync_status: string
+  calendar_sync_operation: CalendarSyncOperation
   calendar_sync_error: string | null
   calendar_sync_started_at: string | null
   calendar_synced_at: string | null
@@ -169,6 +173,7 @@ function toAdminRow(r: JoinedAdminRow): AdminAppointmentRow {
     pending_expires_at: r.pending_expires_at,
     google_event_id: r.google_event_id,
     calendar_sync_status: r.calendar_sync_status,
+    calendar_sync_operation: r.calendar_sync_operation,
     calendar_sync_error: r.calendar_sync_error,
     calendar_sync_started_at: r.calendar_sync_started_at,
     calendar_synced_at: r.calendar_synced_at,
@@ -226,10 +231,15 @@ export async function listAppointmentsAdmin(opts: {
 }
 
 /**
- * בקשות pending שממתינות למנהלת, ובנוסף תורים confirmed שהסנכרון שלהם
- * ליומן לא הושלם (calendar_sync_status pending/failed/syncing) — כדי
- * שכפתור "נסה לסנכרן שוב" יהיה נגיש גם אחרי שהבקשה כבר עזבה את סטטוס
- * pending (ראה חלק 3 בהנחיות שלב 6: כשל Google לא יכול "לאבד" תור).
+ * בקשות pending שממתינות למנהלת, ובנוסף תורים שהסנכרון שלהם ליומן לא
+ * הושלם (calendar_sync_status pending/failed/syncing) — כדי שכפתור "נסה
+ * לסנכרן שוב" יהיה נגיש גם אחרי שהבקשה כבר עזבה את סטטוס pending (ראה
+ * חלק 3 בהנחיות שלב 6: כשל Google לא יכול "לאבד" תור).
+ *
+ * משלב 7 זה כולל שני כיוונים: confirmed שממתין ליצירה/עדכון של האירוע,
+ * ו-cancelled_by_customer שממתין למחיקתו. השני חשוב לא פחות — אירוע
+ * שנשאר ביומן אחרי ביטול ממשיך לחסום שעה שכבר התפנתה.
+ *
  * ללא דפדוף — במינוח מספרי הסטודיו כמות כזו קטנה מאוד תמיד.
  */
 export async function listAppointmentsNeedingAdminAction(): Promise<AdminAppointmentRow[]> {
@@ -241,7 +251,8 @@ export async function listAppointmentsNeedingAdminAction(): Promise<AdminAppoint
     .select(ADMIN_APPOINTMENT_COLUMNS)
     .or(
       'status.eq.pending,' +
-        'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing))',
+        'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing)),' +
+        'and(status.eq.cancelled_by_customer,calendar_sync_status.in.(pending,failed,syncing))',
     )
     .order('starts_at', { ascending: true })
 
@@ -342,6 +353,20 @@ export async function completeCalendarSync(appointmentId: string, googleEventId:
   return true
 }
 
+/**
+ * סוגרת claim של *מחיקה* בהצלחה. אין google_event_id חדש לשמור — המזהה
+ * הישן נשאר בשורה כתיעוד של מה נמחק (ראה complete_calendar_delete ב-0005).
+ */
+export async function completeCalendarDelete(appointmentId: string): Promise<boolean> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('complete_calendar_delete', { p_appointment_id: appointmentId })
+  if (error) {
+    console.error('[appointments] complete_calendar_delete failed', error.message)
+    return false
+  }
+  return true
+}
+
 /** סוגרת claim בכישלון — שומרת הודעת שגיאה מסוננת בלבד (ראה sanitizeGoogleError). */
 export async function failCalendarSync(appointmentId: string, errorMessage: string): Promise<boolean> {
   const db = createSupabaseAdminClient()
@@ -356,13 +381,34 @@ export async function failCalendarSync(appointmentId: string, errorMessage: stri
   return true
 }
 
+/**
+ * תור של לקוחה, כפי שהוא נראה באזור האישי. מרחיב את AppointmentRow בשדות
+ * שנדרשים כדי לחשב הרשאות פעולה (מדיניות, מונה הזזות) ולהציג מצב סנכרון.
+ */
+export interface CustomerAppointmentRow extends AppointmentRow {
+  ends_at: string
+  reschedule_count: number
+  original_starts_at: string | null
+  has_deposit: boolean
+  google_event_id: string | null
+  calendar_sync_status: string
+  calendar_sync_operation: CalendarSyncOperation
+}
+
+const CUSTOMER_APPOINTMENT_COLUMNS =
+  'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
+  'reschedule_count, original_starts_at, has_deposit, google_event_id, ' +
+  'calendar_sync_status, calendar_sync_operation'
+
 /** כל התורים של לקוחה, מהחדש לישן — לשימוש באזור האישי */
-export async function listAppointmentsForCustomer(customerId: string): Promise<AppointmentRow[]> {
+export async function listAppointmentsForCustomer(
+  customerId: string,
+): Promise<CustomerAppointmentRow[]> {
   await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const { data, error } = await db
     .from('appointments')
-    .select('id, service_key, variants, price_total, starts_at, duration_min, status, created_at')
+    .select(CUSTOMER_APPOINTMENT_COLUMNS)
     .eq('customer_id', customerId)
     .order('starts_at', { ascending: false })
 
@@ -370,7 +416,134 @@ export async function listAppointmentsForCustomer(customerId: string): Promise<A
     console.error('[appointments] list failed', error.message)
     return []
   }
-  return (data ?? []) as AppointmentRow[]
+  return (data ?? []) as unknown as CustomerAppointmentRow[]
+}
+
+/**
+ * תור בודד של הלקוחה המחוברת. ה-customer_id הוא חלק מהשאילתה ולא נבדק
+ * אחריה — תור של לקוחה אחרת פשוט לא נמצא, ולכן אין דרך להסיק מהתשובה
+ * שהוא קיים בכלל.
+ */
+export async function getAppointmentForCustomer(
+  appointmentId: string,
+  customerId: string,
+): Promise<CustomerAppointmentRow | null> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('appointments')
+    .select(CUSTOMER_APPOINTMENT_COLUMNS)
+    .eq('id', appointmentId)
+    .eq('customer_id', customerId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[appointments] customer detail failed', error.message)
+    return null
+  }
+  if (!data) return null
+  return data as unknown as CustomerAppointmentRow
+}
+
+/**
+ * שגיאות שתי ה-RPC של שלב 7. כל אחת מגיעה כחריגה מתוך הפונקציה ב-DB
+ * (ראה 0005) — כלומר הטרנזקציה נפלה ושום דבר לא נכתב.
+ */
+export type SelfServiceError =
+  | 'not_found'          // לא קיים, או לא שייך ללקוחה המחוברת
+  | 'not_allowed_status' // הסטטוס הנוכחי לא מאפשר את הפעולה
+  | 'sync_in_progress'   // פעולת סנכרון פעילה על אותו תור
+  | 'in_past'            // התור (או המועד המבוקש) כבר עבר
+  | 'max_reschedules'    // מיצתה את מספר ההזזות
+  | 'deposit_locked'     // תור עם מקדמה
+  | 'too_late'           // מחוץ לחלון המדיניות
+  | 'slot_taken'         // ה-EXCLUDE constraint חסם — מישהי אחרת תפסה
+  | 'db_error'
+
+function mapSelfServiceError(err: { code?: string; message?: string }): SelfServiceError {
+  // 23P01 = exclusion_violation — הסלוט נתפס בין הבדיקה המוקדמת לכתיבה
+  if (err.code === '23P01') return 'slot_taken'
+  const m = err.message ?? ''
+  if (m.includes('NOT_FOUND')) return 'not_found'
+  if (m.includes('NOT_RESCHEDULABLE') || m.includes('NOT_CANCELLABLE')) return 'not_allowed_status'
+  if (m.includes('SYNC_IN_PROGRESS')) return 'sync_in_progress'
+  if (m.includes('NEW_IN_PAST') || m.includes('IN_PAST')) return 'in_past'
+  if (m.includes('MAX_RESCHEDULES')) return 'max_reschedules'
+  if (m.includes('DEPOSIT_LOCKED')) return 'deposit_locked'
+  if (m.includes('TOO_LATE')) return 'too_late'
+  return 'db_error'
+}
+
+export type RescheduleOutcome = 'applied' | 'no_change' | 'already_applied'
+export type CancelOutcome = 'applied' | 'already_cancelled'
+
+interface RpcEnvelope<T extends string> {
+  outcome: T
+  appointment: Record<string, unknown>
+}
+
+function toCustomerRow(raw: Record<string, unknown>): CustomerAppointmentRow {
+  return raw as unknown as CustomerAppointmentRow
+}
+
+/**
+ * שינוי מועד ע"י הלקוחה. כל האכיפה — בעלות, סטטוס, מדיניות, מונה ההזזות
+ * וההיסטוריה — מתבצעת בתוך reschedule_appointment_by_customer (0005),
+ * בטרנזקציה אחת עם ה-UPDATE. אין כאן בדיקה מקדימה שאפשר "לעקוף".
+ */
+export async function rescheduleAppointmentByCustomer(params: {
+  appointmentId: string
+  customerId: string
+  newStartsAt: Date
+  /** המועד שהלקוחה ראתה על המסך — משמש רק להבחנה בין no_change להתאוששות */
+  expectedStartsAt: Date | null
+}): Promise<
+  | { ok: true; outcome: RescheduleOutcome; appointment: CustomerAppointmentRow }
+  | { ok: false; error: SelfServiceError }
+> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('reschedule_appointment_by_customer', {
+    p_appointment_id: params.appointmentId,
+    p_customer_id: params.customerId,
+    p_new_starts_at: params.newStartsAt.toISOString(),
+    p_expected_starts_at: params.expectedStartsAt?.toISOString() ?? null,
+  })
+
+  if (error) {
+    const mapped = mapSelfServiceError(error)
+    if (mapped === 'db_error') {
+      console.error('[appointments] reschedule failed', error.message)
+    }
+    return { ok: false, error: mapped }
+  }
+
+  const envelope = data as unknown as RpcEnvelope<RescheduleOutcome>
+  return { ok: true, outcome: envelope.outcome, appointment: toCustomerRow(envelope.appointment) }
+}
+
+/** ביטול תור confirmed ע"י הלקוחה. אותו עיקרון: הכול נאכף ב-RPC. */
+export async function cancelConfirmedAppointmentByCustomer(
+  appointmentId: string,
+  customerId: string,
+): Promise<
+  | { ok: true; outcome: CancelOutcome; appointment: CustomerAppointmentRow }
+  | { ok: false; error: SelfServiceError }
+> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('cancel_confirmed_appointment_by_customer', {
+    p_appointment_id: appointmentId,
+    p_customer_id: customerId,
+  })
+
+  if (error) {
+    const mapped = mapSelfServiceError(error)
+    if (mapped === 'db_error') {
+      console.error('[appointments] cancel confirmed failed', error.message)
+    }
+    return { ok: false, error: mapped }
+  }
+
+  const envelope = data as unknown as RpcEnvelope<CancelOutcome>
+  return { ok: true, outcome: envelope.outcome, appointment: toCustomerRow(envelope.appointment) }
 }
 
 /**

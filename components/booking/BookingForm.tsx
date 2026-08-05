@@ -9,7 +9,11 @@ import {
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 import { POLICY_VERSION, POLICY_PATH } from '@/lib/bookingPolicy'
-import { specialSlotsFor, isSpecialDay } from '@/lib/specialAvailability'
+import { isSpecialDay } from '@/lib/specialAvailability'
+import {
+  getIsraelToday, selectVisibleSlots, filterLiftingStarts,
+} from '@/lib/slotSelection'
+import { businessDayOffset as businessDayOffsetOf } from '@/lib/bookingWindow'
 import { normalizePhone, isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
 import {
   NATURAL_SERVICE as NATURAL, LIFTING_SERVICE as LIFTING,
@@ -39,18 +43,6 @@ function pad(n: number) {
   return n.toString().padStart(2, '0')
 }
 
-/** Natural brow design — 20-minute slots: 09:00–11:00 and 15:00–19:00 */
-function buildTimeSlots(): string[] {
-  const slots: string[] = []
-  // בוקר 09:00–11:00 (המשבצת האחרונה מתחילה ב-10:40 ומסתיימת ב-11:00)
-  for (let m = 9 * 60; m <= 10 * 60 + 40; m += 20)
-    slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  // אחה"צ/ערב 15:00–19:00 (המשבצת האחרונה מתחילה ב-18:40 ומסתיימת ב-19:00)
-  for (let m = 15 * 60; m <= 18 * 60 + 40; m += 20)
-    slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  return slots
-}
-
 function buildCalendar(year: number, month: number) {
   const firstDow = new Date(year, month, 1).getDay()
   const total = new Date(year, month + 1, 0).getDate()
@@ -63,57 +55,13 @@ function fmtDate(year: number, month: number, day: number) {
   return `${day} ${MONTHS[month]} ${year}`
 }
 
-/** מחזיר את "היום" לפי שעון ישראל — נכון גם בחצות ובשינויי שעון */
-function getIsraelToday(): Date {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Jerusalem',
-    year: 'numeric', month: 'numeric', day: 'numeric',
-  }).formatToParts(new Date())
-  const y = parseInt(parts.find(p => p.type === 'year')!.value)
-  const m = parseInt(parts.find(p => p.type === 'month')!.value) - 1
-  const d = parseInt(parts.find(p => p.type === 'day')!.value)
-  return new Date(y, m, d, 0, 0, 0, 0)
-}
-
-/** הופך תאריך לזרע מספרי (כל יום מקבל זרע יציב משלו) */
-function dateSeed(year: number, month: number, day: number): number {
-  return ((year * 31 + (month + 1)) * 31 + day) >>> 0
-}
-
-/** מחזיר מספר ימי עסקים מהיום (ישראל) עד התאריך הנבחר (פוסחים על שישי+שבת) */
+/**
+ * ימי עסקים מהיום (ישראל) עד התאריך הנבחר, פוסח על שישי+שבת.
+ * עטיפה דקה סביב המימוש המשותף ב-lib/bookingWindow.ts, שממנו ניזון גם
+ * אלגוריתם ההצגה (lib/slotSelection.ts) וגם האימות בשרת.
+ */
 function businessDayOffset(year: number, month: number, day: number): number {
-  const today = getIsraelToday()
-  const target = new Date(year, month, day)
-  target.setHours(0, 0, 0, 0)
-  if (target.getTime() <= today.getTime()) return 0
-  let count = 0
-  const d = new Date(today)
-  while (d.getTime() < target.getTime()) {
-    d.setDate(d.getDate() + 1)
-    const dow = d.getDay()
-    if (dow !== 5 && dow !== 6) count++
-  }
-  return count
-}
-
-/** כמה משבצות להציג ביום הזה (3 היום, 5 מחר, 6-7 בהמשך השבוע, מעבר ל-6 ימי עסקים — אין) */
-function slotsForOffset(offset: number, seed: number): number {
-  if (offset === 0) return 3
-  if (offset === 1) return 5
-  if (offset <= 6) return 6 + (seed % 2) // 6 או 7, יציב לתאריך
-  return 0 // מעבר ל-6 ימי עסקים — לא זמין
-}
-
-/** ערבוב פסאודו-אקראי מבוסס זרע — אותו תאריך תמיד חוזר עם אותה תוצאה */
-function seededShuffle<T>(arr: T[], seed: number): T[] {
-  const result = [...arr]
-  let s = seed || 1
-  for (let i = result.length - 1; i > 0; i--) {
-    s = (s * 9301 + 49297) % 233280
-    const j = Math.floor((s / 233280) * (i + 1))
-    ;[result[i], result[j]] = [result[j], result[i]]
-  }
-  return result
+  return businessDayOffsetOf(year, month, day)
 }
 
 interface FormData {
@@ -249,20 +197,9 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // אזור בחירת סוג הטיפול — כדי לגלול אליו אם ניסו להמשיך בלי לבחור
   const variantRef = useRef<HTMLDivElement>(null)
 
-  // משך טיפול לעיצוב גבות טבעי = 20 דקות. בודקים חפיפה מלאה — לא רק התחלה מדויקת
-  const SLOT_DURATION = 20
   const toMin = (hhmm: string) => {
     const [h, m] = hhmm.split(':').map(Number)
     return h * 60 + m
-  }
-  const isSlotTaken = (slot: string) => {
-    const slotStart = toMin(slot)
-    const slotEnd = slotStart + SLOT_DURATION
-    return busyRanges.some(({ start, end }) => {
-      const eStart = toMin(start)
-      const eEnd = toMin(end)
-      return eStart < slotEnd && eEnd > slotStart
-    })
   }
 
   const isNatural = form.service === NATURAL
@@ -274,137 +211,24 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // מסך אימות הקוד מוצג רק אחרי שנשלח קוד בפועל, ולא בזמן השליחה עצמה
   // (כדי לא להבזיק "הזינו קוד" עם מספר ממוסך ריק לפני שהוא נטען)
   const otpPanelVisible = isCalendar && otpMaskedPhone !== '' && phase !== 'form' && phase !== 'sending-otp'
-  const timeSlots = buildTimeSlots()
   const cells = buildCalendar(viewYear, viewMonth)
 
-  const EVENING_FROM = 15 * 60 // 15:00 — תחילת משמרת אחה"צ/ערב
+  /**
+   * הזמינות המוצגת. האלגוריתם עצמו חי ב-lib/slotSelection.ts — מקור אמת
+   * משותף לעמוד קביעת התור ולמסך שינוי המועד באזור האישי, כדי ששניהם
+   * יציגו בדיוק את אותה זמינות מצומצמת ומבוקרת.
+   */
+  const visibleSlots = selectedDay === null
+    ? []
+    : selectVisibleSlots({
+        year: viewYear,
+        month: viewMonth,
+        day: selectedDay,
+        busyRanges,
+      })
 
-  /** בוחר את הזמינות המוצגות: כמות לפי מרחק ביום-עסקים, בעיקר ערב, גיוון יומי. */
-  const visibleSlots = (() => {
-    if (selectedDay === null) return []
-    const seed = dateSeed(viewYear, viewMonth, selectedDay)
-    const offset = businessDayOffset(viewYear, viewMonth, selectedDay)
-    let maxSlots = slotsForOffset(offset, seed)
-
-    const nowParts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Jerusalem',
-      year: 'numeric', month: 'numeric', day: 'numeric',
-      hour: 'numeric', minute: 'numeric', hour12: false,
-    }).formatToParts(new Date())
-    const nowYear  = parseInt(nowParts.find(p => p.type === 'year')!.value)
-    const nowMonth = parseInt(nowParts.find(p => p.type === 'month')!.value) - 1
-    const nowDay   = parseInt(nowParts.find(p => p.type === 'day')!.value)
-    const nowHour  = parseInt(nowParts.find(p => p.type === 'hour')!.value)
-    const nowMin   = parseInt(nowParts.find(p => p.type === 'minute')!.value)
-    const isViewingToday =
-      selectedDay === nowDay &&
-      viewMonth === nowMonth &&
-      viewYear === nowYear
-    // בהיום — להציג רק שעות לפחות 90 דק' מעכשיו (חלון הכנה, בלי הפתעות של רגע אחרון)
-    const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 90 : 0
-
-    // ── זמינות מיוחדת (חריגה זמנית, מוגדרת ב-lib/specialAvailability.ts) ──
-    // תוספת בלבד: אותו חלון הכנה של 90 דק' ואותה בדיקת תפוסה מול Google Calendar.
-    // לתאריכים ללא חלון מיוחד המערך ריק והלוגיקה שמתחת נשארת כפי שהייתה.
-    const specialFree = specialSlotsFor(viewYear, viewMonth, selectedDay)
-      .filter(slot => toMin(slot) >= minStartMin)
-      .filter(slot => !isSlotTaken(slot))
-
-    // מעבר לחלון השבוע קדימה: רק הסלוטים המיוחדים (אם יש), אחרת אין זמינות
-    if (maxSlots === 0) return specialFree
-
-    const free = timeSlots
-      .filter(slot => toMin(slot) >= minStartMin)
-      .filter(slot => !isSlotTaken(slot))
-
-    // מינימום 4 סלוטים ביום אם קיימת זמינות אמיתית מספקת (≥4 פנויים) — בלי
-    // לפתוח את כל היומן ובלי להוריד ימים שכבר מציגים 4+ (max בין שניהם).
-    // אם פחות מ-4 פנויים אמיתיים — מציגים רק את מה שבאמת פנוי.
-    maxSlots = Math.max(maxSlots, Math.min(4, free.length))
-
-    // ערבוב יציב לפי תאריך — ריענון לא משנה, אבל כל יום שונה
-    const evening = seededShuffle(free.filter(s => toMin(s) >= EVENING_FROM), seed)
-    const morning = seededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
-
-    const targetMorning = maxSlots <= 5 ? 1 : 2
-    const targetEvening = maxSlots - targetMorning
-
-    let picked = [
-      ...morning.slice(0, targetMorning),
-      ...evening.slice(0, targetEvening),
-    ]
-
-    // אם בקבוצה אחת אין מספיק — לאכלס מהשנייה
-    if (picked.length < maxSlots) {
-      const remaining = free.filter(s => !picked.includes(s))
-      picked.push(...remaining.slice(0, maxSlots - picked.length))
-    }
-
-    const freeSorted = [...free].sort((a, b) => toMin(a) - toMin(b))
-
-    // העדפה ראשונה: שלישיית סלוטים רצופה אמיתית בערב, החל מ-16:00 ומעלה
-    // (S, S+20, S+40). אם קיימת — לכלול אותה במלואה, תוך הסרת אותו מספר סלוטים
-    // מפוזרים, כך שמספר הסלוטים ביום נשאר זהה בדיוק. הבוקר נשאר מפוזר.
-    const TRIPLE_FROM = 16 * 60
-    const eveningTriples: [string, string, string][] = []
-    for (let i = 0; i < freeSorted.length - 2; i++) {
-      if (
-        toMin(freeSorted[i]) >= TRIPLE_FROM &&
-        toMin(freeSorted[i + 1]) - toMin(freeSorted[i]) === 20 &&
-        toMin(freeSorted[i + 2]) - toMin(freeSorted[i + 1]) === 20
-      ) {
-        eveningTriples.push([freeSorted[i], freeSorted[i + 1], freeSorted[i + 2]])
-      }
-    }
-    const hasEveningTriple = (arr: string[]) => {
-      const s = [...arr].sort((a, b) => toMin(a) - toMin(b))
-      return s.some((_, i) =>
-        i >= 2 &&
-        toMin(s[i - 2]) >= TRIPLE_FROM &&
-        toMin(s[i]) - toMin(s[i - 1]) === 20 &&
-        toMin(s[i - 1]) - toMin(s[i - 2]) === 20
-      )
-    }
-    if (maxSlots >= 3 && eveningTriples.length > 0 && !hasEveningTriple(picked)) {
-      const chosen = seededShuffle(eveningTriples, seed + 3)[0]
-      const others = picked.filter(s => !chosen.includes(s))
-      picked = [...chosen, ...others.slice(0, maxSlots - chosen.length)]
-    }
-
-    // fallback: אם אין שלישיית ערב, לוודא לפחות זוג רצוף אמיתי (S, S+20) —
-    // בלי להוסיף/להוריד סלוטים, בלי לחשוף שעות מוסתרות ובלי לשנות זמינות אמיתית.
-    const hasAdjacentPair = (arr: string[]) => {
-      const s = [...arr].sort((a, b) => toMin(a) - toMin(b))
-      return s.some((v, i) => i > 0 && toMin(v) - toMin(s[i - 1]) === 20)
-    }
-    const freePairs: [string, string][] = []
-    for (let i = 0; i < freeSorted.length - 1; i++) {
-      if (toMin(freeSorted[i + 1]) - toMin(freeSorted[i]) === 20)
-        freePairs.push([freeSorted[i], freeSorted[i + 1]])
-    }
-    if (!hasAdjacentPair(picked) && freePairs.length > 0 && picked.length >= 2) {
-      // בחירת זוג יציבה לפי זרע התאריך
-      const chosen = seededShuffle(freePairs, seed + 2)[0]
-      const need = chosen.filter(s => !picked.includes(s))
-      if (need.length > 0) {
-        // מפנים מקום ע"י הסרת סלוטים שאינם חלק מהזוג — כך הכמות נשמרת בדיוק
-        const removable = picked.filter(s => !chosen.includes(s))
-        const toRemove = removable.slice(removable.length - need.length)
-        picked = picked.filter(s => !toRemove.includes(s)).concat(need)
-      }
-    }
-
-    // איחוד עם הזמינות המיוחדת (אם התאריך נופל גם בחלון השבוע קדימה וגם בחלון
-    // המיוחד) — התוספת לא גורעת מהבחירה הרגילה ולא משנה אותה.
-    const merged = picked.concat(specialFree.filter(s => !picked.includes(s)))
-    return merged.sort((a, b) => toMin(a) - toMin(b))
-  })()
-
-  // הרמת גבות = 40 דק׳ → שני סלוטים רצופים. שעות ההתחלה האפשריות הן רק
-  // סלוטים מתוך אלה שכבר מוצגים שיש להם שכן רצוף מוצג (S וגם S+20) — בלי
-  // לחשוף שעות נוספות מעבר לאלה שכבר נבחרו להצגה.
   const minToHHMM = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
-  const liftingStarts = visibleSlots.filter(s => visibleSlots.includes(minToHHMM(toMin(s) + 20)))
+  const liftingStarts = filterLiftingStarts(visibleSlots)
   const displaySlots = isLifting ? liftingStarts : visibleSlots
 
   // שלבים: טיפול עם יומן (טבעי/הרמת גבות) → 3 שלבים | שאר → 2 שלבים

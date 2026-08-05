@@ -37,7 +37,13 @@ export default function RetrySyncButton({ appointmentId }: { appointmentId: stri
         return
       }
 
-      if (!whatsapp.navigate(data.whatsappUrl)) setFallbackUrl(data.whatsappUrl)
+      // סנכרון של *מחיקת* אירוע (אחרי ביטול עצמי של הלקוחה) מסתיים בהצלחה
+      // בלי הודעת וואטסאפ — אין למי ומה להודיע, הלקוחה היא שביטלה.
+      if (data.whatsappUrl) {
+        if (!whatsapp.navigate(data.whatsappUrl)) setFallbackUrl(data.whatsappUrl)
+      } else {
+        whatsapp.close()
+      }
       setLoading(false)
       router.refresh()
     } catch {

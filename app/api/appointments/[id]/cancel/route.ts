@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
-import { cancelPendingAppointment } from '@/lib/db/appointments'
+import { cancelPendingAppointment, getAppointmentForCustomer } from '@/lib/db/appointments'
+import { cancelConfirmedForCustomer } from '@/lib/appointmentSelfService'
 
 export const dynamic = 'force-dynamic'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * ביטול בקשת pending ע"י הלקוחה שיצרה אותה. אין כאן ביטול של תור confirmed —
- * cancel_pending_appointment ב-DB מתנה את הפעולה בסטטוס pending ובבעלות
- * ה-customer_id מה-session, כך שאי אפשר לבטל בקשה של לקוחה אחרת.
+ * ביטול תור ע"י הלקוחה — שני מסלולים תחת כתובת אחת.
+ *
+ * המסלול נבחר לפי הסטטוס *שנטען מה-DB*, לעולם לא לפי ערך שנשלח מהדפדפן:
+ *
+ *   pending   → cancel_pending_appointment (0003). המסלול הקיים משלב 4,
+ *               ללא שינוי בהתנהגות ובלי לגעת ב-RPC עצמה.
+ *   confirmed → המסלול החדש של שלב 7: מדיניות, היסטוריה מלאה ומחיקת
+ *               אירוע היומן (lib/appointmentSelfService.ts).
+ *
+ * בשני המסלולים הבעלות נבדקת בתוך ה-RPC (customer_id הוא חלק מתנאי
+ * ה-UPDATE), ולכן טעינת התור כאן משמשת לבחירת המסלול בלבד — לא כהרשאה.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession()
@@ -22,6 +31,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
+  const appt = await getAppointmentForCustomer(id, session.customerId)
+
+  // ── תור מאושר: המסלול של שלב 7 ────────────────────────────────────────────
+  if (appt?.status === 'confirmed' || appt?.status === 'cancelled_by_customer') {
+    const result = await cancelConfirmedForCustomer(id, session.customerId)
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, message: result.message, offerWhatsApp: result.offerWhatsApp ?? false },
+        { status: result.status },
+      )
+    }
+    return NextResponse.json({
+      ok: true,
+      outcome: result.outcome,
+      calendarSynced: result.calendarSynced,
+      message: result.message,
+    })
+  }
+
+  // ── בקשה ממתינה: המסלול הקיים, ללא שינוי ──────────────────────────────────
   const result = await cancelPendingAppointment(id, session.customerId)
   if (!result.ok) {
     if (result.error === 'not_found') {

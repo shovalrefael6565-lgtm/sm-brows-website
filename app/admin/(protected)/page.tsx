@@ -18,7 +18,8 @@ import { Calendar, Clock, Timer, Send } from 'lucide-react'
 export default async function AdminPendingPage() {
   const rows = await listAppointmentsNeedingAdminAction()
   const pendingRows = rows.filter(r => r.status === 'pending')
-  const syncIssueRows = rows.filter(r => r.status === 'confirmed')
+  // גם confirmed שממתין ליצירת/עדכון אירוע וגם תור שבוטל וממתין למחיקתו
+  const syncIssueRows = rows.filter(r => r.status !== 'pending')
 
   return (
     <div className="space-y-10">
@@ -43,7 +44,7 @@ export default async function AdminPendingPage() {
         <div>
           <h2 className="font-serif text-xl font-bold text-brand-dark mb-1">דורש טיפול: סנכרון יומן</h2>
           <p className="text-sm text-brand-muted mb-4">
-            התורים האלה מאושרים ותפוסים במערכת, אך יצירת האירוע ביומן נכשלה או לא הושלמה.
+            המצב במערכת נכון ותפוס/משוחרר כנדרש, אך היומן עדיין לא עודכן בהתאם.
           </p>
           <div className="space-y-3">
             {syncIssueRows.map(appt => (
@@ -108,6 +109,9 @@ function PendingCard({ appt }: { appt: AdminAppointmentRow }) {
 
 function SyncIssueCard({ appt }: { appt: AdminAppointmentRow }) {
   const { date, time } = formatDateTimeIL(appt.starts_at)
+  // מה בדיוק חסר ביומן נקבע לפי calendar_sync_operation, לא לפי הסטטוס —
+  // אותו מקור אמת שלפיו פועל ה-retry עצמו (lib/appointmentApproval.ts).
+  const isDelete = appt.calendar_sync_operation === 'delete'
   return (
     <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -118,9 +122,14 @@ function SyncIssueCard({ appt }: { appt: AdminAppointmentRow }) {
           </p>
         </div>
         <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border bg-red-50 text-red-600 border-red-200">
-          היומן לא סונכרן
+          {isDelete ? 'האירוע לא נמחק מהיומן' : 'היומן לא סונכרן'}
         </span>
       </div>
+      {isDelete && (
+        <p className="text-xs text-brand-muted mb-2">
+          התור בוטל על ידי הלקוחה. האירוע שנותר ביומן עדיין חוסם את השעה.
+        </p>
+      )}
       <p className="text-sm text-brand-dark font-medium mb-2">
         {treatmentLabel(appt)} · {appt.duration_min} דק׳
       </p>
