@@ -34,6 +34,30 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'supa
  * פונקציות שנשארות נגישות בכוונה, עם הנימוק. כל תוספת כאן היא החלטת
  * אבטחה מודעת — לא דרך לעקוף בדיקה שנכשלה.
  */
+/**
+ * 13 החתימות הרגישות, במפורש. הרשימה הזו אינה נגזרת מהמיגרציות אלא
+ * מוצבת מולן: אם פונקציה תיעלם, תשנה חתימה או תיווצר חדשה — ההשוואה
+ * תיפול, ולא נסתמך על כך שהפרסר "מצא את מה שיש".
+ */
+const PROTECTED_SIGNATURES = [
+  'expire_stale_pending_appointments()',
+  'create_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text)',
+  'cancel_pending_appointment(uuid,uuid)',
+  'approve_pending_appointment(uuid,uuid)',
+  'reject_pending_appointment(uuid,uuid)',
+  'claim_calendar_sync(uuid)',
+  'complete_calendar_sync(uuid,text)',
+  'fail_calendar_sync(uuid,text)',
+  'setting_numeric(text,numeric)',
+  'setting_boolean(text,boolean)',
+  'reschedule_appointment_by_customer(uuid,uuid,timestamptz,timestamptz)',
+  'cancel_confirmed_appointment_by_customer(uuid,uuid)',
+  'complete_calendar_delete(uuid)',
+]
+
+/** המיגרציה שאמורה להחזיק את בלוק ה-assertion האמיתי */
+const ASSERTION_MIGRATION = '0007_reapply_rpc_permissions.sql'
+
 const INTENTIONALLY_OPEN = {
   is_admin:
     'נקראת מתוך מדיניות RLS, שמוערכת בהרשאות התפקיד השואל. שלילת EXECUTE ' +
@@ -136,10 +160,28 @@ const sensitive = [...defined.entries()].filter(([, e]) =>
 
 chk(`${sensitive.length} פונקציות מסווגות כרגישות`, sensitive.length > 0)
 
+{
+  const found = new Set(sensitive.map(([key]) => key))
+  const expected = new Set(PROTECTED_SIGNATURES)
+
+  // פונקציה רגישה חדשה שלא נוספה לרשימת ההגנה — הבדיקה חייבת ליפול
+  const unlisted = [...found].filter(k => !expected.has(k))
+  chk('אין פונקציה רגישה שאינה ברשימת ההגנה', unlisted.length === 0,
+    unlisted.length ? `חדשות ולא מוגנות: ${unlisted.join(', ')}` : '')
+
+  // פונקציה שנעלמה או ששינתה חתימה
+  const vanished = [...expected].filter(k => !found.has(k))
+  chk('כל 13 הפונקציות המוגנות עדיין קיימות באותן חתימות', vanished.length === 0,
+    vanished.length ? `חסרות: ${vanished.join(', ')}` : `${expected.size} חתימות`)
+
+  chk('רשימת ההגנה מונה בדיוק 13 פונקציות', PROTECTED_SIGNATURES.length === 13,
+    `count=${PROTECTED_SIGNATURES.length}`)
+}
+
 for (const [key, entry] of sensitive) {
   const revoked = revokedFrom.get(key) ?? new Set()
-  const missing = ['anon', 'authenticated'].filter(r => !revoked.has(r))
-  chk(`${key} — REVOKE מ-anon ומ-authenticated`,
+  const missing = ['public', 'anon', 'authenticated'].filter(r => !revoked.has(r))
+  chk(`${key} — REVOKE מ-PUBLIC, anon ו-authenticated`,
     missing.length === 0,
     missing.length ? `חסר: ${missing.join(', ')} (נוצרה ב-${[...entry.files].join(', ')})` : '')
 }
@@ -160,6 +202,47 @@ section('אין REVOKE גורף שעלול לסגור פונקציה ציבור�
     if (/revoke\s+execute\s+on\s+all\s+functions\s+in\s+schema/i.test(clean)) broad = file
   }
   chk('אין "revoke execute on all functions in schema"', broad === null, broad ?? '')
+}
+
+section('קיים בלוק assertion אמיתי במיגרציה')
+
+{
+  const assertionFile = sources.find(f => f.file === ASSERTION_MIGRATION)
+  chk(`${ASSERTION_MIGRATION} קיימת`, Boolean(assertionFile))
+
+  if (assertionFile) {
+    const clean = stripComments(assertionFile.sql)
+
+    chk('קיים בלוק DO', /do\s+\$\$/i.test(clean))
+    chk('הבלוק משתמש ב-has_function_privilege',
+      /has_function_privilege/i.test(clean))
+    chk('הבלוק זורק חריגה בהפרה', /raise\s+exception/i.test(clean))
+
+    // שלושת התפקידים נבדקים
+    for (const role of ['anon', 'authenticated', 'service_role']) {
+      chk(`הבלוק בודק את התפקיד ${role}`,
+        new RegExp(`has_function_privilege\\(\\s*'${role}'`, 'i').test(clean))
+    }
+
+    // service_role נבדק בכיוון ההפוך — שההרשאה *נשמרה*
+    chk("service_role נבדק כ-'not has_function_privilege' (הרשאה שנשמרת)",
+      /not\s+has_function_privilege\(\s*'service_role'/i.test(clean))
+
+    // ⚠️ החיפוש מוגבל לגוף בלוק ה-DO בלבד. חיפוש בכל הקובץ היה "מוצא"
+    // כל חתימה גם בתוך פקודות ה-REVOKE עצמן, ובדיקה שמוצאת תמיד היא
+    // בדיקה שלא בודקת כלום.
+    const doBlock = clean.match(/do\s+\$\$([\s\S]*?)\$\$\s*;/i)?.[1] ?? ''
+    chk('גוף בלוק ה-DO אותר לבדיקה', doBlock.length > 0)
+
+    const missingFromBlock = PROTECTED_SIGNATURES.filter(sig => {
+      const name = sig.slice(0, sig.indexOf('('))
+      const types = sig.slice(sig.indexOf('(') + 1, -1)
+      const spaced = types ? types.split(',').join(', ') : ''
+      return !doBlock.includes(`public.${name}(${spaced})`)
+    })
+    chk('כל 13 החתימות מופיעות בבלוק ה-assertion', missingFromBlock.length === 0,
+      missingFromBlock.length ? `חסרות: ${missingFromBlock.join(', ')}` : '')
+  }
 }
 
 section('פונקציות שנשארו פתוחות בכוונה')
