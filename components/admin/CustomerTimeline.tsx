@@ -19,7 +19,6 @@ export interface TimelineAppointment {
   original_starts_at: string | null
   created_at: string
   calendar_sync_status: string
-  google_event_id: string | null
   history: {
     id: number
     action: string

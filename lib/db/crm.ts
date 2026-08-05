@@ -225,7 +225,6 @@ export interface CrmAppointmentRow {
   created_at: string
   pending_expires_at: string | null
   calendar_sync_status: string
-  google_event_id: string | null
 }
 
 export interface CrmHistoryRow {
@@ -240,7 +239,14 @@ export interface CrmHistoryRow {
   created_at: string
 }
 
-/** התורים של הלקוחה ל-timeline, מהחדש לישן. */
+/**
+ * התורים של הלקוחה ל-timeline, מהחדש לישן.
+ *
+ * ⚠️ google_event_id ו-calendar_sync_error אינם נבחרים כאן בכוונה. ה-timeline
+ * הוא client component, ו-Next.js מסרלל *כל* prop שמועבר אליו לתוך ה-RSC
+ * payload שמוטמע ב-HTML — גם prop שלא מרונדר. שדה שנשלף כאן היה נחשף במקור
+ * העמוד גם בלי להופיע על המסך. מצב הסנכרון מוצג כתווית מילולית בלבד.
+ */
 export async function listCustomerAppointments(customerId: string): Promise<CrmAppointmentRow[]> {
   const db = createSupabaseAdminClient()
   const { data, error } = await db
@@ -248,7 +254,7 @@ export async function listCustomerAppointments(customerId: string): Promise<CrmA
     .select(
       'id, service_key, variants, price_total, starts_at, duration_min, status, ' +
       'reschedule_count, original_starts_at, created_at, pending_expires_at, ' +
-      'calendar_sync_status, google_event_id',
+      'calendar_sync_status',
     )
     .eq('customer_id', customerId)
     .order('starts_at', { ascending: false })

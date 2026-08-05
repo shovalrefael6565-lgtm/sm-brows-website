@@ -195,7 +195,8 @@ export default async function CustomerProfilePage({
               <li key={s.label} className="flex items-center justify-between px-4 py-3 text-sm">
                 <span className="text-brand-dark">{s.label}</span>
                 <span className="text-xs text-brand-muted">
-                  {s.count} פעמים · אחרון {formatDateTimeIL(s.lastAt).date}
+                  {s.count === 1 ? 'פעם אחת' : `${s.count} פעמים`} · אחרון{' '}
+                  {formatDateTimeIL(s.lastAt).date}
                 </span>
               </li>
             ))}
@@ -214,7 +215,11 @@ export default async function CustomerProfilePage({
               <li key={a.id} className="px-4 py-3 text-sm flex flex-wrap items-baseline gap-x-2">
                 <span className="text-brand-dark">{CRM_ACTION_LABELS[a.action] ?? a.action}</span>
                 {a.old_value && a.new_value && (
-                  <span className="text-xs text-brand-muted">{a.old_value} ← {a.new_value}</span>
+                  <span className="text-xs text-brand-muted">
+                    {crmValueLabel(a.action, a.old_value, sources)}
+                    {' ← '}
+                    {crmValueLabel(a.action, a.new_value, sources)}
+                  </span>
                 )}
                 <span className="text-xs text-brand-muted mr-auto">
                   {formatDateTimeIL(a.created_at).date}, {formatDateTimeIL(a.created_at).time}
@@ -226,6 +231,21 @@ export default async function CustomerProfilePage({
       </section>
     </div>
   )
+}
+
+/**
+ * ערכי ה-old_value/new_value ב-activity נשמרים כמפתחות גולמיים ('active',
+ * 'instagram') — זה נכון לאודיט, אבל למנהלת צריך להציג את אותה תווית עברית
+ * שהיא רואה בפקדים עצמם, ומאותו מקור אמת.
+ */
+function crmValueLabel(
+  action: string,
+  value: string,
+  sources: { key: string; label_he: string }[],
+): string {
+  if (action === 'crm_status_changed') return CRM_STATUS_LABELS[value]?.label ?? value
+  if (action === 'source_changed') return sources.find(s => s.key === value)?.label_he ?? value
+  return value
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
