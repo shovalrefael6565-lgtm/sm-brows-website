@@ -3,6 +3,7 @@ import { formatPhoneForDisplay } from '@/lib/phone'
 import { formatDateTimeIL, formatTimeRemaining, treatmentLabel, STATUS_LABELS } from '@/lib/admin/format'
 import ApproveRejectButtons from '@/components/admin/ApproveRejectButtons'
 import RetrySyncButton from '@/components/admin/RetrySyncButton'
+import CalendarSyncPanel from '@/components/admin/CalendarSyncPanel'
 import { Calendar, Clock, Timer, Send } from 'lucide-react'
 
 /**
@@ -53,6 +54,9 @@ export default async function AdminPendingPage() {
           </div>
         </div>
       )}
+
+      {/* שלב 8 — הכיוון ההפוך: שינויים שנעשו ידנית ביומן וחוזרים למערכת */}
+      <CalendarSyncPanel />
     </div>
   )
 }

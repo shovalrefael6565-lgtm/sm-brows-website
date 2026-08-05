@@ -281,6 +281,69 @@ export async function getAppointmentForAdmin(appointmentId: string): Promise<Adm
   return toAdminRow(data as unknown as JoinedAdminRow)
 }
 
+/**
+ * טעינה מרוכזת של תורים לפי מזהים — לתצוגת תקלות הסנכרון, שבה כל תקלה
+ * מצביעה על תור אחר. שאילתה אחת במקום אחת לכל שורה.
+ */
+export async function listAppointmentsForAdminByIds(
+  ids: string[],
+): Promise<Map<string, AdminAppointmentRow>> {
+  const map = new Map<string, AdminAppointmentRow>()
+  if (ids.length === 0) return map
+
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('appointments')
+    .select(ADMIN_APPOINTMENT_COLUMNS)
+    .in('id', ids)
+
+  if (error) {
+    console.error('[appointments] batch admin lookup failed', error.message)
+    return map
+  }
+  for (const row of (data ?? []) as unknown as JoinedAdminRow[]) {
+    map.set(row.id, toAdminRow(row))
+  }
+  return map
+}
+
+export type AdminLookupResult =
+  | { ok: true; appointment: AdminAppointmentRow }
+  | { ok: false; reason: 'not_found' | 'db_error' }
+
+/**
+ * זהה ל-getAppointmentForAdmin, אבל *מבדילה* בין "לא קיים" לבין "השאילתה
+ * נכשלה" — אותו לקח של שלב 7.1 (ראה getAppointmentForCustomer).
+ *
+ * בסנכרון הנכנס ההבחנה הזו קריטית במיוחד: מיזוג ל-null היה גורם לתקלת DB
+ * חולפת להיראות כמו "האירוע יתום", כלומר לסמן שינוי אמיתי כ-ignored
+ * לצמיתות במקום להשאיר אותו ל-retry. שינוי שנזרק כך אבוד — Google לא
+ * יחזיר אותו שוב לעולם.
+ */
+export async function getAppointmentForInboundSync(
+  appointmentId: string,
+): Promise<AdminLookupResult> {
+  const db = createSupabaseAdminClient()
+  try {
+    const { data, error } = await db
+      .from('appointments')
+      .select(ADMIN_APPOINTMENT_COLUMNS)
+      .eq('id', appointmentId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[appointments] inbound sync detail failed', error.message)
+      return { ok: false, reason: 'db_error' }
+    }
+    if (!data) return { ok: false, reason: 'not_found' }
+    return { ok: true, appointment: toAdminRow(data as unknown as JoinedAdminRow) }
+  } catch (err) {
+    console.error('[appointments] inbound sync detail threw',
+      err instanceof Error ? err.message : String(err))
+    return { ok: false, reason: 'db_error' }
+  }
+}
+
 export type ApprovalRpcError = 'not_pending' | 'db_error'
 
 /** מאשרת בקשת pending → confirmed. אין כאן שום אינטראקציה עם Calendar. */

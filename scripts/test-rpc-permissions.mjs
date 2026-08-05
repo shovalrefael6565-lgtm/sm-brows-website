@@ -39,24 +39,46 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'supa
  * מוצבת מולן: אם פונקציה תיעלם, תשנה חתימה או תיווצר חדשה — ההשוואה
  * תיפול, ולא נסתמך על כך שהפרסר "מצא את מה שיש".
  */
-const PROTECTED_SIGNATURES = [
-  'expire_stale_pending_appointments()',
-  'create_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text)',
-  'cancel_pending_appointment(uuid,uuid)',
-  'approve_pending_appointment(uuid,uuid)',
-  'reject_pending_appointment(uuid,uuid)',
-  'claim_calendar_sync(uuid)',
-  'complete_calendar_sync(uuid,text)',
-  'fail_calendar_sync(uuid,text)',
-  'setting_numeric(text,numeric)',
-  'setting_boolean(text,boolean)',
-  'reschedule_appointment_by_customer(uuid,uuid,timestamptz,timestamptz)',
-  'cancel_confirmed_appointment_by_customer(uuid,uuid)',
-  'complete_calendar_delete(uuid)',
-]
+/**
+ * כל חתימה רגישה משויכת למיגרציה שמחזיקה את בלוק ה-assertion שמוכיח את
+ * ההרשאות שלה בפועל. הפיצול אינו קוסמטי: 0007 היא קובץ *קיים שכבר רץ
+ * בפרודקשן* ואין לשנות אותו, ולכן פונקציות חדשות מוכיחות את עצמן בבלוק
+ * משלהן ב-0008.
+ */
+const ASSERTION_MIGRATIONS = {
+  '0007_reapply_rpc_permissions.sql': [
+    'expire_stale_pending_appointments()',
+    'create_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text)',
+    'cancel_pending_appointment(uuid,uuid)',
+    'approve_pending_appointment(uuid,uuid)',
+    'reject_pending_appointment(uuid,uuid)',
+    'claim_calendar_sync(uuid)',
+    'complete_calendar_sync(uuid,text)',
+    'fail_calendar_sync(uuid,text)',
+    'setting_numeric(text,numeric)',
+    'setting_boolean(text,boolean)',
+    'reschedule_appointment_by_customer(uuid,uuid,timestamptz,timestamptz)',
+    'cancel_confirmed_appointment_by_customer(uuid,uuid)',
+    'complete_calendar_delete(uuid)',
+  ],
+  // שלב 8 — הסנכרון הנכנס מ-Google Calendar
+  '0008_google_calendar_inbound_sync.sql': [
+    'claim_calendar_sync_run(uuid,integer,text)',
+    'record_calendar_changes(uuid,jsonb,text,text)',
+    'reset_calendar_sync_cursor(uuid,boolean,text)',
+    'finish_calendar_sync_run(uuid,calendar_sync_run_status,text,jsonb)',
+    'claim_calendar_change(uuid,integer,integer)',
+    'finish_calendar_change(bigint,uuid,calendar_queue_status,calendar_change_result,text)',
+    'retry_calendar_change(bigint)',
+    'record_calendar_sync_issue(bigint,calendar_sync_issue_kind,calendar_sync_issue_status,text,uuid,timestamptz,timestamptz,text)',
+    'apply_google_reschedule(uuid,text,timestamptz,boolean,bigint)',
+    'mark_calendar_correction_required(uuid,text)',
+    'apply_google_cancellation(uuid,text,bigint)',
+  ],
+}
 
-/** המיגרציה שאמורה להחזיק את בלוק ה-assertion האמיתי */
-const ASSERTION_MIGRATION = '0007_reapply_rpc_permissions.sql'
+const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()
+const PROTECTED_COUNT = PROTECTED_SIGNATURES.length
 
 const INTENTIONALLY_OPEN = {
   is_admin:
@@ -171,10 +193,11 @@ chk(`${sensitive.length} פונקציות מסווגות כרגישות`, sensit
 
   // פונקציה שנעלמה או ששינתה חתימה
   const vanished = [...expected].filter(k => !found.has(k))
-  chk('כל 13 הפונקציות המוגנות עדיין קיימות באותן חתימות', vanished.length === 0,
+  chk(`כל ${PROTECTED_COUNT} הפונקציות המוגנות עדיין קיימות באותן חתימות`, vanished.length === 0,
     vanished.length ? `חסרות: ${vanished.join(', ')}` : `${expected.size} חתימות`)
 
-  chk('רשימת ההגנה מונה בדיוק 13 פונקציות', PROTECTED_SIGNATURES.length === 13,
+  chk(`רשימת ההגנה מונה בדיוק ${PROTECTED_COUNT} פונקציות`,
+    PROTECTED_SIGNATURES.length === PROTECTED_COUNT && expected.size === PROTECTED_COUNT,
     `count=${PROTECTED_SIGNATURES.length}`)
 }
 
@@ -204,45 +227,47 @@ section('אין REVOKE גורף שעלול לסגור פונקציה ציבור�
   chk('אין "revoke execute on all functions in schema"', broad === null, broad ?? '')
 }
 
-section('קיים בלוק assertion אמיתי במיגרציה')
+section('קיים בלוק assertion אמיתי בכל מיגרציה')
 
-{
-  const assertionFile = sources.find(f => f.file === ASSERTION_MIGRATION)
-  chk(`${ASSERTION_MIGRATION} קיימת`, Boolean(assertionFile))
+for (const [migrationFile, signatures] of Object.entries(ASSERTION_MIGRATIONS)) {
+  const assertionFile = sources.find(f => f.file === migrationFile)
+  chk(`${migrationFile} קיימת`, Boolean(assertionFile))
+  if (!assertionFile) continue
 
-  if (assertionFile) {
-    const clean = stripComments(assertionFile.sql)
+  const clean = stripComments(assertionFile.sql)
+  const label = migrationFile.slice(0, 4)
 
-    chk('קיים בלוק DO', /do\s+\$\$/i.test(clean))
-    chk('הבלוק משתמש ב-has_function_privilege',
-      /has_function_privilege/i.test(clean))
-    chk('הבלוק זורק חריגה בהפרה', /raise\s+exception/i.test(clean))
+  chk(`${label}: קיים בלוק DO`, /do\s+\$\$/i.test(clean))
+  chk(`${label}: הבלוק משתמש ב-has_function_privilege`,
+    /has_function_privilege/i.test(clean))
+  chk(`${label}: הבלוק זורק חריגה בהפרה`, /raise\s+exception/i.test(clean))
 
-    // שלושת התפקידים נבדקים
-    for (const role of ['anon', 'authenticated', 'service_role']) {
-      chk(`הבלוק בודק את התפקיד ${role}`,
-        new RegExp(`has_function_privilege\\(\\s*'${role}'`, 'i').test(clean))
-    }
-
-    // service_role נבדק בכיוון ההפוך — שההרשאה *נשמרה*
-    chk("service_role נבדק כ-'not has_function_privilege' (הרשאה שנשמרת)",
-      /not\s+has_function_privilege\(\s*'service_role'/i.test(clean))
-
-    // ⚠️ החיפוש מוגבל לגוף בלוק ה-DO בלבד. חיפוש בכל הקובץ היה "מוצא"
-    // כל חתימה גם בתוך פקודות ה-REVOKE עצמן, ובדיקה שמוצאת תמיד היא
-    // בדיקה שלא בודקת כלום.
-    const doBlock = clean.match(/do\s+\$\$([\s\S]*?)\$\$\s*;/i)?.[1] ?? ''
-    chk('גוף בלוק ה-DO אותר לבדיקה', doBlock.length > 0)
-
-    const missingFromBlock = PROTECTED_SIGNATURES.filter(sig => {
-      const name = sig.slice(0, sig.indexOf('('))
-      const types = sig.slice(sig.indexOf('(') + 1, -1)
-      const spaced = types ? types.split(',').join(', ') : ''
-      return !doBlock.includes(`public.${name}(${spaced})`)
-    })
-    chk('כל 13 החתימות מופיעות בבלוק ה-assertion', missingFromBlock.length === 0,
-      missingFromBlock.length ? `חסרות: ${missingFromBlock.join(', ')}` : '')
+  // שלושת התפקידים נבדקים
+  for (const role of ['anon', 'authenticated', 'service_role']) {
+    chk(`${label}: הבלוק בודק את התפקיד ${role}`,
+      new RegExp(`has_function_privilege\\(\\s*'${role}'`, 'i').test(clean))
   }
+
+  // service_role נבדק בכיוון ההפוך — שההרשאה *נשמרה*
+  chk(`${label}: service_role נבדק כ-'not has_function_privilege' (הרשאה שנשמרת)`,
+    /not\s+has_function_privilege\(\s*'service_role'/i.test(clean))
+
+  // ⚠️ החיפוש מוגבל לגוף בלוקי ה-DO בלבד. חיפוש בכל הקובץ היה "מוצא" כל
+  // חתימה גם בתוך פקודות ה-REVOKE עצמן, ובדיקה שמוצאת תמיד היא בדיקה
+  // שלא בודקת כלום.
+  const doBlocks = [...clean.matchAll(/do\s+\$\$([\s\S]*?)\$\$\s*;/gi)]
+    .map(m => m[1]).join('\n')
+  chk(`${label}: גוף בלוק ה-DO אותר לבדיקה`, doBlocks.length > 0)
+
+  const missingFromBlock = signatures.filter(sig => {
+    const name = sig.slice(0, sig.indexOf('('))
+    const types = sig.slice(sig.indexOf('(') + 1, -1)
+    const spaced = types ? types.split(',').join(', ') : ''
+    return !doBlocks.includes(`public.${name}(${spaced})`)
+  })
+  chk(`${label}: כל ${signatures.length} החתימות מופיעות בבלוק ה-assertion`,
+    missingFromBlock.length === 0,
+    missingFromBlock.length ? `חסרות: ${missingFromBlock.join(', ')}` : '')
 }
 
 section('פונקציות שנשארו פתוחות בכוונה')

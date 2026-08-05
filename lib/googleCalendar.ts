@@ -137,7 +137,7 @@ export async function createBookingEvent(params: {
 // הוא GET רגיל על אותו מזהה — לא חיפוש, לא ניחוש.
 // ============================================================================
 
-const CALENDAR_EVENT_SOURCE = 'sm_brows_website'
+export const CALENDAR_EVENT_SOURCE = 'sm_brows_website'
 
 /**
  * Google Calendar event IDs must be lowercase, match [a-v0-9]{5,1024}.
@@ -153,11 +153,27 @@ export function deterministicEventId(appointmentId: string): string {
   return `smbappt${appointmentId.replace(/-/g, '')}`
 }
 
+const DETERMINISTIC_EVENT_ID_RE = /^smbappt([0-9a-f]{32})$/
+
+/**
+ * ההיפוך של deterministicEventId — מזהה אירוע → appointment UUID, או null
+ * אם הוא אינו בצורה הזו כלל.
+ *
+ * ⚠️ ההחזרה אינה הוכחה שה-appointment קיים, רק שהמזהה *נגזר* מ-UUID.
+ * הקישור בפועל נבדק מול ה-DB (שלב 8, סיווג בעלות בסנכרון הנכנס).
+ */
+export function appointmentIdFromDeterministicEventId(eventId: string): string | null {
+  const m = DETERMINISTIC_EVENT_ID_RE.exec(eventId)
+  if (!m) return null
+  const h = m[1]
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 function isGoogleApiError(err: unknown): err is { code?: number | string; response?: { status?: number } } {
   return typeof err === 'object' && err !== null
 }
 
-function googleErrorStatus(err: unknown): number | undefined {
+export function googleErrorStatus(err: unknown): number | undefined {
   if (!isGoogleApiError(err)) return undefined
   const status = err.response?.status
   if (typeof status === 'number') return status
@@ -171,6 +187,19 @@ function googleErrorStatus(err: unknown): number | undefined {
 export function sanitizeGoogleError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err)
   return message.slice(0, 300)
+}
+
+/**
+ * ה-`reason` המובנה שגוגל מחזירה (`errors[0].reason`), למשל
+ * 'fullSyncRequired' או 'invalid'. משמש בשלב 8 כדי להבחין בין שגיאת cursor
+ * לשגיאה אחרת — הבחנה שאסור לבסס על ניחוש מטקסט חופשי, כי טעות בה מאפסת
+ * syncToken תקין ומאלצת סריקה מלאה של כל היומן.
+ */
+export function googleErrorReason(err: unknown): string | undefined {
+  if (!isGoogleApiError(err)) return undefined
+  const e = err as { errors?: { reason?: unknown }[]; response?: { data?: { error?: { errors?: { reason?: unknown }[] } } } }
+  const reason = e.errors?.[0]?.reason ?? e.response?.data?.error?.errors?.[0]?.reason
+  return typeof reason === 'string' ? reason : undefined
 }
 
 export interface AppointmentCalendarEvent {
