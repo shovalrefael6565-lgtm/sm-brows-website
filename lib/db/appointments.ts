@@ -419,29 +419,44 @@ export async function listAppointmentsForCustomer(
   return (data ?? []) as unknown as CustomerAppointmentRow[]
 }
 
+export type CustomerLookupResult =
+  | { ok: true; appointment: CustomerAppointmentRow }
+  | { ok: false; reason: 'not_found' | 'db_error' }
+
 /**
  * תור בודד של הלקוחה המחוברת. ה-customer_id הוא חלק מהשאילתה ולא נבדק
  * אחריה — תור של לקוחה אחרת פשוט לא נמצא, ולכן אין דרך להסיק מהתשובה
  * שהוא קיים בכלל.
+ *
+ * ⚠️ "לא נמצא" ו-"השאילתה נכשלה" מוחזרים בנפרד ולא מתמזגים ל-null.
+ * מיזוג כזה היה הופך תקלת DB ל-404 "התור לא נמצא" — הודעה שקרית ללקוחה,
+ * ובמסלול הביטול גם נפילה שקטה חזרה למסלול ה-pending. כשל אמיתי חייב
+ * להיראות ככשל (503).
  */
 export async function getAppointmentForCustomer(
   appointmentId: string,
   customerId: string,
-): Promise<CustomerAppointmentRow | null> {
+): Promise<CustomerLookupResult> {
   const db = createSupabaseAdminClient()
-  const { data, error } = await db
-    .from('appointments')
-    .select(CUSTOMER_APPOINTMENT_COLUMNS)
-    .eq('id', appointmentId)
-    .eq('customer_id', customerId)
-    .maybeSingle()
+  try {
+    const { data, error } = await db
+      .from('appointments')
+      .select(CUSTOMER_APPOINTMENT_COLUMNS)
+      .eq('id', appointmentId)
+      .eq('customer_id', customerId)
+      .maybeSingle()
 
-  if (error) {
-    console.error('[appointments] customer detail failed', error.message)
-    return null
+    if (error) {
+      console.error('[appointments] customer detail failed', error.message)
+      return { ok: false, reason: 'db_error' }
+    }
+    if (!data) return { ok: false, reason: 'not_found' }
+    return { ok: true, appointment: data as unknown as CustomerAppointmentRow }
+  } catch (err) {
+    console.error('[appointments] customer detail threw',
+      err instanceof Error ? err.message : String(err))
+    return { ok: false, reason: 'db_error' }
   }
-  if (!data) return null
-  return data as unknown as CustomerAppointmentRow
 }
 
 /**

@@ -31,7 +31,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
-  const appt = await getAppointmentForCustomer(id, session.customerId)
+  const lookup = await getAppointmentForCustomer(id, session.customerId)
+
+  // תקלת DB אינה "לא נמצא" ואסור לה להפיל אותנו בשקט למסלול ה-pending
+  if (!lookup.ok && lookup.reason === 'db_error') {
+    return NextResponse.json(
+      {
+        error: 'service_unavailable',
+        message: 'לא ניתן לבצע את הפעולה כרגע. נסי שוב בעוד מספר דקות או פני לשובל.',
+        offerWhatsApp: true,
+      },
+      { status: 503 },
+    )
+  }
+
+  const appt = lookup.ok ? lookup.appointment : null
 
   // ── תור מאושר: המסלול של שלב 7 ────────────────────────────────────────────
   if (appt?.status === 'confirmed' || appt?.status === 'cancelled_by_customer') {

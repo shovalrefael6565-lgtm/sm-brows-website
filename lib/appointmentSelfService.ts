@@ -113,6 +113,19 @@ const NOT_FOUND: SelfServiceFail = {
   message: 'התור לא נמצא, כבר טופל, או שאינו שלך.',
 }
 
+/**
+ * תקלה בקריאה מה-DB — לא "לא נמצא". אותה תשובה בדיוק כמו כשל בטעינת
+ * המדיניות: הפעולה נחסמת, שום דבר לא נכתב, והלקוחה מקבלת הודעה זמנית
+ * עם אפשרות לפנות לשובל.
+ */
+const SERVICE_UNAVAILABLE: SelfServiceFail = {
+  ok: false,
+  status: 503,
+  error: 'settings_unavailable',
+  message: 'לא ניתן לבצע את הפעולה כרגע. נסי שוב בעוד מספר דקות או פני לשובל.',
+  offerWhatsApp: true,
+}
+
 // ── יכולות התור, לחישוב בשרת לפני רינדור האזור האישי ────────────────────────
 
 export interface AppointmentCapabilities {
@@ -182,8 +195,9 @@ export interface RescheduleParams {
 export async function rescheduleForCustomer(params: RescheduleParams): Promise<RescheduleResult> {
   if (!isNewBookingSystemEnabled()) return FEATURE_DISABLED
 
-  const appt = await getAppointmentForCustomer(params.appointmentId, params.customerId)
-  if (!appt) return NOT_FOUND
+  const lookup = await getAppointmentForCustomer(params.appointmentId, params.customerId)
+  if (!lookup.ok) return lookup.reason === 'db_error' ? SERVICE_UNAVAILABLE : NOT_FOUND
+  const appt = lookup.appointment
 
   const policyResult = await loadAppointmentPolicy()
   if (!policyResult.ok) return SETTINGS_UNAVAILABLE
@@ -300,8 +314,9 @@ export async function cancelConfirmedForCustomer(
 ): Promise<CancelResult> {
   if (!isNewBookingSystemEnabled()) return FEATURE_DISABLED
 
-  const appt = await getAppointmentForCustomer(appointmentId, customerId)
-  if (!appt) return NOT_FOUND
+  const lookup = await getAppointmentForCustomer(appointmentId, customerId)
+  if (!lookup.ok) return lookup.reason === 'db_error' ? SERVICE_UNAVAILABLE : NOT_FOUND
+  const appt = lookup.appointment
 
   const policyResult = await loadAppointmentPolicy()
   if (!policyResult.ok) return SETTINGS_UNAVAILABLE

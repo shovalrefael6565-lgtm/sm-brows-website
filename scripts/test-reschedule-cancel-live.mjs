@@ -46,6 +46,8 @@ const {
 // וגם כפתור ה-retry הניהולי. מיובאת דרך --conditions=react-server בגלל
 // 'server-only', כמו ב-test:account-core.
 const { retryCalendarSync } = await import('../lib/appointmentApproval.ts')
+const { rescheduleForCustomer, cancelConfirmedForCustomer } = await import('../lib/appointmentSelfService.ts')
+const { loadAppointmentPolicy } = await import('../lib/db/businessSettings.ts')
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -491,6 +493,176 @@ try {
 
       const delAgain = await retryCalendarSync(a2.id)
       chk('retry נוסף על מחיקה שכבר הושלמה הוא idempotent', delAgain.ok === true)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('EXCLUDE constraint על סלוט תפוס (Supabase אמיתי)')
+
+    {
+      const t1 = new Date(`${ISO_DATE}T05:00:00.000Z`)
+      const t2 = new Date(`${ISO_DATE}T05:40:00.000Z`)
+
+      const mk = async startsAt => {
+        const { data } = await db.from('appointments').insert({
+          customer_id: uid, service_key: 'עיצוב גבות טבעיות', variants: [], price_total: 70,
+          starts_at: startsAt.toISOString(), ends_at: startsAt.toISOString(),
+          duration_min: 20, status: 'confirmed',
+          calendar_sync_status: 'synced', calendar_sync_operation: 'upsert',
+        }).select().single()
+        createdAppointmentIds.add(data.id)
+        return data
+      }
+      const mine = await mk(t1)
+      const hers = await mk(t2)
+
+      const { error: clashErr } = await db.rpc('reschedule_appointment_by_customer', {
+        p_appointment_id: mine.id, p_customer_id: uid,
+        p_new_starts_at: t2.toISOString(), p_expected_starts_at: t1.toISOString(),
+      })
+      chk('הזזה לסלוט תפוס נחסמה ע"י ה-EXCLUDE constraint',
+        clashErr?.code === '23P01', `code=${clashErr?.code}`)
+
+      const { data: still } = await db.from('appointments')
+        .select('starts_at, reschedule_count').eq('id', mine.id).single()
+      chk('התור נשאר במועד המקורי אחרי ההתנגשות',
+        new Date(still.starts_at).getTime() === t1.getTime() && still.reschedule_count === 0)
+
+      const { data: hist } = await db.from('appointment_history')
+        .select('id').eq('appointment_id', mine.id)
+      chk('לא נכתבה היסטוריה בהתנגשות', hist.length === 0)
+      const { data: other } = await db.from('appointments').select('starts_at').eq('id', hers.id).single()
+      chk('התור השני לא נגוע', new Date(other.starts_at).getTime() === t2.getTime())
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('התאוששות מ-timeout — בלי מונה או היסטוריה כפולים')
+
+    {
+      const base = new Date(`${ISO_DATE}T04:00:00.000Z`)
+      const { data: a3 } = await db.from('appointments').insert({
+        customer_id: uid, service_key: 'עיצוב גבות טבעיות', variants: [], price_total: 70,
+        starts_at: base.toISOString(), ends_at: base.toISOString(),
+        duration_min: 20, status: 'confirmed',
+        calendar_sync_status: 'synced', calendar_sync_operation: 'upsert',
+      }).select().single()
+      createdAppointmentIds.add(a3.id)
+
+      const target = new Date(`${ISO_DATE}T03:00:00.000Z`)
+      const args = {
+        p_appointment_id: a3.id, p_customer_id: uid,
+        p_new_starts_at: target.toISOString(), p_expected_starts_at: base.toISOString(),
+      }
+      const first = await db.rpc('reschedule_appointment_by_customer', args)
+      const second = await db.rpc('reschedule_appointment_by_customer', args)
+
+      chk('הבקשה הראשונה applied', first.data?.outcome === 'applied')
+      chk('הבקשה החוזרת (timeout) מזוהה כ-already_applied ולא כשגיאה',
+        second.data?.outcome === 'already_applied', second.data?.outcome ?? second.error?.message)
+
+      const { data: st } = await db.from('appointments')
+        .select('reschedule_count, original_starts_at, starts_at').eq('id', a3.id).single()
+      chk('reschedule_count גדל בדיוק פעם אחת', st.reschedule_count === 1, `count=${st.reschedule_count}`)
+      chk('original_starts_at הוא המועד המקורי', new Date(st.original_starts_at).getTime() === base.getTime())
+      chk('starts_at הוא המועד החדש', new Date(st.starts_at).getTime() === target.getTime())
+
+      const { data: h } = await db.from('appointment_history')
+        .select('action').eq('appointment_id', a3.id)
+      chk('נכתבה שורת היסטוריה אחת בלבד', h.length === 1, `count=${h.length}`)
+
+      // בחירת המועד הקיים בפעם הראשונה — no_change, לא "התאוששות"
+      const same = await db.rpc('reschedule_appointment_by_customer', {
+        p_appointment_id: a3.id, p_customer_id: uid,
+        p_new_starts_at: target.toISOString(), p_expected_starts_at: target.toISOString(),
+      })
+      chk('בחירת אותו מועד שהוצג = no_change', same.data?.outcome === 'no_change')
+      const { data: st2 } = await db.from('appointments')
+        .select('reschedule_count').eq('id', a3.id).single()
+      chk('no_change לא הגדיל את המונה', st2.reschedule_count === 1)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('כשל בקריאת business_settings → 503, בלי לשנות דבר')
+
+    {
+      const base = new Date(`${ISO_DATE}T02:00:00.000Z`)
+      const { data: a4 } = await db.from('appointments').insert({
+        customer_id: uid, service_key: 'עיצוב גבות טבעיות', variants: [], price_total: 70,
+        starts_at: base.toISOString(), ends_at: base.toISOString(),
+        duration_min: 20, status: 'confirmed',
+        calendar_sync_status: 'synced', calendar_sync_operation: 'upsert',
+      }).select().single()
+      createdAppointmentIds.add(a4.id)
+
+      const realUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      // מנתקים את השרת מ-Supabase — מדמה תקלת רשת/שירות בקריאת ההגדרות
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://sm-brows-unreachable.invalid'
+      try {
+        const policy = await loadAppointmentPolicy()
+        chk('loadAppointmentPolicy נכשל בבטחה ולא מחזיר ברירות מחדל',
+          policy.ok === false && policy.error === 'settings_unavailable')
+
+        const res = await rescheduleForCustomer({
+          appointmentId: a4.id, customerId: uid,
+          isoDate: ISO_DATE, time: '10:00', expectedStartsAt: base.toISOString(),
+        })
+        chk('הזזה מחזירה 503 כשה-DB אינו נגיש',
+          res.ok === false && res.status === 503, `status=${res.status}`)
+        chk('ההודעה ללקוחה גנרית ולא חושפת שגיאה טכנית',
+          res.ok === false && res.message.includes('נסי שוב בעוד מספר דקות') &&
+          !res.message.toLowerCase().includes('fetch') &&
+          !res.message.toLowerCase().includes('supabase'))
+        chk('מוצעת פנייה לוואטסאפ', res.ok === false && res.offerWhatsApp === true)
+
+        const cancelRes = await cancelConfirmedForCustomer(a4.id, uid)
+        chk('ביטול מחזיר 503 באותו מצב', cancelRes.ok === false && cancelRes.status === 503)
+      } finally {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = realUrl
+      }
+
+      // שום דבר לא השתנה
+      const { data: after } = await db.from('appointments')
+        .select('starts_at, status, reschedule_count, calendar_sync_status')
+        .eq('id', a4.id).single()
+      chk('starts_at לא השתנה', new Date(after.starts_at).getTime() === base.getTime())
+      chk('status נשאר confirmed', after.status === 'confirmed')
+      chk('reschedule_count נשאר 0', after.reschedule_count === 0)
+      chk('סטטוס הסנכרון לא נגוע', after.calendar_sync_status === 'synced')
+      const { data: h } = await db.from('appointment_history').select('id').eq('appointment_id', a4.id)
+      chk('לא נכתבה שום היסטוריה', h.length === 0, `count=${h.length}`)
+      chk('לא נוצר אירוע ביומן', (await eventsForAppointment(a4.id)).length === 0)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('רגרסיה: ביטול בקשת pending ממשיך לעבוד')
+
+    {
+      const base = new Date(`${ISO_DATE}T01:00:00.000Z`)
+      const { data: pend, error: pendErr } = await db.rpc('create_pending_appointment', {
+        p_customer_id: uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
+        p_price_total: 70, p_starts_at: base.toISOString(), p_duration_min: 20,
+        p_notes: null, p_policy_version: 'test',
+      })
+      chk('בקשת pending נוצרה', !pendErr && pend?.status === 'pending', pendErr?.message ?? '')
+      if (pend) createdAppointmentIds.add(pend.id)
+
+      const { error: cErr } = await db.rpc('cancel_pending_appointment', {
+        p_appointment_id: pend.id, p_customer_id: uid,
+      })
+      chk('ביטול pending הישן הצליח', !cErr, cErr?.message ?? '')
+
+      const { data: after } = await db.from('appointments')
+        .select('status, calendar_sync_status, calendar_sync_operation').eq('id', pend.id).single()
+      chk('הסטטוס cancelled_by_customer', after.status === 'cancelled_by_customer')
+      chk('ביטול pending לא ביקש מחיקת אירוע (operation נשאר upsert)',
+        after.calendar_sync_operation === 'upsert' &&
+        after.calendar_sync_status === 'not_applicable',
+        `${after.calendar_sync_operation}/${after.calendar_sync_status}`)
+
+      const { data: h } = await db.from('appointment_history')
+        .select('action, actor').eq('appointment_id', pend.id).order('id')
+      chk('היסטוריה: created ואז cancelled, actor=customer',
+        h.length === 2 && h[0].action === 'created' && h[1].action === 'cancelled' &&
+        h.every(x => x.actor === 'customer'))
     }
   }
 
