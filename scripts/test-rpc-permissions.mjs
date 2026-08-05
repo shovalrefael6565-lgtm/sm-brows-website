@@ -75,6 +75,17 @@ const ASSERTION_MIGRATIONS = {
     'mark_calendar_correction_required(uuid,text)',
     'apply_google_cancellation(uuid,text,bigint)',
   ],
+  // שלב 9 — CRM ופרופיל לקוחה
+  '0009_customer_crm.sql': [
+    'assert_crm_actor_is_admin(uuid)',
+    'list_crm_customers(text,text,text,text,timestamptz,timestamptz,integer,integer)',
+    'get_crm_customer(uuid)',
+    'set_customer_crm_status(uuid,text,uuid)',
+    'set_customer_source(uuid,text,uuid)',
+    'create_customer_note(uuid,text,uuid,uuid)',
+    'update_customer_note(uuid,uuid,text,uuid)',
+    'archive_customer_note(uuid,uuid,uuid)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()
@@ -281,6 +292,69 @@ for (const [name, reason] of Object.entries(INTENTIONALLY_OPEN)) {
   const triggers = [...defined.values()].filter(e => e.isTrigger).map(e => e.name)
   chk('פונקציות טריגר אינן נדרשות ל-REVOKE (לא נגישות כ-RPC)',
     triggers.length > 0, triggers.join(', '))
+}
+
+// ── בדיקה שלילית: השומר עצמו חייב ליפול ──────────────────────────────────────
+//
+// כל הבדיקות עד כאן מדווחות ✓ כשהמצב תקין. אבל בדיקה שמדווחת ✓ תמיד — גם
+// כשהיא שבורה — אינה בדיקה. הסעיף הזה מזריק מיגרציה סינתטית *בזיכרון* עם
+// RPC לא מוגן, ומריץ עליה את אותה לוגיקת זיהוי בדיוק. אם השומר לא נופל
+// כאן, סימן שהוא לא היה נופל גם על RPC אמיתי שיישכח.
+//
+// המיגרציות עצמן אינן נקראות ואינן משתנות — הכול מחרוזות בזיכרון.
+
+section('בדיקה שלילית: השומר נופל על RPC לא מוגן')
+
+{
+  const FAKE_UNPROTECTED = `
+    create or replace function public.forgotten_crm_rpc(p_id uuid, p_body text)
+    returns void language plpgsql as $$ begin null; end; $$;
+  `
+  const clean = stripComments(FAKE_UNPROTECTED)
+
+  // 1. הפרסר מזהה את הפונקציה החדשה
+  const parsed = [...clean.matchAll(CREATE_RE)].map(m => sigKey(m[1], parseArgs(m[2])))
+  chk('הפרסר מזהה RPC חדש שנוסף למיגרציה',
+    parsed.includes('forgotten_crm_rpc(uuid,text)'), parsed.join(', '))
+
+  // 2. הוא אינו ברשימת ההגנה → "אין פונקציה רגישה שאינה ברשימה" חייב ליפול
+  const expected = new Set(PROTECTED_SIGNATURES)
+  const wouldBeUnlisted = parsed.filter(k => !expected.has(k))
+  chk('⚠️ RPC לא מוגן מזוהה כחסר מרשימת ההגנה', wouldBeUnlisted.length === 1,
+    wouldBeUnlisted.join(', '))
+
+  // 3. אין לו REVOKE כלל → בדיקת ה-REVOKE חייבת ליפול
+  const revokes = [...clean.matchAll(REVOKE_RE)]
+  const missingRoles = ['public', 'anon', 'authenticated']
+    .filter(r => !revokes.some(m => m[3].toLowerCase().includes(r)))
+  chk('⚠️ היעדר REVOKE מזוהה', missingRoles.length === 3, missingRoles.join(', '))
+
+  // 4. REVOKE חלקי — הטעות שקרתה בפועל ב-0003–0005 (רק from public)
+  const PARTIAL = `
+    create or replace function public.partial_revoke_rpc(p_id uuid)
+    returns void language plpgsql as $$ begin null; end; $$;
+    revoke execute on function public.partial_revoke_rpc(uuid) from public;
+    grant  execute on function public.partial_revoke_rpc(uuid) to service_role;
+  `
+  const pClean = stripComments(PARTIAL)
+  const pRevoked = new Set()
+  for (const m of pClean.matchAll(REVOKE_RE)) {
+    m[3].split(',').forEach(r => pRevoked.add(r.trim().toLowerCase()))
+  }
+  const stillOpen = ['anon', 'authenticated'].filter(r => !pRevoked.has(r))
+  chk('⚠️ REVOKE רק מ-public (הבאג של 0003–0005) מזוהה כחסר',
+    stillOpen.length === 2, `נותרו פתוחים: ${stillOpen.join(', ')}`)
+
+  // 5. חתימה שהשתנתה מזוהה כ"נעלמה"
+  const RENAMED = `
+    create or replace function public.get_crm_customer(p_customer_id uuid, p_extra text)
+    returns jsonb language sql stable as $$ select null::jsonb $$;
+  `
+  const rParsed = [...stripComments(RENAMED).matchAll(CREATE_RE)]
+    .map(m => sigKey(m[1], parseArgs(m[2])))
+  chk('⚠️ שינוי חתימה של RPC מוגן מזוהה כחתימה אחרת',
+    !rParsed.includes('get_crm_customer(uuid)') &&
+    rParsed.includes('get_crm_customer(uuid,text)'), rParsed.join(', '))
 }
 
 // ── סיכום ───────────────────────────────────────────────────────────────────

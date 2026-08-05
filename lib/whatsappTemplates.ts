@@ -34,3 +34,14 @@ export function buildWhatsAppLinkToCustomer(phoneE164: string, message: string):
   const digits = phoneE164.replace(/^\+/, '')
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
 }
+
+/**
+ * קישור לשיחה עם הלקוחה **בלי טקסט מוכן** — לכפתור ה-WhatsApp ב-CRM.
+ *
+ * בכוונה ללא הודעה: פתיחת שיחה מפרופיל הלקוחה אינה פעולה טיפולית או
+ * שיווקית, ואין שום נוסח שנכון להמציא עבורה. שובל כותבת בעצמה.
+ * הכפתור נפתח אך ורק בלחיצה, ואינו נרשם כאילו נשלחה הודעה.
+ */
+export function buildWhatsAppLinkPlain(phoneE164: string): string {
+  return `https://wa.me/${phoneE164.replace(/^\+/, '')}`
+}
