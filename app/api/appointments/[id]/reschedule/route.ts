@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { rescheduleForCustomer } from '@/lib/appointmentSelfService'
 
 export const dynamic = 'force-dynamic'
@@ -20,8 +20,8 @@ const TIME_RE = /^\d{2}:\d{2}$/
  * מחיר, משך או בעלות.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession()
-  if (!session?.customerId) {
+  const customerId = await getCurrentCustomerId()
+  if (!customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const result = await rescheduleForCustomer({
     appointmentId: id,
-    customerId: session.customerId,
+    customerId,
     isoDate,
     time,
     expectedStartsAt,

@@ -85,8 +85,13 @@ try {
       createdUsers.push(uid)
 
       const phone = `+9725${Math.floor(10000000 + Math.random() * 89999999)}`
+      // ⚠️ auth_user_id הוא מה שקושר את הלקוחה לחשבון ההתחברות מאז 0010.
+      // עד אז customers.id *היה* ה-auth user id וה-RLS השווה אותו ישירות
+      // מול auth.uid(); היום הבעלות עוברת דרך auth_user_id בלבד, ולקוחה
+      // בלי קישור (לקוחה ידנית) אינה נראית לאף תפקיד API — וזו בדיוק
+      // ההתנהגות שהבדיקות כאן מסתמכות עליה בהמשך.
       const { error: cErr } = await svc.from('customers')
-        .insert({ id: uid, phone_e164: phone, full_name: `${TEST_NAME} ${label}` })
+        .insert({ id: uid, phone_e164: phone, full_name: `${TEST_NAME} ${label}`, auth_user_id: uid })
       if (cErr) throw new Error(`יצירת לקוחה נכשלה: ${cErr.message}`)
 
       const client = createClient(URL_, ANON, opts)

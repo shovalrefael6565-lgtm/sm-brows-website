@@ -23,7 +23,7 @@ const SESSION_TTL_SEC = SESSION_TTL_DAYS * 24 * 60 * 60
 export type SessionRole = 'customer' | 'admin'
 
 export interface SessionPayload {
-  /** auth.users.id — זהה גם ל-customers.id וגם למקור ב-admins.user_id */
+  /** auth.users.id — המקור ב-admins.user_id וב-customers.auth_user_id */
   userId: string
   phone: string
   /**
@@ -33,8 +33,23 @@ export interface SessionPayload {
    * אחרי שה-session הישן יפוג.
    */
   role: SessionRole
-  /** קיים רק כש-role === 'customer' */
-  customerId?: string
+  /**
+   * ⚠️ **רמז בלבד — לעולם לא מקור בעלות.**
+   *
+   * מאז שלב 10 מזהה הלקוחה אינו זהה ל-auth user id, ולכן הוא נשמר כאן
+   * במפורש. אבל חתימה מונעת *זיוף*, לא *התיישנות*: ה-cookie תקף 30 יום,
+   * ובתוכם ה-auth user יכול להימחק או ה-auth_user_id להתאפס ל-NULL, בעוד
+   * ה-cid הישן ממשיך להצביע על לקוחה קיימת. route שהיה סומך עליו לבדו
+   * (עם service_role, שעוקף RLS) היה ממשיך לתת גישה.
+   *
+   * לכן הבעלות מוכחת מחדש בכל בקשה מול customers.auth_user_id — ראה
+   * lib/auth/currentCustomer.ts. ה-cid משמש שם אך ורק כבדיקת עקביות:
+   * אם הוא סותר את ה-DB, ה-session נדחה.
+   *
+   * קיים רק כש-role === 'customer'. ל-admin אין בעלות על לקוחה, גם אם
+   * קיימת לו שורת customers טכנית.
+   */
+  cid?: string
 }
 
 function getSecret(): Uint8Array {
@@ -49,7 +64,12 @@ function getSecret(): Uint8Array {
 
 /** יוצר cookie חתום ומצרף אותו לתגובה */
 export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await new SignJWT({ phone: payload.phone, role: payload.role })
+  // cid נשמר אך ורק ללקוחה. session של מנהלת לא נושאת בעלות על שום
+  // לקוחה — גם לשובל ולרפאל יש שורת customers (כדי שיוכלו להתחבר), ואסור
+  // שהיא תהפוך אותן ללקוחות לצורך /account או ביטול/הזזה של תור.
+  const cid = payload.role === 'customer' ? payload.cid : undefined
+
+  const token = await new SignJWT({ phone: payload.phone, role: payload.role, cid })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.userId)
     .setIssuedAt()
@@ -91,7 +111,10 @@ export async function getSession(): Promise<SessionPayload | null> {
       userId,
       phone: payload.phone,
       role,
-      customerId: role === 'customer' ? userId : undefined,
+      // ⚠️ לא נגזר מ-userId. עד שלב 10 הם היו אותו ערך, ולקיחת ה-auth id
+      // כמזהה לקוחה הייתה עובדת "במקרה". session ישן (לפני שלב 10) פשוט
+      // אין לו cid, וההיפוך לזהות הלקוחה נעשה מול ה-DB.
+      cid: typeof payload.cid === 'string' ? payload.cid : undefined,
     }
   } catch {
     // תוקף פג, חתימה שגויה, או cookie מזויף — כולם מטופלים אותו דבר

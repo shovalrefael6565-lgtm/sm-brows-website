@@ -28,7 +28,7 @@ export async function requireAdminPage(): Promise<{ userId: string }> {
   const admin = await isAdmin(session.userId)
   if (!admin) {
     // לקוחה רגילה מנותבת לאזור שלה, לא ללולאת login
-    redirect(session.customerId ? '/account' : '/admin/login')
+    redirect(session.role === 'customer' ? '/account' : '/admin/login')
   }
 
   return { userId: session.userId }

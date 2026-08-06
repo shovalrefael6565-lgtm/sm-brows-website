@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LoginForm from '@/components/account/LoginForm'
 import { getSession } from '@/lib/auth/session'
-import { getCustomerById } from '@/lib/db/customers'
+import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { isAdmin } from '@/lib/db/admins'
 
 export const metadata: Metadata = {
@@ -26,8 +26,10 @@ export default async function LoginPage() {
   // הוא יוחלף בעצמו בכניסה הבאה).
   if (session?.role === 'admin') {
     if (await isAdmin(session.userId)) redirect('/admin')
-  } else if (session?.customerId) {
-    if (await getCustomerById(session.customerId)) redirect('/account')
+  } else if (session?.role === 'customer') {
+    // getCurrentCustomerId מוכיחה את הקישור מול customers.auth_user_id,
+    // ולכן היא גם מכסה את המקרה שה-cookie שרד את מחיקת החשבון.
+    if (await getCurrentCustomerId()) redirect('/account')
   }
 
   return (

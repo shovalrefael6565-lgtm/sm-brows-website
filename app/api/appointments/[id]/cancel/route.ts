@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { cancelPendingAppointment, getAppointmentForCustomer } from '@/lib/db/appointments'
 import { cancelConfirmedForCustomer } from '@/lib/appointmentSelfService'
 
@@ -21,8 +21,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * ה-UPDATE), ולכן טעינת התור כאן משמשת לבחירת המסלול בלבד — לא כהרשאה.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession()
-  if (!session?.customerId) {
+  const customerId = await getCurrentCustomerId()
+  if (!customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
-  const lookup = await getAppointmentForCustomer(id, session.customerId)
+  const lookup = await getAppointmentForCustomer(id, customerId)
 
   // תקלת DB אינה "לא נמצא" ואסור לה להפיל אותנו בשקט למסלול ה-pending
   if (!lookup.ok && lookup.reason === 'db_error') {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // ── תור מאושר: המסלול של שלב 7 ────────────────────────────────────────────
   if (appt?.status === 'confirmed' || appt?.status === 'cancelled_by_customer') {
-    const result = await cancelConfirmedForCustomer(id, session.customerId)
+    const result = await cancelConfirmedForCustomer(id, customerId)
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error, message: result.message, offerWhatsApp: result.offerWhatsApp ?? false },
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // ── בקשה ממתינה: המסלול הקיים, ללא שינוי ──────────────────────────────────
-  const result = await cancelPendingAppointment(id, session.customerId)
+  const result = await cancelPendingAppointment(id, customerId)
   if (!result.ok) {
     if (result.error === 'not_found') {
       return NextResponse.json(

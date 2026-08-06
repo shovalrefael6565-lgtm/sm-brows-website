@@ -4,7 +4,7 @@ import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
 import CancelPendingButton from '@/components/account/CancelPendingButton'
 import AppointmentActions from '@/components/account/AppointmentActions'
-import { getSession } from '@/lib/auth/session'
+import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { getCustomerById } from '@/lib/db/customers'
 import { listAppointmentsForCustomer, type CustomerAppointmentRow } from '@/lib/db/appointments'
 import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
@@ -141,11 +141,12 @@ function AppointmentCard({ appt, policy }: CardProps) {
  * כל פעולה נבדקת שוב במלואה ב-API וב-RPC (ראה lib/appointmentSelfService.ts).
  */
 export default async function AccountPage() {
-  const session = await getSession()
-  if (!session?.customerId) redirect('/login')
+  // מזהה הלקוחה מוכח מחדש מול customers.auth_user_id בכל טעינה — לא
+  // נגזר מה-auth user id ולא נלקח מפרמטר ב-URL (lib/auth/currentCustomer.ts)
+  const customerId = await getCurrentCustomerId()
+  if (!customerId) redirect('/login')
 
-  // הנתונים נשלפים לפי המזהה מה-session בלבד — לעולם לא מפרמטר ב-URL
-  const customer = await getCustomerById(session.customerId)
+  const customer = await getCustomerById(customerId)
   if (!customer) redirect('/login')
 
   const [appointments, policyResult] = await Promise.all([

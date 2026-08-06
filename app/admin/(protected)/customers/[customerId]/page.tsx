@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronRight, MessageCircle } from 'lucide-react'
+import { ChevronRight, MessageCircle, CalendarPlus } from 'lucide-react'
 import {
   getCrmCustomer, listCustomerNotes, listCrmActivity, listCrmSources,
   listCustomerAppointments, listAppointmentHistory,
@@ -91,17 +91,28 @@ export default async function CustomerProfilePage({
               <span>·</span>
               <span>{sourceLabel}</span>
               <span>·</span>
-              {/* customers.id הוא FK ל-auth.users(id), ולכן חשבון התחברות
-                  קיים תמיד בסכמה הנוכחית. כשתיבנה יצירת לקוחה ידנית תשתנה
-                  הסכמה והאינדיקציה תעודכן בהתאם — ראה lib/db/crm.ts. */}
-              <span>יש חשבון התחברות</span>
+              {/* ערך אמיתי מ-customers.auth_user_id (שלב 10) ולא הנחה.
+                  לקוחה שנוצרה ידנית ב-CRM קיימת בלי חשבון עד שתתחבר
+                  בעצמה עם OTP, ואז החשבון נקשר לשורה הזו. */}
+              <span className={customer.has_login_account ? undefined : 'text-brand-gold-text'}>
+                {customer.has_login_account ? 'יש חשבון התחברות' : 'ללא חשבון התחברות'}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
               {status.label}
             </span>
+            {/* הלקוחה כבר נבחרת מראש בטופס — אין צורך לחפש אותה שוב */}
+            <Link
+              href={`/admin/appointments/new?customerId=${customer.id}`}
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand-dark
+                         text-white text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+            >
+              <CalendarPlus className="w-4 h-4" aria-hidden="true" />
+              יצירת תור
+            </Link>
             {/* נפתח אך ורק בלחיצה, בלי טקסט מוכן ובלי רישום כאילו נשלחה הודעה */}
             <a
               href={buildWhatsAppLinkPlain(customer.phone_e164)}

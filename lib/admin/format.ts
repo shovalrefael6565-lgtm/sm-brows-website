@@ -62,6 +62,7 @@ export const CRM_ACTION_LABELS: Record<string, string> = {
   note_created:       'נוספה הערה',
   note_updated:       'הערה עודכנה',
   note_archived:      'הערה הועברה לארכיון',
+  customer_created:   'הלקוחה נוצרה במערכת הניהול',
 }
 
 /** תוויות ה-actor בהיסטוריית תור */
@@ -87,6 +88,7 @@ export const HISTORY_ACTION_LABELS: Record<string, string> = {
 export function historySourceLabel(source: string | null): string | null {
   if (!source) return null
   if (source === 'google_calendar') return 'מיומן Google'
+  if (source === 'admin_dashboard') return 'ממערכת הניהול'
   return null
 }
 
@@ -104,4 +106,29 @@ export const CRM_ERROR_MESSAGES: Record<string, string> = {
   idempotency_key_reused: 'התוכן השתנה מאז השליחה הקודמת. רענני את העמוד ונסי שוב.',
   missing_request_id:     'הבקשה אינה תקינה. רענני את העמוד ונסי שוב.',
   unknown:                'הפעולה נכשלה. נסי שוב.',
+}
+
+/**
+ * הודעות שגיאה לפעולות הניהול של שלב 10 (יצירת לקוחה ויצירת תור).
+ *
+ * ⚠️ phone_taken מנוסח בכוונה בלי לומר *למי* שייך המספר: הוא מוחזר גם
+ * כשהמספר שייך לחשבון מנהל, ואין להסגיר זאת.
+ */
+export const ADMIN_ERROR_MESSAGES: Record<string, string> = {
+  ...CRM_ERROR_MESSAGES,
+  invalid_name:         'יש להזין שם מלא (2 עד 80 תווים).',
+  invalid_phone:        'מספר הטלפון אינו תקין. יש להזין מספר נייד ישראלי.',
+  phone_taken:          'המספר הזה כבר קיים במערכת.',
+  bad_fingerprint:      'הבקשה אינה תקינה. רענני את העמוד ונסי שוב.',
+  invalid_service:      'יש לבחור טיפול.',
+  variants_required:    'יש לבחור לפחות תוספת אחת לטיפול.',
+  invalid_variants:     'התוספות שנבחרו אינן מתאימות לטיפול הזה.',
+  invalid_slot:         'המועד שנבחר אינו תקין.',
+  start_in_past:        'לא ניתן לקבוע תור במועד שכבר עבר.',
+  invalid_duration:     'משך הטיפול אינו תקין.',
+  slot_taken:           'המועד הזה כבר תפוס. יש לבחור מועד אחר.',
+  calendar_conflict:    'המועד הזה מתנגש עם אירוע קיים ביומן. יש לבחור מועד אחר.',
+  calendar_unavailable: 'לא הצלחנו לבדוק את היומן כרגע. נסי שוב בעוד רגע.',
+  customer_is_admin:    'לא ניתן לקבוע תור לחשבון ניהולי.',
+  integrity_error:      'נמצאה אי-התאמה בנתוני הבקשה. רענני את העמוד ובדקי את רשימת התורים.',
 }

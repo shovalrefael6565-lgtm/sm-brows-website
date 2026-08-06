@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { getCustomerById } from '@/lib/db/customers'
 import { createPendingAppointment } from '@/lib/db/appointments'
 import { getBusyRanges } from '@/lib/googleCalendar'
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const session = await getSession()
-  if (!session?.customerId) {
+  const customerId = await getCurrentCustomerId()
+  if (!customerId) {
     return NextResponse.json(
       { error: 'unauthorized', message: 'יש לאמת את מספר הטלפון לפני שמירת הבקשה.' },
       { status: 401 },
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     console.error('[appointments] calendar pre-check failed', err)
   }
 
-  const customer = await getCustomerById(session.customerId)
+  const customer = await getCustomerById(customerId)
   if (!customer) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }

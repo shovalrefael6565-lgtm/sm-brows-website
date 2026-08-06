@@ -252,8 +252,69 @@ try {
   chk('הריצה הראשונה הצליחה', run.ok, run.ok ? '' : run.message)
   if (!run.ok) throw new Error(run.message)
   chk('הריצה קראה אירועים מהיומן', run.stats.eventsRead > 0, `read=${run.stats.eventsRead}`)
-  chk('⚠️ אירועים ידניים נזרקו ולא נשמרו',
-    run.stats.manualIgnored > 0, `manual=${run.stats.manualIgnored}`)
+
+  // ── ניקוז ממוקד עד שאירועי ה-TEST עובדו ───────────────────────────────────
+  //
+  // ⚠️ שורש הכשל שהתיקון הזה סוגר: ריצת סנכרון חסומה ב-RUN_BUDGET_MS
+  // (3.5 דקות) — בכוונה, כדי שריצה ב-serverless לא תיחתך באמצע. ביומן
+  // האמיתי הצטברו מאות אירועי מערכת *מחוקים* משלבים 6–10: Google משאיר
+  // אירוע מחוק לנצח כ-'cancelled', ו-showDeleted:true (חובה עם syncToken)
+  // מחזיר אותו בכל full sync מחדש. נמדד בפועל: 1,646 אירועים נקראו,
+  // 188 שינויים נכתבו לתור, והריצה נגמרה ב-budget אחרי 152 מהם — כשהאירועים
+  // הטריים של הבדיקה עדיין pending, ולכן echoes=0.
+  //
+  // זו התנהגות **תקינה** של המנוע: התור עמיד וממשיך להתנקז בריצות הבאות.
+  // מה שהיה שבור זו ההנחה של הבדיקה שריצה אחת מנקזת הכול.
+  //
+  // ⚠️ אין כאן שינוי בקוד המוצר ואין שינוי ב-RUN_BUDGET_MS. הבדיקה ממשיכה
+  // להריץ בדיוק כפי שפרודקשן עושה על פני מספר ריצות, ועוצרת ברגע שהאירועים
+  // *שלה* עובדו — היא אינה דורשת שכל 188 הישנים יטופלו.
+  const DRAIN_MAX_RUNS = 4
+  const DRAIN_TIMEOUT_MS = 6 * 60 * 1000
+  const testEventIds = [eventA, eventB, manualId]
+
+  // ⚠️ לפי מזהי האירועים המדויקים של הבדיקה, לא לפי גודל התור הכולל
+  const pendingTestEvents = async () => {
+    const { data } = await db.from('calendar_change_queue')
+      .select('google_event_id')
+      .in('google_event_id', testEventIds)
+      .in('status', ['pending', 'processing'])
+    return (data ?? []).map(r => r.google_event_id)
+  }
+
+  const drainStartedAt = Date.now()
+  let drainRuns = 0
+  let stillPending = await pendingTestEvents()
+
+  while (stillPending.length > 0 && drainRuns < DRAIN_MAX_RUNS &&
+         Date.now() - drainStartedAt < DRAIN_TIMEOUT_MS) {
+    drainRuns++
+    const extra = await runCalendarSync()
+    if (!extra.ok) throw new Error(`ריצת ניקוז נכשלה: ${extra.message}`)
+    for (const k of ['processed', 'ignored', 'failed', 'echoes', 'rescheduled',
+                     'cancelled', 'durationCorrections', 'duplicates', 'reverted', 'deleted']) {
+      run.stats[k] += extra.stats[k]
+    }
+    stillPending = await pendingTestEvents()
+  }
+
+  const { count: queuePendingLeft } = await db.from('calendar_change_queue')
+    .select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing'])
+
+  chk('⚠️ אירועי ה-TEST עובדו ואינם pending',
+    stillPending.length === 0,
+    `drainRuns=${drainRuns} elapsed=${Date.now() - drainStartedAt}ms ` +
+    `queuePendingLeft=${queuePendingLeft ?? 0} echoes=${run.stats.echoes}` +
+    (stillPending.length ? ` stillPending=${stillPending.join(', ')}` : ''))
+
+  if (stillPending.length > 0) {
+    // נכשל, לא מדלג. ה-cleanup ב-finally ירוץ בכל מקרה.
+    throw new Error(
+      `אירועי ה-TEST לא עובדו תוך ${Date.now() - drainStartedAt}ms ` +
+      `(${drainRuns} ריצות ניקוז, ${stillPending.length} עדיין pending)`,
+    )
+  }
+
 
   let state = (await db.from('calendar_sync_state').select('*').single()).data
   chk('⚠️ nextSyncToken נשמר בסיום ה-full sync', Boolean(state.sync_token))

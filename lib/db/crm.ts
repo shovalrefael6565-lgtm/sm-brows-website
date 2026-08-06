@@ -7,9 +7,8 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
  * ─── שני גבולות שאסור לשבור ────────────────────────────────────────────────
  *
  * 1. **המזהה העסקי הוא customers.id ותמיד רק הוא.** אף פונקציה כאן אינה
- *    מקבלת session user id כמזהה לקוחה. כיום customers.id הוא גם ה-FK
- *    ל-auth.users(id) — ראה ההערה על hasLoginAccount למטה — אבל הקוד לא
- *    נשען על כך, כדי ששינוי הסכמה העתידי לא יחייב הגירה.
+ *    מקבלת session user id כמזהה לקוחה. מאז שלב 10 זה כבר לא רק עיקרון:
+ *    customers.id אינו auth user id, והקישור עובר דרך customers.auth_user_id.
  *
  * 2. **actor_admin_id לעולם לא מגיע מהדפדפן.** כל פונקציה שמשנה מצב מקבלת
  *    adminUserId שנלקח מ-requireAdminApi בשרת, וה-RPC עצמו מאמת שוב שהוא
@@ -59,6 +58,12 @@ export interface CrmCustomerRow extends CrmMetrics {
   full_name: string
   phone_e164: string
   created_at: string
+  /**
+   * האם קיים חשבון התחברות (customers.auth_user_id אינו NULL). מאז שלב 10
+   * זה ערך אמיתי ולא הנחה: לקוחה שנוצרה ידנית ב-CRM מתקיימת בלי חשבון.
+   * ⚠️ ה-auth_user_id עצמו לעולם אינו נחשף — רק הבוליאני הזה.
+   */
+  has_login_account: boolean
   crm_status: 'active' | 'inactive'
   source_key: string
 }

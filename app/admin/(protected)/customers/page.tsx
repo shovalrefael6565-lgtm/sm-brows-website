@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Info, CalendarDays, StickyNote } from 'lucide-react'
+import { Info, CalendarDays, StickyNote, UserPlus, UserRound, UserRoundX } from 'lucide-react'
 import {
   listCrmCustomers, listCrmSources, CRM_FILTERS, CRM_SORTS,
   type CrmFilter, type CrmSort, type CrmCustomerRow,
@@ -46,8 +46,20 @@ export default async function AdminCustomersPage({
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-bold text-brand-dark mb-1">לקוחות</h1>
-      <p className="text-sm text-brand-muted mb-4">{total} לקוחות</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-brand-dark mb-1">לקוחות</h1>
+          <p className="text-sm text-brand-muted">{total} לקוחות</p>
+        </div>
+        <Link
+          href="/admin/customers/new"
+          className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl bg-brand-dark
+                     text-white text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+        >
+          <UserPlus className="w-4 h-4" aria-hidden="true" />
+          לקוחה חדשה
+        </Link>
+      </div>
 
       {/* חלק 1 של האפיון — הודעה למנהלים בלבד */}
       <div className="flex items-start gap-2.5 bg-brand-cream/60 border border-brand-cream-dark
@@ -131,6 +143,25 @@ function nextTreatment(row: CrmCustomerRow): string | null {
   })
 }
 
+/**
+ * אינדיקציית חשבון ההתחברות. מאז שלב 10 זה ערך אמיתי מה-DB
+ * (customers.auth_user_id) ולא הנחה — לקוחה שנוצרה ידנית ב-CRM קיימת
+ * בלי חשבון עד שתתחבר בעצמה.
+ */
+function LoginAccountBadge({ has }: { has: boolean }) {
+  const Icon = has ? UserRound : UserRoundX
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] mt-0.5 ${
+        has ? 'text-brand-muted' : 'text-brand-gold-text'
+      }`}
+    >
+      <Icon className="w-3 h-3 shrink-0" aria-hidden="true" />
+      {has ? 'יש חשבון' : 'ללא חשבון'}
+    </span>
+  )
+}
+
 function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: string }) {
   const status = CRM_STATUS_LABELS[row.crm_status] ?? CRM_STATUS_LABELS.active
   const next = nextLabel(row)
@@ -148,6 +179,7 @@ function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLab
             <StickyNote className="w-3 h-3 text-brand-gold" aria-label="קיימת הערה פנימית" />
           )}
         </div>
+        <LoginAccountBadge has={row.has_login_account} />
       </td>
       <td className="px-4 py-3">
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
@@ -200,6 +232,7 @@ function CustomerCard({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: 
           <div className="text-xs text-brand-muted" dir="ltr">
             {formatPhoneForDisplay(row.phone_e164)}
           </div>
+          <LoginAccountBadge has={row.has_login_account} />
         </div>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${status.className}`}>
           {status.label}

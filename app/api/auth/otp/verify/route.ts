@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/phone'
 import { verifyOtp } from '@/lib/db/otpStore'
-import { findOrCreateCustomer } from '@/lib/db/customers'
+import { resolveCustomerForLogin } from '@/lib/db/customers'
 import { isAdmin } from '@/lib/db/admins'
 import { createSession } from '@/lib/auth/session'
 
@@ -45,20 +45,28 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // findOrCreateCustomer מוודאת שיש auth.users לזהות הזו — משותף ללקוחות
-  // ולמנהלים כאחד (ראה lib/db/customers.ts). ההפרדה בין השניים מתבצעת
-  // אך ורק לפי הימצאות ב-admins, לא לפי מספר טלפון או קלט מהלקוח.
-  const { customer, error } = await findOrCreateCustomer(phone, body.fullName)
-  if (!customer) {
-    console.error('[otp/verify] customer resolution failed', error)
+  // resolveCustomerForLogin מאתרת/יוצרת את חשבון ההתחברות ומקשרת אותו
+  // ללקוחה — כולל לקוחה שנוצרה ידנית ב-CRM, שמקבלת כאן את הקישור הראשון
+  // שלה ושומרת על כל ההיסטוריה (ראה lib/db/customers.ts). ההפרדה בין
+  // לקוחה למנהלת מתבצעת אך ורק לפי הימצאות ב-admins, לא לפי טלפון או קלט.
+  const resolved = await resolveCustomerForLogin(phone, body.fullName)
+  if (!resolved.ok) {
+    console.error('[otp/verify] customer resolution failed', resolved.error)
+    // כל הסיבות מוצגות באותו נוסח מסונן: הן מתארות מצב נתונים פנימי
+    // שהלקוחה אינה יכולה לפעול לגביו, ואין להסגיר אותו.
+    const retryable = resolved.error === 'auth_race_unresolved'
     return NextResponse.json(
       { error: 'server_error', message: 'משהו השתבש. נסי שוב בעוד רגע.' },
-      { status: 500 },
+      { status: retryable ? 503 : 500 },
     )
   }
 
-  if (await isAdmin(customer.id)) {
-    await createSession({ userId: customer.id, phone: customer.phone_e164, role: 'admin' })
+  const { customer, authUserId } = resolved.data
+
+  // ⚠️ מול ה-auth user id, לא מול מזהה הלקוחה: admins.user_id מפנה
+  // ל-auth.users, ומאז שלב 10 הם שני מזהים שונים.
+  if (await isAdmin(authUserId)) {
+    await createSession({ userId: authUserId, phone: customer.phone_e164, role: 'admin' })
     return NextResponse.json({ ok: true, redirectTo: '/admin' })
   }
 
@@ -70,8 +78,8 @@ export async function POST(req: NextRequest) {
   }
 
   await createSession({
-    userId: customer.id,
-    customerId: customer.id,
+    userId: authUserId,
+    cid: customer.id,
     phone: customer.phone_e164,
     role: 'customer',
   })

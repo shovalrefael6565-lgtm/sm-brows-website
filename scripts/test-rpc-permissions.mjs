@@ -86,6 +86,17 @@ const ASSERTION_MIGRATIONS = {
     'update_customer_note(uuid,uuid,text,uuid)',
     'archive_customer_note(uuid,uuid,uuid)',
   ],
+  /**
+   * 0010 מוסיפה שלוש פונקציות ומחליפה שתיים קיימות. שתי המוחלפות
+   * (list_crm_customers, get_crm_customer) נשארות ממופות ל-0009, שם עדיין
+   * יושב בלוק ה-assertion שמוכיח את ההרשאות שלהן — CREATE OR REPLACE
+   * משמר ACL, ו-0010 מוסיפה את ה-REVOKE/GRANT שוב מפורשות.
+   */
+  '0010_manual_customers_and_admin_booking.sql': [
+    'link_or_create_customer_for_auth(uuid,text,text)',
+    'create_manual_customer(text,text,text,text,uuid,uuid,text)',
+    'create_manual_appointment(uuid,text,text[],integer,timestamptz,integer,text,uuid,uuid,text)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

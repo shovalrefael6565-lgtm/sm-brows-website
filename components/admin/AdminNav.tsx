@@ -5,6 +5,7 @@ const LINKS = [
   { href: '/admin', label: 'בקשות ממתינות' },
   { href: '/admin/appointments', label: 'כל התורים' },
   { href: '/admin/customers', label: 'לקוחות' },
+  { href: '/admin/appointments/new', label: 'תור חדש' },
 ]
 
 export default function AdminNav() {
