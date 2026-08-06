@@ -97,6 +97,29 @@ const ASSERTION_MIGRATIONS = {
     'create_manual_customer(text,text,text,text,uuid,uuid,text)',
     'create_manual_appointment(uuid,text,text[],integer,timestamptz,integer,text,uuid,uuid,text)',
   ],
+  /**
+   * שלב 11 — מערכת התזכורות.
+   *
+   * ⚠️ גם שתי פונקציות החישוב (reminder_scheduled_for/expires_at) סגורות,
+   * למרות שהן טהורות ואינן חושפות נתונים. הן נקראות אך ורק ע"י ה-RPCs
+   * ובטריגר, ואין סיבה שיהיו זמינות כ-RPC לאף תפקיד — כל פונקציה פתוחה
+   * בסכמה public היא משטח תקיפה, גם כשהיא נראית תמימה.
+   *
+   * פונקציות הטריגר (tg_sync_appointment_reminders,
+   * reject_reminder_attempt_mutation) אינן נגישות כ-RPC ולכן אינן כאן.
+   */
+  '0011_appointment_reminders.sql': [
+    'reminder_scheduled_for(reminder_kind,timestamptz,timestamptz)',
+    'reminder_expires_at(reminder_kind,timestamptz,timestamptz)',
+    'sync_appointment_reminders(uuid)',
+    'sweep_expired_reminders()',
+    'create_manual_reminder(uuid,uuid,uuid,text,text)',
+    'claim_due_reminder(uuid,integer,integer,text)',
+    'reminder_precheck(uuid,uuid)',
+    'finish_reminder_attempt(uuid,uuid,text,text,text,text,integer,boolean)',
+    'abort_reminder_attempt(uuid,uuid,text)',
+    'retry_reminder(uuid,uuid,boolean)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

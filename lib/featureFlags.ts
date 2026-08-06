@@ -14,3 +14,15 @@ import 'server-only'
 export function isNewBookingSystemEnabled(): boolean {
   return process.env.NEW_BOOKING_SYSTEM_ENABLED === 'true'
 }
+
+/**
+ * מערכת התזכורות (שלב 11). ברירת המחדל כבויה בכל סביבה.
+ *
+ * ⚠️ הדגל חוסם **שליחה בלבד**, לא יצירת שורות תזכורת. השורות נוצרות תמיד
+ * ע"י הטריגר ב-DB, כדי שההיסטוריה תהיה שלמה ושהדלקת המערכת תהיה מיידית
+ * במקום להתחיל מאפס. כשהדגל כבוי אין claim, אין ניסיון, ואף תזכורת אינה
+ * משנה סטטוס — היא פשוט ממתינה (ראה lib/reminders/dispatch.ts).
+ */
+export function areRemindersEnabled(): boolean {
+  return process.env.REMINDERS_ENABLED === 'true'
+}

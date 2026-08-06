@@ -132,3 +132,75 @@ export const ADMIN_ERROR_MESSAGES: Record<string, string> = {
   customer_is_admin:    'לא ניתן לקבוע תור לחשבון ניהולי.',
   integrity_error:      'נמצאה אי-התאמה בנתוני הבקשה. רענני את העמוד ובדקי את רשימת התורים.',
 }
+
+// ─── תזכורות (שלב 11) ───────────────────────────────────────────────────────
+
+/**
+ * ⚠️ ההפרדה בין 'נשלחה' ל'סימולציה' אינה קוסמטית — היא הדרישה המרכזית של
+ * השלב. כל עוד אין ספק אמיתי, אסור שמסך כלשהו ייתן רושם שיצא SMS.
+ * status='sent' ממילא בלתי אפשרי ברמת ה-DB (ראה 0011), והתווית כאן קיימת
+ * כדי שהיא תהיה מוכנה ונכונה כששלב 12 יחבר את 019.
+ */
+export const REMINDER_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  scheduled:        { label: 'מתוזמנת',              className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+  retrying:         { label: 'ממתינה לניסיון חוזר',  className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
+  processing:       { label: 'בעיבוד',               className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  sent:             { label: 'נשלחה',                className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  simulated:        { label: 'סימולציה — לא נשלח SMS', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  failed:           { label: 'נכשלה',                className: 'bg-red-50 text-red-600 border-red-200' },
+  delivery_unknown: { label: 'תוצאה לא ודאית',       className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
+  cancelled:        { label: 'בוטלה',                className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+  superseded:       { label: 'הוחלפה (המועד שונה)',  className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+  skipped:          { label: 'לא נשלחה — החלון נסגר', className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+}
+
+export const REMINDER_KIND_LABELS: Record<string, string> = {
+  day_before:       'יום לפני',
+  two_hours_before: 'שעתיים לפני',
+  manual:           'ידנית',
+}
+
+/** הסברי ה-outcome_reason. כל אחד מהם קוד מסונן שנכתב ע"י ה-DB. */
+export const REMINDER_REASON_LABELS: Record<string, string> = {
+  window_passed_at_creation:       'מועד התזכורת כבר חלף כשהתור נקבע',
+  expired_before_send:             'חלון השליחה נסגר לפני שהגיע התור לשלוח',
+  starts_at_changed:               'מועד התור שונה',
+  cancel_requested:                'התבקש ביטול בזמן העיבוד',
+  appointment_cancelled_by_customer: 'התור בוטל על ידי הלקוחה',
+  appointment_cancelled_by_business: 'התור בוטל על ידי העסק',
+  appointment_completed:           'התור הושלם',
+  appointment_no_show:             'הלקוחה לא הגיעה',
+  appointment_expired:             'תוקף הבקשה פג',
+  appointment_rescheduled:         'התור סומן כהוזז',
+  appointment_not_confirmed:       'התור אינו מאושר',
+  appointment_missing:             'התור אינו קיים יותר',
+  appointment_started:             'התור כבר התחיל',
+  max_attempts_exhausted:          'מוצו כל הניסיונות',
+  retry_window_expired:            'לא נותר זמן לניסיון נוסף לפני סגירת החלון',
+  permanent_error:                 'שגיאה קבועה של הספק',
+  sent_after_appointment_change:   '⚠️ ההודעה יצאה לפני שהיה אפשר לעצור אותה — התור השתנה בזמן השליחה',
+}
+
+export const REMINDER_ATTEMPT_OUTCOME_LABELS: Record<string, string> = {
+  accepted:             'הספק קיבל',
+  simulated:            'סימולציה — לא נשלח',
+  retryable_error:      'שגיאה זמנית',
+  permanent_error:      'שגיאה קבועה',
+  delivery_unknown:     'תוצאה לא ודאית',
+  aborted_precondition: 'הופסק לפני השליחה',
+  lease_expired:        'העיבוד נקטע',
+}
+
+export const REMINDER_ERROR_MESSAGES: Record<string, string> = {
+  ...ADMIN_ERROR_MESSAGES,
+  reminder_not_found:           'התזכורת לא נמצאה.',
+  appointment_not_found:        'התור לא נמצא.',
+  not_confirmed:                'אפשר לשלוח תזכורת רק לתור מאושר.',
+  appointment_not_confirmed:    'התור אינו מאושר יותר.',
+  appointment_in_past:          'התור כבר התחיל או עבר.',
+  duplicate_risk_not_confirmed: 'התוצאה הקודמת אינה ודאית. יש לאשר במפורש שייתכן שההודעה תישלח פעמיים.',
+  lease_active:                 'התזכורת בעיבוד ברגע זה. נסי שוב בעוד רגע.',
+  snapshot_stale:               'מועד התור השתנה מאז. רענני את העמוד.',
+  window_closed:                'חלון השליחה של התזכורת נסגר.',
+  unknown:                      'הפעולה נכשלה. נסי שוב.',
+}

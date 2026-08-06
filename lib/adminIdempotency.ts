@@ -20,7 +20,10 @@ import { createHash } from 'crypto'
 /** גרסת פורמט. שינוי בסריאליזציה חייב להעלות אותה, כדי שמפתחות ישנים לא ייחשבו זהים לחדשים. */
 export const FINGERPRINT_VERSION = 1
 
-export type IdempotencyScope = 'customer_create' | 'appointment_create'
+export type IdempotencyScope =
+  | 'customer_create'
+  | 'appointment_create'
+  | 'manual_reminder_send'
 
 function sha256Hex(canonical: string): string {
   return createHash('sha256').update(canonical, 'utf8').digest('hex')
@@ -87,6 +90,37 @@ export function appointmentCreateFingerprint(i: AppointmentCreateFingerprintInpu
       durationMin: i.durationMin,
       priceTotal: i.priceTotal,
       policyVersion: i.policyVersion,
+    }),
+  )
+}
+
+export interface ManualReminderFingerprintInput {
+  actorAdminId: string
+  appointmentId: string
+  /** ה-snapshot של מועד התור. תמיד UTC ISO, ולכן זהה משני clients */
+  appointmentStartsAt: Date
+  templateVersion: string
+}
+
+/**
+ * טביעת אצבע לשליחה ידנית של תזכורת (שלב 11).
+ *
+ * ⚠️ appointmentStartsAt הוא חלק מהזהות ולא קישוט: אם התור הוזז בין שתי
+ * הלחיצות, זו כבר **בקשה אחרת** — אותה תזכורת הייתה מתארת מועד שכבר אינו
+ * נכון. הכללתו כאן היא מה שהופך retry על תור שהוזז ל-IDEMPOTENCY_KEY_REUSED
+ * במקום לשליחה שקטה של מועד ישן.
+ *
+ * templateVersion נכלל מאותו טעם: נוסח אחר = הודעה אחרת.
+ */
+export function manualReminderFingerprint(i: ManualReminderFingerprintInput): string {
+  return sha256Hex(
+    JSON.stringify({
+      version: FINGERPRINT_VERSION,
+      scope: 'manual_reminder_send',
+      actorAdminId: i.actorAdminId,
+      appointmentId: i.appointmentId,
+      appointmentStartsAt: i.appointmentStartsAt.toISOString(),
+      templateVersion: i.templateVersion,
     }),
   )
 }
