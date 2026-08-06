@@ -228,9 +228,9 @@ const resolveWith = env => resolveReminderProvider(env)
 chk('ברירת מחדל (אין משתנה) → disabled', resolveWith({}).name === 'disabled')
 chk('disabled מפורש → disabled', resolveWith({ REMINDER_PROVIDER: 'disabled' }).name === 'disabled')
 chk('ערך לא מוכר → disabled', resolveWith({ REMINDER_PROVIDER: 'twilio' }).name === 'disabled')
-chk('⚠️ אפילו "019" → disabled (אין חיבור בשלב 11)',
+chk('⚠️ "019" אינו שם ספק חוקי → disabled',
   resolveWith({ REMINDER_PROVIDER: '019' }).name === 'disabled')
-chk('⚠️ גם "sms_019" — שם הספק של שלב 12 — → disabled בשלב 11',
+chk('🔒 "sms_019" בלי משתני הסביבה שלו → disabled (לא ניסיון שליחה חלקי)',
   resolveWith({ REMINDER_PROVIDER: 'sms_019' }).name === 'disabled')
 
 // ⚠️ שם הספק של שלב 12 הוא 'sms_019'. ה-CHECK ב-0011 דורש אות ראשונה,
@@ -262,9 +262,16 @@ chk('🔒 גם עם משתנה כזה מוגדר — פרודקשן נשאר dis
     REMINDER_ALLOW_SIMULATED_IN_PROD: 'true',
   }).name === 'disabled')
 
-chk('אף ספק בשלב 11 אינו isLive',
+chk('🔒 אף ספק פיתוח אינו isLive',
   disabled.isLive === false && simulated.isLive === false &&
   resolveWith({ REMINDER_PROVIDER: 'simulated', NODE_ENV: 'test' }).isLive === false)
+
+// ⚠️ sms_019 הוא היחיד שעבורו status='sent' אפשרי. הבדיקות המלאות שלו
+// נמצאות ב-npm run test:sms019; כאן רק מקובע שהוא אינו נבחר בטעות.
+chk('🔒 sms_019 אינו נבחר בלי בחירה מפורשת',
+  resolveWith({
+    SMS019_USERNAME: 'u', SMS019_TOKEN: 't', SMS019_SOURCE: 'SM BROWS',
+  }).name === 'disabled')
 
 // ════════════════════════════════════════════════════════════════════════════
 section('הספקים עצמם')

@@ -904,6 +904,80 @@ const outcomeCase = async (outcome, expectStatus, extra = '') => {
 const acc = await outcomeCase('accepted', 'simulated', ' (ספק לא אמיתי)')
 chk('⚠️ accepted מספק לא אמיתי לעולם אינו sent', acc.status !== 'sent')
 chk('sent_at נרשם גם בסימולציה', acc.sent_at !== null)
+
+// ── 🔒 שלב 12A — 'sms_019' עובד על הסכמה הקיימת, בלי migration ─────────────
+//
+// ⚠️ הבדיקות האלה הן ההוכחה שלא נדרשה migration חדשה. הן מאמתות את שלוש
+// החוליות שביחד הופכות שליחה אמיתית לאפשרית — בלי שאף אחת מהן שונתה:
+//   1. ה-CHECK על provider הוא פורמט, ו-'sms_019' עובר אותו.
+//   2. reminders_sent_requires_live_provider אינו כולל את 'sms_019'.
+//   3. v_live ב-finish_reminder_attempt נגזר מאותה רשימה, ולכן 'sms_019'
+//      נחשב ספק אמיתי אוטומטית.
+{
+  const { reminderId } = await freshClaimable()
+  const w = uuid()
+  const claimed = await one(`select public.claim_due_reminder('${w}', 120, 4, 'sms_019') c`)
+  chk("🔒 claim עם provider='sms_019' מתקבל בסכמה הקיימת", claimed.c !== null)
+
+  const res = await one(`select public.finish_reminder_attempt(
+    '${reminderId}','${w}','accepted',null,'SHIP-1','sms_019',4,false) r`)
+  chk("🔒 accepted מ-'sms_019' → status='sent' (בלי migration)",
+    res.r.status === 'sent', res.r.status)
+  chk('provider_message_id נשמר (shipment_id)', res.r.provider_message_id === 'SHIP-1')
+  chk("שורת התזכורת רושמת provider='sms_019'", res.r.provider === 'sms_019')
+  chk('sent_at נרשם', res.r.sent_at !== null)
+
+  const att = await one(`select outcome::text o, provider_message_id p, provider pr
+    from appointment_reminder_attempts where reminder_id='${reminderId}'
+    order by attempt_number desc limit 1`)
+  chk("שורת הניסיון נסגרה כ-'accepted'", att.o === 'accepted', att.o)
+  chk('שורת הניסיון שומרת את ה-shipment_id', att.p === 'SHIP-1')
+  chk("שורת הניסיון רושמת provider='sms_019'", att.pr === 'sms_019')
+}
+
+// ⚠️ delivery_unknown מ-019 נשאר סופי גם כשהספק אמיתי. זו החוליה שמונעת
+// SMS כפול: ל-019 אין idempotency מוכחת, ולכן ניסיון חוזר אוטומטי על תוצאה
+// עמומה הוא הימור על חשבון הלקוחה.
+{
+  const { reminderId } = await freshClaimable()
+  const w = uuid()
+  await db.exec(`select public.claim_due_reminder('${w}', 120, 4, 'sms_019')`)
+  const res = await one(`select public.finish_reminder_attempt(
+    '${reminderId}','${w}','delivery_unknown','sms019_timeout',null,'sms_019',4,false) r`)
+  chk('🔒 delivery_unknown מספק אמיתי → סטטוס delivery_unknown',
+    res.r.status === 'delivery_unknown', res.r.status)
+  chk('🔒 אין next_attempt_at — אפס retry אוטומטי', res.r.next_attempt_at === null)
+  chk('⚠️ תוצאה עמומה לעולם אינה נרשמת כ-sent', res.r.status !== 'sent')
+}
+
+// ⚠️ קודי השגיאה של 019 חייבים לעבור את ה-CHECK על error_code
+// (`^[a-z0-9_]{1,60}$`). קוד שנדחה שם היה מפיל את סגירת הניסיון כולה
+// ומשאיר את התזכורת תקועה ב-processing עד שה-lease יפוג.
+//
+// ⚠️ תזכורת טרייה לכל קוד: אחרי retryable_error היא עוברת ל-retrying עם
+// next_attempt_at עתידי, ולכן אינה ניתנת ל-claim חוזר באותה שנייה.
+for (const code of [
+  'sms019_insufficient_credit_4', 'sms019_unverified_source_515',
+  'sms019_auth_token_user_mismatch_11', 'sms019_transport_unknown',
+  'sms019_http_504', 'sms019_unmapped_status', 'sms019_send_time_not_permitted_5',
+]) {
+  const { reminderId } = await freshClaimable()
+  const w = uuid()
+  await db.exec(`select public.claim_due_reminder('${w}', 120, 9, 'sms_019')`)
+  const e = await errOf(`select public.finish_reminder_attempt(
+    '${reminderId}','${w}','retryable_error','${code}',null,'sms_019',9,false)`)
+  chk(`קוד השגיאה '${code}' מתקבל`, e === null, e?.slice(0, 40))
+}
+
+// ⚠️ החגורה השנייה: קוד שאינו מסונן עדיין נדחה, גם עם ספק אמיתי.
+{
+  const { reminderId } = await freshClaimable()
+  const w = uuid()
+  await db.exec(`select public.claim_due_reminder('${w}', 120, 9, 'sms_019')`)
+  const e = await errOf(`select public.finish_reminder_attempt(
+    '${reminderId}','${w}','retryable_error','019 said: +972541230001 blocked',null,'sms_019',9,false)`)
+  chk('🔒 קוד שגיאה עם טקסט חופשי נדחה גם ל-sms_019', e !== null, e?.slice(0, 40))
+}
 await outcomeCase('permanent_error', 'failed')
 const unk = await outcomeCase('delivery_unknown', 'delivery_unknown')
 chk('⚠️ delivery_unknown סופי — אין next_attempt_at', unk.next_attempt_at === null)

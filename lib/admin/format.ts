@@ -136,16 +136,19 @@ export const ADMIN_ERROR_MESSAGES: Record<string, string> = {
 // ─── תזכורות (שלב 11) ───────────────────────────────────────────────────────
 
 /**
- * ⚠️ ההפרדה בין 'נשלחה' ל'סימולציה' אינה קוסמטית — היא הדרישה המרכזית של
- * השלב. כל עוד אין ספק אמיתי, אסור שמסך כלשהו ייתן רושם שיצא SMS.
- * status='sent' ממילא בלתי אפשרי ברמת ה-DB (ראה 0011), והתווית כאן קיימת
- * כדי שהיא תהיה מוכנה ונכונה כששלב 12 יחבר את 019.
+ * ⚠️ ההפרדה בין 'נמסרה לספק השליחה' ל'סימולציה' אינה קוסמטית — היא הדרישה
+ * המרכזית של השלב. כל עוד אין ספק אמיתי, אסור שמסך כלשהו ייתן רושם שיצא SMS.
+ *
+ * ⚠️ התווית של 'sent' אינה "נשלחה" ואינה "הגיעה ללקוחה". התשובה של 019
+ * (status=0) היא **קבלת הבקשה למשלוח** ולא אישור מסירה לטלפון. אישור מסירה
+ * אמיתי קיים רק ב-DLR, שאינו ממומש. ניסוח שמבטיח יותר ממה שידוע יגרום
+ * למנהלת להסיק שהלקוחה קיבלה תזכורת — ולא להתקשר אליה כשהיא לא קיבלה.
  */
 export const REMINDER_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   scheduled:        { label: 'מתוזמנת',              className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
   retrying:         { label: 'ממתינה לניסיון חוזר',  className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
   processing:       { label: 'בעיבוד',               className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  sent:             { label: 'נשלחה',                className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  sent:             { label: 'נמסרה לספק השליחה',    className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   simulated:        { label: 'סימולציה — לא נשלח SMS', className: 'bg-blue-50 text-blue-700 border-blue-200' },
   failed:           { label: 'נכשלה',                className: 'bg-red-50 text-red-600 border-red-200' },
   delivery_unknown: { label: 'תוצאה לא ודאית',       className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
@@ -189,6 +192,41 @@ export const REMINDER_ATTEMPT_OUTCOME_LABELS: Record<string, string> = {
   delivery_unknown:     'תוצאה לא ודאית',
   aborted_precondition: 'הופסק לפני השליחה',
   lease_expired:        'העיבוד נקטע',
+}
+
+/**
+ * תוויות ל-last_error_code שנרשם בשורת התזכורת.
+ *
+ * ⚠️ הקודים עצמם הם slugs מסוננים (`^[a-z0-9_]{1,60}$` נאכף ב-DB) ואינם
+ * מכילים טקסט מהספק, מספר טלפון או גוף הודעה. התווית כאן היא נוחות בלבד;
+ * קוד שאינו במפה מוצג כמות שהוא, וזו התנהגות רצויה — עדיף slug לא מוכר
+ * מאשר "שגיאה כללית" שמסתירה מה קרה.
+ */
+export const REMINDER_ERROR_CODE_LABELS: Record<string, string> = {
+  provider_threw:                    'הספק נכשל באמצע — לא ידוע אם ההודעה יצאה',
+  provider_disabled:                 'אין ספק שליחה מוגדר',
+  sms019_timeout:                    'אין תשובה מהספק — לא ידוע אם ההודעה יצאה',
+  sms019_transport_unknown:          'החיבור לספק נקטע — לא ידוע אם ההודעה יצאה',
+  sms019_connect_failed:             'לא הצלחנו להתחבר לספק',
+  sms019_malformed_response:         'תשובה לא מובנת מהספק',
+  sms019_unmapped_status:            'קוד תשובה לא מוכר מהספק',
+  sms019_unsupported_destination:    'מספר שאינו ישראלי — לא נתמך',
+  sms019_message_empty:              'גוף ההודעה ריק',
+  sms019_message_too_long:           'ההודעה ארוכה מדי',
+  sms019_send_time_not_permitted_5:  'אין הרשאת שליחה בשעה זו',
+  sms019_auth_invalid_token_3:       'פרטי הגישה לספק שגויים',
+  sms019_auth_expired_token_10:      'תוקף ה-token של הספק פג',
+  sms019_auth_token_user_mismatch_11:'ה-token אינו תואם למשתמש',
+  sms019_auth_token_not_found_504:   'ה-token לא נמצא אצל הספק',
+  sms019_unverified_source_515:      'שם השולח אינו מאושר אצל הספק',
+  sms019_no_permission_511:          'אין הרשאה לפעולה אצל הספק',
+  sms019_insufficient_credit_4:      'אין יתרת SMS',
+  sms019_insufficient_credit_12:     'אין יתרת SMS',
+  sms019_all_destinations_blocked_8: 'המספר חסום אצל הספק',
+  sms019_temporarily_blocked_715:    'המספר חסום זמנית אצל הספק',
+  sms019_bad_destination_9:          'מספר היעד אינו תקין',
+  sms019_message_length_989:         'אורך ההודעה נדחה ע"י הספק',
+  sms019_source_length_992:          'שם השולח נדחה ע"י הספק',
 }
 
 export const REMINDER_ERROR_MESSAGES: Record<string, string> = {

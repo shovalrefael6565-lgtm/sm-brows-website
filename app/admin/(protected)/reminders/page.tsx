@@ -5,6 +5,7 @@ import {
   listReminders,
 } from '@/lib/db/reminders'
 import {
+  REMINDER_ERROR_CODE_LABELS,
   REMINDER_KIND_LABELS,
   REMINDER_REASON_LABELS,
   REMINDER_STATUS_LABELS,
@@ -153,7 +154,9 @@ export default async function AdminRemindersPage({
                     <td className="py-3 pl-3 text-brand-muted">
                       {r.attempt_count}
                       {r.last_error_code && (
-                        <span className="block text-xs">{r.last_error_code}</span>
+                        <span className="block text-xs">
+                          {REMINDER_ERROR_CODE_LABELS[r.last_error_code] ?? r.last_error_code}
+                        </span>
                       )}
                     </td>
                     <td className="py-3">

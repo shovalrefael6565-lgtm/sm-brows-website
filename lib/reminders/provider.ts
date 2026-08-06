@@ -5,6 +5,7 @@ import type {
   ReminderProvider,
   ReminderProviderName,
 } from './types'
+import { Sms019ReminderProvider, readSms019Config } from './sms019'
 
 /**
  * בחירת הספק. ברירת המחדל — בכל סביבה, כולל production — היא disabled.
@@ -56,13 +57,28 @@ export class DisabledReminderProvider implements ReminderProvider {
  * הספק שהסביבה מגדירה.
  *
  * ⚠️ simulated מותר **רק** כאשר NODE_ENV אינו production *וגם* המשתנה
- * הוגדר במפורש. אין override, אין דגל חילוץ, ואין דרך להפעיל סימולציה
- * בפרודקשן בשלב 11 — production הוא disabled עד שיחובר 019 בשלב 12.
+ * הוגדר במפורש. אין override ואין דגל חילוץ.
+ *
+ * ⚠️ sms_019 שולח SMS אמיתי. הוא נבחר אך ורק בבחירה מפורשת
+ * (REMINDER_PROVIDER=sms_019) ורק כשכל משתני הסביבה שלו תקינים. כל חוסר או
+ * פורמט פסול = נפילה ל-disabled, ולא ניסיון שליחה על תצורה חלקית.
  */
 export function resolveReminderProvider(
   env: NodeJS.ProcessEnv = process.env,
 ): ReminderProvider {
   const requested = (env.REMINDER_PROVIDER ?? 'disabled').toLowerCase()
+
+  if (requested === 'sms_019') {
+    const cfg = readSms019Config(env)
+    if (!cfg.ok) {
+      // ⚠️ problems מכיל שמות משתנים בלבד — לעולם לא ערכים.
+      console.error(
+        `[reminders] sms_019 אינו מוגדר כראוי (${cfg.problems.join('; ')}) — נופל ל-disabled`,
+      )
+      return new DisabledReminderProvider()
+    }
+    return new Sms019ReminderProvider(cfg.config)
+  }
 
   if (requested === 'simulated') {
     if (env.NODE_ENV === 'production') {
@@ -91,4 +107,5 @@ export function isDispatchable(provider: ReminderProvider): boolean {
   return provider.name !== 'disabled'
 }
 
+export { Sms019ReminderProvider, readSms019Config }
 export type { ReminderProvider, ReminderProviderName, ReminderMessage, ReminderDeliveryResult }
