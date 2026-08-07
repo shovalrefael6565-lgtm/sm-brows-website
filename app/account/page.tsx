@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
 import CancelPendingButton from '@/components/account/CancelPendingButton'
@@ -14,6 +14,7 @@ import { formatPhoneForDisplay } from '@/lib/phone'
 import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
 import { fmtIsrael, israelDateStr } from '@/lib/israelTime'
 import { Calendar, Clock, RefreshCw } from 'lucide-react'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const metadata: Metadata = {
   title: 'האזור האישי שלי',
@@ -141,6 +142,19 @@ function AppointmentCard({ appt, policy }: CardProps) {
  * כל פעולה נבדקת שוב במלואה ב-API וב-RPC (ראה lib/appointmentSelfService.ts).
  */
 export default async function AccountPage() {
+  /*
+   * 🔒 שלב 13 — הדגל חוסם לפני כל קריאה למסד.
+   *
+   * ⚠️ 404 ולא redirect ל-/login: הדגל כבוי הופך גם את `/login` ל-404,
+   * ו-redirect לשם היה מייצר שרשרת שמסתיימת באותו 404 אחרי נסיעה מיותרת.
+   * מבחינת הלקוחה האזור האישי פשוט אינו קיים — וזה בדיוק המצב.
+   *
+   * ⚠️ session שנוצר לפני שהדגל כובה נשאר חתום ותקף, אבל מגיע לכאן ל-404.
+   * ה-cookie אינו נמחק — `POST /api/auth/logout` נשאר פתוח בכוונה, כדי
+   * שיהיה מסלול יציאה נקי גם כשהמערכת כבויה.
+   */
+  if (!isNewBookingSystemEnabled()) notFound()
+
   // מזהה הלקוחה מוכח מחדש מול customers.auth_user_id בכל טעינה — לא
   // נגזר מה-auth user id ולא נלקח מפרמטר ב-URL (lib/auth/currentCustomer.ts)
   const customerId = await getCurrentCustomerId()

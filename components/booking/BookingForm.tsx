@@ -172,6 +172,14 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  /**
+   * 🔒 השרת לא הצליח לקבוע זמינות (503) — **לא** "היום פנוי".
+   *
+   * ⚠️ בלי הדגל הזה, `data.busy ?? []` היה מתרגם כל תשובת כישלון לרשימת
+   * תפוסה ריקה, כלומר לוח שבו כל השעות לחיצות. השרת כבר לא שולח `busy`
+   * בתשובת כישלון, וכאן נסגרת אותה דלת גם בצד הלקוח.
+   */
+  const [slotsUnavailable, setSlotsUnavailable] = useState(false)
 
   // ── אימות טלפון + שמירת הבקשה (רק לטיפולים עם יומן — natural/lifting) ──
   const [session, setSession] = useState<SessionInfo | null>(null)
@@ -218,7 +226,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
    * משותף לעמוד קביעת התור ולמסך שינוי המועד באזור האישי, כדי ששניהם
    * יציגו בדיוק את אותה זמינות מצומצמת ומבוקרת.
    */
-  const visibleSlots = selectedDay === null
+  const visibleSlots = selectedDay === null || slotsUnavailable
     ? []
     : selectVisibleSlots({
         year: viewYear,
@@ -251,10 +259,19 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     setLoadingSlots(true)
     try {
       const res = await fetch(`/api/bookings/slots?date=${isoDate}`)
+      // 🔒 כישלון של מקור זמינות → אין שעות לבחירה. לא רשימה ריקה של תפוסה.
+      if (!res.ok) {
+        setBusyRanges([])
+        setSlotsUnavailable(true)
+        return
+      }
       const data = await res.json()
       setBusyRanges(data.busy ?? [])
+      setSlotsUnavailable(false)
     } catch {
+      // ⚠️ גם תקלת רשת בצד הלקוח היא "אין תשובה", לא "היום פנוי".
       setBusyRanges([])
+      setSlotsUnavailable(true)
     } finally {
       setLoadingSlots(false)
     }
@@ -299,14 +316,22 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   }, [selectedDay, viewYear, viewMonth, fetchTakenSlots])
 
   // בדיקת session חד-פעמית — כדי שלקוחה מחוברת לא תתבקש OTP שוב בקביעת תור
+  //
+  // ⚠️ כשהמערכת החדשה כבויה אין OTP ואין אזור אישי, ולכן אין למי לשמור על
+  // הכניסה — הבקשה הייתה מיותרת, והיא הייתה הפנייה היחידה שנשארה מ-/booking
+  // ל-Supabase במצב כבוי. השרת חוסם אותה ממילא (403), וזה מונע גם את הנסיעה.
   useEffect(() => {
+    if (!newBookingSystemEnabled) {
+      setSession({ loggedIn: false })
+      return
+    }
     let alive = true
     fetch('/api/auth/session')
       .then(res => res.json())
       .then(data => { if (alive) setSession(data) })
       .catch(() => { if (alive) setSession({ loggedIn: false }) })
     return () => { alive = false }
-  }, [])
+  }, [newBookingSystemEnabled])
 
   // מילוי מוקדם של שם/טלפון מה-session — רק אם השדה עדיין ריק, כדי לא
   // לדרוס הקלדה שכבר התחילה
@@ -1131,11 +1156,19 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                       <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
                     ) : displaySlots.length === 0 ? (
                       <div className="bg-brand-cream border border-brand-cream-dark rounded-2xl p-5 text-center">
+                        {/* ⚠️ שני מצבים שונים לגמרי, ואסור להציג אותם באותו נוסח:
+                            "אין זמינות" היא תשובה, "לא הצלחנו לטעון" היא היעדר
+                            תשובה. לקוחה שרואה "אין זמינות" מחפשת תאריך אחר;
+                            לקוחה שיודעת שיש תקלה פונה בוואטסאפ. */}
                         <p className="text-sm text-brand-medium mb-1">
-                          {isLifting ? 'אין זוג סלוטים רצוף פנוי בתאריך זה' : 'אין זמינות פנויה בתאריך זה'}
+                          {slotsUnavailable
+                            ? 'לא הצלחנו לטעון את הזמינות כרגע'
+                            : isLifting ? 'אין זוג סלוטים רצוף פנוי בתאריך זה' : 'אין זמינות פנויה בתאריך זה'}
                         </p>
                         <p className="text-xs text-brand-muted">
-                          בחרי תאריך אחר או צרי קשר ישירות בוואצאפ
+                          {slotsUnavailable
+                            ? 'נסי לרענן בעוד רגע, או צרי קשר ישירות בוואצאפ'
+                            : 'בחרי תאריך אחר או צרי קשר ישירות בוואצאפ'}
                         </p>
                       </div>
                     ) : (

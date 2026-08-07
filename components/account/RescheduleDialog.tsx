@@ -79,6 +79,12 @@ export default function RescheduleDialog({
   const [selected, setSelected] = useState<DayOption | null>(null)
   const [busy, setBusy] = useState<BusyRange[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  /**
+   * 🔒 השרת לא הצליח לקבוע זמינות — **לא** "היום פנוי". אותה אינווריאנטה
+   * כמו ב-BookingForm: `data.busy ?? []` על תשובת כישלון היה פותח את כל
+   * השעות להזזה, כולל שעות תפוסות.
+   */
+  const [slotsUnavailable, setSlotsUnavailable] = useState(false)
   const [time, setTime] = useState<string | null>(null)
   const [step, setStep] = useState<'pick' | 'confirm'>('pick')
   const [saving, setSaving] = useState(false)
@@ -89,6 +95,12 @@ export default function RescheduleDialog({
     setLoadingSlots(true)
     try {
       const res = await fetch(`/api/bookings/slots?date=${isoDate}`)
+      // 🔒 כישלון של מקור זמינות → אין שעות להזזה.
+      if (!res.ok) {
+        setBusy([])
+        setSlotsUnavailable(true)
+        return
+      }
       const data = await res.json()
       const ranges: BusyRange[] = data.busy ?? []
       // התור של הלקוחה עצמה אינו חוסם את עצמו — בלי הסינון הזה אי אפשר
@@ -99,8 +111,10 @@ export default function RescheduleDialog({
           ? ranges.filter(r => !(r.start === ownBusy.start && r.end === ownBusy.end))
           : ranges,
       )
+      setSlotsUnavailable(false)
     } catch {
       setBusy([])
+      setSlotsUnavailable(true)
     } finally {
       setLoadingSlots(false)
     }
@@ -120,7 +134,7 @@ export default function RescheduleDialog({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, saving])
 
-  const slots = selected
+  const slots = selected && !slotsUnavailable
     ? selectDisplaySlots({
         year: selected.year, month: selected.month, day: selected.day,
         busyRanges: busy, durationMin,
@@ -237,7 +251,10 @@ export default function RescheduleDialog({
                     </div>
                   ) : slots.length === 0 ? (
                     <p className="text-xs text-brand-muted py-2">
-                      אין שעות פנויות בתאריך הזה. אפשר לבחור תאריך אחר.
+                      {/* ⚠️ "אין שעות" ו"לא הצלחנו לטעון" הן שתי תשובות שונות. */}
+                      {slotsUnavailable
+                        ? 'לא הצלחנו לטעון את הזמינות כרגע. נסי לרענן בעוד רגע.'
+                        : 'אין שעות פנויות בתאריך הזה. אפשר לבחור תאריך אחר.'}
                     </p>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">

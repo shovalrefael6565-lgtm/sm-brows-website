@@ -4,6 +4,7 @@ import { verifyOtp } from '@/lib/db/otpStore'
 import { resolveCustomerForLogin } from '@/lib/db/customers'
 import { isAdmin } from '@/lib/db/admins'
 import { createSession } from '@/lib/auth/session'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,20 @@ const MESSAGES: Record<string, string> = {
 }
 
 export async function POST(req: NextRequest) {
+  /*
+   * 🔒 שלב 13 — הדגל חוסם לפני `verifyOtp`, לפני `resolveCustomerForLogin`
+   * ולפני `createSession`.
+   *
+   * ⚠️ החסימה כאן אינה מיותרת גם כש-send חסום: קוד שהונפק בזמן שהדגל היה
+   * דלוק נשאר תקף חמש דקות. בלי השער הזה, כיבוי הדגל היה מותיר חלון שבו
+   * עדיין אפשר לממש קוד קיים ולקבל session מלא למערכת שהוכרזה סגורה.
+   *
+   * 🔒 ההשלכה המכוונת: אין שום מסלול שיוצר session חדש כשהדגל כבוי.
+   */
+  if (!isNewBookingSystemEnabled()) {
+    return NextResponse.json({ error: 'feature_disabled' }, { status: 403 })
+  }
+
   let body: { phone?: string; code?: string; purpose?: string; fullName?: string }
   try {
     body = await req.json()

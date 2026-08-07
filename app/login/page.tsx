@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import PageHero from '@/components/ui/PageHero'
 import LoginForm from '@/components/account/LoginForm'
 import { getSession } from '@/lib/auth/session'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { isAdmin } from '@/lib/db/admins'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const metadata: Metadata = {
   // הסיומת "| S.M BROWS" מגיעה מה-template ב-app/layout.tsx
@@ -15,6 +16,18 @@ export const metadata: Metadata = {
 }
 
 export default async function LoginPage() {
+  /*
+   * 🔒 שלב 13 — הדגל חוסם לפני הכול, בדיוק כמו ב-requireAdminPage.
+   *
+   * ⚠️ עד שלב 13 העמוד הזה לא היה מגודר, ולכן `NEW_BOOKING_SYSTEM_ENABLED=false`
+   * לא היה kill-switch אמיתי: `/admin` אמנם החזיר 404, אבל `/login` המשיך
+   * לעבוד, לשלוח SMS בתשלום דרך 019, ולייצר session תקף לאזור אישי ריק.
+   *
+   * 404 ולא הודעת שגיאה — עמוד שמסביר שהוא כבוי הוא עדיין עמוד שמעיד על
+   * קיומה של מערכת שהוחלט לא לחשוף.
+   */
+  if (!isNewBookingSystemEnabled()) notFound()
+
   // כבר מחוברת — אין טעם להציג מסך התחברות
   const session = await getSession()
 

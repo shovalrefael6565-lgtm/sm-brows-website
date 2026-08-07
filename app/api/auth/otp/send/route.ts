@@ -4,6 +4,7 @@ import { issueOtp, discardOtp } from '@/lib/db/otpStore'
 import { sendSms } from '@/lib/sms'
 import { otpMessage } from '@/lib/sms/templates'
 import { OTP_TTL_MINUTES } from '@/lib/otp'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,26 @@ export const dynamic = 'force-dynamic'
  * הם לקוחות של העסק — דליפת פרטיות בפני עצמה.
  */
 export async function POST(req: NextRequest) {
+  /*
+   * 🔒 שלב 13 — הדגל חוסם **לפני קריאת גוף הבקשה**, לפני נירמול הטלפון,
+   * לפני `issueOtp` ולפני `sendSms`.
+   *
+   * ⚠️ זהו ה-endpoint היחיד במערכת שפעולה אנונימית בו **מוציאה כסף**.
+   * עד שלב 13 הוא לא היה מגודר בדגל, כלומר deployment עם
+   * `NEW_BOOKING_SYSTEM_ENABLED=false` עדיין חשף שליחת SMS בתשלום דרך 019
+   * לכל מי שיודע לשלוח POST — כשהמערכת שהיא משרתת סגורה ממילא.
+   *
+   * ⚠️ 403 `feature_disabled` ולא 404: זהו הנוסח שכל שאר ה-API של המערכת
+   * החדשה מחזיר (`requireAdminApi`, `/api/appointments`), ואחידות עדיפה
+   * כאן על הסתרה — ה-route הזה נגיש ממילא מכל דפדפן.
+   *
+   * ⚠️ הבדיקה **אינה** מבחינה בין מנהלת ללקוחה. אין דרך לדעת מי שולח לפני
+   * שנשלח קוד, וחריג "רק למנהלת" היה חייב לחשוף אילו מספרים הם מנהלות.
+   */
+  if (!isNewBookingSystemEnabled()) {
+    return NextResponse.json({ error: 'feature_disabled' }, { status: 403 })
+  }
+
   let body: { phone?: string; purpose?: string }
   try {
     body = await req.json()
