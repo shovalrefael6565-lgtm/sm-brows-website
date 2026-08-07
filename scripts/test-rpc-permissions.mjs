@@ -120,6 +120,20 @@ const ASSERTION_MIGRATIONS = {
     'abort_reminder_attempt(uuid,uuid,text)',
     'retry_reminder(uuid,uuid,boolean)',
   ],
+  /**
+   * שלב 12B — הנפקת OTP ואימות OTP אטומיים.
+   *
+   * ⚠️ otp_hash_equals נראית תמימה — היא משווה שתי מחרוזות ואינה נוגעת
+   * בשום טבלה. היא סגורה בכל זאת: היא ההשוואה בזמן קבוע של גיבוב הקוד,
+   * ו-RPC פתוח שמקבל גיבוב ומחזיר בוליאני הוא אורקל השוואה זמין לכל מי
+   * שמחזיק את מפתח ה-anon.
+   */
+  '0013_atomic_otp_operations.sql': [
+    'otp_hash_equals(text,text)',
+    'issue_otp_atomic(text,text,text,inet,integer,integer,integer,integer,integer)',
+    'verify_otp_atomic(text,text,text,integer)',
+    'discard_otp_issue_atomic(bigint,text,text)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

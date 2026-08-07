@@ -24,6 +24,12 @@ export default function LoginForm() {
   const [maskedPhone, setMaskedPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * הודעה נייטרלית שאינה שגיאה — כרגע רק המקרה שבו השליחה יצאה ולא ידוע
+   * מה עלה בגורלה. ⚠️ מוצגת בנפרד מ-error ובסגנון אחר: הקוד **כן** תקף,
+   * והצגתו כשגיאה אדומה הייתה מרתיעה מלהזין קוד שכבר הגיע.
+   */
+  const [notice, setNotice] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
 
   const codeRef = useRef<HTMLInputElement>(null)
@@ -46,6 +52,7 @@ export default function LoginForm() {
     }
     setLoading(true)
     setError(null)
+    setNotice(null)
     try {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
@@ -61,6 +68,9 @@ export default function LoginForm() {
       }
 
       setMaskedPhone(data.maskedPhone)
+      // ⚠️ 200 עם notice = השליחה יצאה ותוצאתה אינה ידועה. המסך ממשיך
+      // להזנת הקוד בדיוק כמו בהצלחה, כי הקוד תקף.
+      setNotice(typeof data.notice === 'string' ? data.notice : null)
       setStep('code')
       setCooldown(60)
       if (resend) setCode('')
@@ -78,6 +88,7 @@ export default function LoginForm() {
     }
     setLoading(true)
     setError(null)
+    setNotice(null)
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
@@ -204,7 +215,7 @@ export default function LoginForm() {
             <div className="flex items-center justify-between mt-4 text-sm">
               <button
                 type="button"
-                onClick={() => { setStep('phone'); setCode(''); setError(null) }}
+                onClick={() => { setStep('phone'); setCode(''); setError(null); setNotice(null) }}
                 className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
               >
                 שינוי מספר
@@ -220,6 +231,22 @@ export default function LoginForm() {
             </div>
           </motion.form>
         )}
+
+      {/*
+        ⚠️ נייטרלי ולא אדום, ו-role="status" ולא "alert": זו אינה שגיאה.
+        הקוד תקף וייתכן מאוד שההודעה הגיעה — ההודעה רק מסבירה מה לעשות אם לא.
+      */}
+      {notice && !error && (
+        <motion.p
+          id="login-notice"
+          role="status"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 text-sm text-brand-dark bg-brand-linen border border-brand-linen-dark rounded-xl px-4 py-3"
+        >
+          {notice}
+        </motion.p>
+      )}
 
       {error && (
         <motion.p
