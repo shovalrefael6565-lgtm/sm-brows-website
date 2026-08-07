@@ -17,6 +17,28 @@ const MESSAGES: Record<string, string> = {
   error: 'משהו השתבש. נסי שוב בעוד רגע.',
 }
 
+/**
+ * 🔒 שלב 14 — הכניסה נכשלת בגלוי כשלא ניתן לרשום את ה-session.
+ *
+ * ⚠️ מאז שלב 14 `createSession` כותבת שורה ב-app_sessions *לפני* ה-cookie,
+ * וכשהכתיבה נכשלת אין cookie בכלל. זו התנהגות מכוונת (fail-closed): cookie
+ * בלי רשומה מקבילה היה נפסל באימות הראשון, כלומר לקוחה שרואה "התחברת"
+ * ומועפת החוצה בעמוד הבא בלי הסבר.
+ *
+ * ⚠️ הקוד שהוזן כבר נצרך (`verify_otp_atomic` שורפת אותו באותה טרנזקציה
+ * שאימתה אותו), ולכן ניסיון חוזר מחייב קוד חדש. הנוסח למטה מכוון לפעולה
+ * הזו ולא מסגיר את הסיבה הפנימית.
+ *
+ * 503 ולא 500 — כשל זמינות של המסד, ששווה ניסיון חוזר.
+ */
+function sessionCreationFailed() {
+  console.error('[otp/verify] יצירת session נכשלה — לא נכתב cookie')
+  return NextResponse.json(
+    { error: 'server_error', message: 'משהו השתבש. יש לבקש קוד חדש ולנסות שוב.' },
+    { status: 503 },
+  )
+}
+
 export async function POST(req: NextRequest) {
   /*
    * 🔒 שלב 13 — הדגל חוסם לפני `verifyOtp`, לפני `resolveCustomerForLogin`
@@ -81,7 +103,12 @@ export async function POST(req: NextRequest) {
   // ⚠️ מול ה-auth user id, לא מול מזהה הלקוחה: admins.user_id מפנה
   // ל-auth.users, ומאז שלב 10 הם שני מזהים שונים.
   if (await isAdmin(authUserId)) {
-    await createSession({ userId: authUserId, phone: customer.phone_e164, role: 'admin' })
+    const created = await createSession({
+      userId: authUserId,
+      phone: customer.phone_e164,
+      role: 'admin',
+    })
+    if (!created) return sessionCreationFailed()
     return NextResponse.json({ ok: true, redirectTo: '/admin' })
   }
 
@@ -92,12 +119,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  await createSession({
+  const created = await createSession({
     userId: authUserId,
     cid: customer.id,
     phone: customer.phone_e164,
     role: 'customer',
   })
+  if (!created) return sessionCreationFailed()
 
   return NextResponse.json({
     ok: true,
