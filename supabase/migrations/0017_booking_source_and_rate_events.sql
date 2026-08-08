@@ -18,7 +18,10 @@
 -- טיפוס *חדש* (CREATE TYPE), ולכן מותר להשתמש בו מיד באותה טרנזקציה —
 -- בניגוד ל-ALTER TYPE ADD VALUE. אותו שיקול בדיוק כמו calendar_sync_operation
 -- ב-0005.
-create type booking_source as enum (
+-- ⚠️ מוסמך ל-public במפורש, בדיוק כמו ב-0016. ה-search_path של ה-SQL
+-- Editor אינו כולל public, ו-CREATE TYPE לא מוסמך היה יוצר את הטיפוס
+-- ב-pg_catalog **בלי לזרוק שגיאה** — סכמה שגויה בשקט.
+create type public.booking_source as enum (
   'public_booking',  -- הטופס הציבורי ב-/booking, ללא התחברות
   'personal_area',   -- האזור האישי של לקוחה מחוברת (נכנס לשימוש ב-15D)
   'admin_manual'     -- תור שהמנהלת יצרה מתוך מערכת הניהול
@@ -34,7 +37,7 @@ create type booking_source as enum (
 -- כל מסלול יצירה מציב את הערך במפורש: המסלול הציבורי ב-0018, התור הידני
 -- ב-create_manual_appointment (מוחלף ב-0018), והאזור האישי ב-15D.
 alter table public.appointments
-  add column booking_source booking_source;
+  add column booking_source public.booking_source;
 
 comment on column public.appointments.booking_source is
   'מאיזה מסלול הגיעה הבקשה. null = נוצר לפני 0017 ולא נרשם. אין backfill — אי אפשר לדעת בדיעבד.';
