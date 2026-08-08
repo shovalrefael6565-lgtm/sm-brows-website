@@ -26,4 +26,4 @@
 -- מהיעדר נתון.
 -- ============================================================================
 
-alter type appointment_status add value 'rejected';
+alter type public.appointment_status add value 'rejected';
