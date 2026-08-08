@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
-import { POLICY_VERSION, POLICY_PATH } from '@/lib/bookingPolicy'
+import { POLICY_PATH } from '@/lib/bookingPolicy'
 import { isSpecialDay } from '@/lib/specialAvailability'
 import {
   getIsraelToday, selectVisibleSlots, filterLiftingStarts,
@@ -473,18 +473,13 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     return Object.keys(e).length === 0
   }
 
-  /** חותמת זמן ישראלית לרגע אישור המדיניות — נשלחת יחד עם בקשת התור */
-  const acceptedAtLabel = () =>
-    new Intl.DateTimeFormat('he-IL', {
-      timeZone: 'Asia/Jerusalem',
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date())
-
   /**
-   * ⚠️ הנוסח עצמו חי ב-lib/whatsappTemplates.ts ולא כאן. הוא זהה תו-בתו
-   * למה שהיה בקומפוננטה עד שלב 15B — החילוץ נועד לכך שהאזור האישי (15D)
-   * ישלח בדיוק את אותה הודעה, בלי עותק שני שיתבדר.
+   * ⚠️ הנוסח עצמו חי ב-lib/whatsappTemplates.ts ולא כאן — כדי שהאזור האישי
+   * (15D) ישלח בדיוק את אותה הודעה, בלי עותק שני שיתבדר.
+   *
+   * ⚠️ אין כאן שורת אישור מדיניות: האישור הוא תנאי חוסם ב-validateFinal,
+   * ולכן הוא תמיד נכון ואינו מוסיף מידע. `policy_version` ממשיך להישמר
+   * על שורת התור ב-DB.
    */
   const buildWhatsAppMessage = () =>
     encodeURIComponent(
@@ -498,8 +493,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
         dateLabel: form.date || undefined,
         timeLabel: form.time ? (isLifting ? liftingRange : form.time) : undefined,
         notes: form.notes,
-        policyVersion: POLICY_VERSION,
-        policyAcceptedAt: acceptedAtLabel(),
       }),
     )
 

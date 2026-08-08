@@ -197,8 +197,12 @@ section('נוסח בקשת התור (snapshot)')
 
 const { buildBookingRequestMessage } = await import('../lib/whatsappTemplates.ts')
 
-// ⚠️ snapshot של הנוסח שהיה בקומפוננטה לפני שלב 15B. כל סטייה — כולל רווח
-// או אמוג'י — היא שינוי בנוסח שהלקוחות שולחות בפועל.
+// ⚠️ snapshot של הנוסח. כל סטייה — כולל רווח או אמוג'י — היא שינוי בנוסח
+// שהלקוחות שולחות בפועל.
+//
+// ⚠️ שורת "אישרה את מדיניות התורים" הוסרה במכוון: האישור הוא תנאי חוסם
+// לשליחה, ולכן שורה שמצהירה עליו תמיד נכונה ואינה מוסיפה מידע.
+// policy_version ממשיך להישמר על שורת התור ב-DB.
 const EXPECTED = [
   'היי שובל 🤍',
   '',
@@ -213,8 +217,6 @@ const EXPECTED = [
   '⏰ 17:00',
   '',
   '📝 רגישות בעור',
-  '',
-  '✅ אישרה את מדיניות התורים והביטולים (גרסה v1) — 24.8.2026, 12:00',
 ].join('\n')
 
 const actual = buildBookingRequestMessage({
@@ -226,31 +228,48 @@ const actual = buildBookingRequestMessage({
   dateLabel: '24 אוגוסט 2026',
   timeLabel: '17:00',
   notes: 'רגישות בעור',
-  policyVersion: 'v1',
-  policyAcceptedAt: '24.8.2026, 12:00',
 })
 chk('הנוסח זהה ל-snapshot תו-בתו', actual === EXPECTED)
 if (actual !== EXPECTED) {
   console.log('--- צפוי ---\n' + EXPECTED + '\n--- בפועל ---\n' + actual)
 }
 
+chk('🔒 אין שורת אישור מדיניות בשום וריאציה', (() => {
+  const variants = [
+    { customerName: 'א', phone: '05', treatment: 'ט' },
+    { customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה', priceTotal: 70 },
+    { customerName: 'א', phone: '05', treatment: 'ט', durationLabel: '40 דקות',
+      dateLabel: 'ד', timeLabel: '17:00' },
+  ]
+  return variants.every(v => {
+    const m = buildBookingRequestMessage(v)
+    return !m.includes('מדיניות') && !m.includes('✅')
+  })
+})())
+
+chk('ההודעה אינה מסתיימת בשורה ריקה', (() => {
+  const withNotes = buildBookingRequestMessage({
+    customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה' })
+  const without = buildBookingRequestMessage({
+    customerName: 'א', phone: '05', treatment: 'ט', timeLabel: '17:00' })
+  return !/\n$/.test(withNotes) && !/\n$/.test(without)
+    && withNotes.endsWith('📝 הערה') && without.endsWith('⏰ 17:00')
+})())
+
 chk('הרמת גבות: שורת משך מתווספת',
   buildBookingRequestMessage({
     customerName: 'א', phone: '0541234567', treatment: 'הרמת גבות',
     priceTotal: 250, durationLabel: '40 דקות', dateLabel: 'ד', timeLabel: '17:00–17:40',
-    policyVersion: 'v1', policyAcceptedAt: 'x',
   }).includes('⏱️ 40 דקות'))
 
 chk('בלי מחיר — שורת המחיר מושמטת',
   !buildBookingRequestMessage({
     customerName: 'א', phone: '0541234567', treatment: 'ט', priceTotal: 0,
-    policyVersion: 'v1', policyAcceptedAt: 'x',
   }).includes('💰'))
 
 chk('בלי הערות — שורת ההערות מושמטת',
   !buildBookingRequestMessage({
     customerName: 'א', phone: '0541234567', treatment: 'ט', notes: '   ',
-    policyVersion: 'v1', policyAcceptedAt: 'x',
   }).includes('📝'))
 
 // ─── קבועי מגבלת הקצב ───────────────────────────────────────────────────────

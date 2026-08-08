@@ -15,11 +15,20 @@
  * שהאזור האישי (15D) ישלח **בדיוק** את אותו נוסח, בלי עותק שני שיתבדר.
  *
  * ⚠️ כל שינוי כאן משנה את הנוסח שהלקוחות שולחות היום.
- * `scripts/test-whatsapp-templates.mjs` מחזיק snapshot של הנוסח ונכשל על
+ * `scripts/test-public-booking-core.mjs` מחזיק snapshot של הנוסח ונכשל על
  * כל סטייה — כולל רווח או אמוג'י.
  *
  * ⚠️ הקובץ הזה אינו 'server-only' בכוונה: הפונקציה נקראת מקומפוננטת לקוח.
  * אין בה שום סוד ושום גישה ל-DB.
+ *
+ * ─── למה אין כאן שורת אישור מדיניות ────────────────────────────────────────
+ *
+ * אישור המדיניות הוא **תנאי חוסם** לשליחת הבקשה (`validateFinal` ב-
+ * BookingForm), ולכן אי אפשר שתגיע בקשה שלא אושרה. שורה שמצהירה על משהו
+ * שתמיד נכון אינה מוסיפה מידע — היא רק מאריכה את ההודעה.
+ *
+ * ⚠️ התיעוד עצמו לא אבד: `policy_version` נשמר על שורת התור
+ * (`create_public_pending_appointment`), יחד עם `created_at`.
  */
 export interface BookingRequestMessageParams {
   customerName: string
@@ -38,9 +47,6 @@ export interface BookingRequestMessageParams {
   /** שעה או טווח שעות, למשל '17:00' או '17:00–17:40' */
   timeLabel?: string
   notes?: string
-  policyVersion: string
-  /** חותמת הזמן הישראלית של אישור המדיניות */
-  policyAcceptedAt: string
 }
 
 export function buildBookingRequestMessage(p: BookingRequestMessageParams): string {
@@ -58,8 +64,6 @@ export function buildBookingRequestMessage(p: BookingRequestMessageParams): stri
     ...(p.dateLabel ? [`📅 ${p.dateLabel}`] : []),
     ...(p.timeLabel ? [`⏰ ${p.timeLabel}`] : []),
     ...(p.notes?.trim() ? ['', `📝 ${p.notes}`] : []),
-    '',
-    `✅ אישרה את מדיניות התורים והביטולים (גרסה ${p.policyVersion}) — ${p.policyAcceptedAt}`,
   ]
   return lines.join('\n')
 }
