@@ -28,7 +28,7 @@
  * שתמיד נכון אינה מוסיפה מידע — היא רק מאריכה את ההודעה.
  *
  * ⚠️ התיעוד עצמו לא אבד: `policy_version` נשמר על שורת התור
- * (`create_public_pending_appointment`), יחד עם `created_at`.
+ * (`create_public_booking_request`), יחד עם `created_at`.
  */
 export interface BookingRequestMessageParams {
   customerName: string
