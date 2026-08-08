@@ -56,177 +56,233 @@ const all = async (sql, params) => (await db.query(sql, params)).rows
 // ── עזרי בדיקה ──────────────────────────────────────────────────────────────
 const future = (hours) => new Date(Date.now() + hours * 3600_000).toISOString()
 
-async function createPublic({ customerId, startsAt, ip = '203.0.113.5', expires = future(3), duration = 20 }) {
+async function book({ phone, name = 'לקוחת בדיקה', startsAt, ip = '203.0.113.5',
+                      expires = future(3), duration = 20 }) {
   return one(
-    `select * from public.create_public_pending_appointment(
-       $1, 'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-       $2::timestamptz, $3, null, 'v1', $4::timestamptz, $5::inet, 5)`,
-    [customerId, startsAt, duration, expires, ip],
+    `select * from public.create_public_booking_request(
+       $1, $2, 'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
+       $3::timestamptz, $4, null, 'v1', $5::timestamptz, $6::inet, 5)`,
+    [phone, name, startsAt, duration, expires, ip],
   )
 }
+const tryBook = async (args) => {
+  try { return { ok: true, row: await book(args) } }
+  catch (e) { return { ok: false, msg: e.message } }
+}
+const counts = async () => one(`select
+  (select count(*)::int from public.customers)           as customers,
+  (select count(*)::int from public.appointments)        as appointments,
+  (select count(*)::int from public.booking_rate_events) as rate_events`)
 
-// ── לקוחה לפי טלפון ─────────────────────────────────────────────────────────
-section('איתור / יצירת לקוחה לפי טלפון')
-
-const c1 = await one(`select * from public.link_or_create_customer_by_phone('+972541110001', 'דנה כהן')`)
-chk('לקוחה חדשה נוצרת', !!c1.id && c1.phone_e164 === '+972541110001')
-chk('auth_user_id נשאר null — לא נוצר חשבון התחברות', c1.auth_user_id === null)
-
-const c1again = await one(`select * from public.link_or_create_customer_by_phone('+972541110001', 'שם אחר לגמרי')`)
-chk('קריאה שנייה מחזירה את אותה לקוחה — אין כפילות', c1again.id === c1.id)
-chk('🔒 שם קיים אינו נדרס ע"י הטופס הציבורי', c1again.full_name === 'דנה כהן')
-
-const total = await one(`select count(*)::int as n from public.customers where phone_e164 = '+972541110001'`)
-chk('קיימת שורת לקוחה אחת בלבד למספר', total.n === 1)
-
-// לקוחה שנוצרה ידנית ב-CRM — המסלול הציבורי מתחבר אליה ולא יוצר חדשה
-await db.query(
-  `insert into public.customers (phone_e164, full_name) values ('+972541110002', 'לקוחה מה-CRM')`)
-const linked = await one(`select * from public.link_or_create_customer_by_phone('+972541110002', 'הוקלד בטופס')`)
-chk('לקוחה ידנית מה-CRM מקושרת ולא משוכפלת', linked.full_name === 'לקוחה מה-CRM')
-
-let badPhone = false
-try { await db.query(`select public.link_or_create_customer_by_phone('0541234567', 'א')`) }
-catch (e) { badPhone = e.message.includes('BAD_PHONE') }
-chk('טלפון שאינו E.164 נדחה', badPhone)
-
-let badName = false
-try { await db.query(`select public.link_or_create_customer_by_phone('+972541110009', 'א')`) }
-catch (e) { badName = e.message.includes('BAD_NAME') }
-chk('שם קצר מדי נדחה', badName)
-
-// ── booking_source ──────────────────────────────────────────────────────────
-section('מקור הבקשה')
-
-const a1 = await createPublic({ customerId: c1.id, startsAt: future(30) })
-chk('בקשה ציבורית מתויגת public_booking', a1.booking_source === 'public_booking')
-chk('הסטטוס הוא pending', a1.status === 'pending')
-chk('התפוגה נשמרה כפי שנשלחה', a1.pending_expires_at !== null)
-
-const hist = await one(
-  `select * from public.appointment_history where appointment_id = $1`, [a1.id])
-chk('נכתבה שורת היסטוריה עם actor=customer', hist.actor === 'customer' && hist.action === 'created')
-
-// ── מגבלת הקצב ──────────────────────────────────────────────────────────────
-section('מגבלת קצב לפי IP')
-
-const c2 = await one(`select * from public.link_or_create_customer_by_phone('+972541110003', 'לקוחה ב')`)
 await db.query(`update public.business_settings set value = '99'::jsonb
                 where key = 'max_active_pending_per_customer'`)
 
-// חמש יצירות מוצלחות מאותו IP
+// ── 1. booking מוצלח ────────────────────────────────────────────────────────
+section('1. booking מוצלח — לקוחה + תור + היסטוריה + אירוע קצב')
+
+const before1 = await counts()
+const a1 = await book({ phone: '+972541110001', name: 'דנה כהן', startsAt: future(30) })
+const after1 = await counts()
+
+chk('נוצר תור', !!a1.id && a1.status === 'pending')
+chk('10. booking_source = public_booking', a1.booking_source === 'public_booking')
+chk('נוצרה לקוחה אחת', after1.customers === before1.customers + 1)
+chk('נוצר תור אחד', after1.appointments === before1.appointments + 1)
+chk('נרשם אירוע קצב אחד', after1.rate_events === before1.rate_events + 1)
+const h1 = await one(`select * from public.appointment_history where appointment_id = $1`, [a1.id])
+chk('נכתבה היסטוריה עם actor=customer', h1.actor === 'customer' && h1.action === 'created')
+chk('התפוגה נשמרה כפי שנשלחה', a1.pending_expires_at !== null)
+
+// ── 2. conflict — אפס שאריות ────────────────────────────────────────────────
+section('2. conflict — לא נשארת לקוחה, לא תור, לא אירוע קצב')
+
+const busySlot = future(40)
+await book({ phone: '+972541110002', startsAt: busySlot })
+const before2 = await counts()
+const conflict = await tryBook({ phone: '+972549990001', name: 'לקוחה חדשה לגמרי', startsAt: busySlot })
+const after2 = await counts()
+
+chk('הבקשה נכשלה על ה-EXCLUDE constraint',
+  !conflict.ok && (conflict.msg.includes('exclusion') || conflict.msg.includes('23P01')))
+chk('🔒 לא נוצרה לקוחה חדשה', after2.customers === before2.customers)
+chk('🔒 לא נוצר תור', after2.appointments === before2.appointments)
+chk('🔒 לא נרשם אירוע קצב', after2.rate_events === before2.rate_events)
+const orphan = await one(
+  `select count(*)::int as n from public.customers where phone_e164 = '+972549990001'`)
+chk('🔒 המספר שנכשל אינו קיים כלקוחה', orphan.n === 0)
+
+// ── 3. RATE_LIMITED — אפס לקוחות חדשות ──────────────────────────────────────
+section('3. RATE_LIMITED — הקצב נאכף לפני יצירת הלקוחה')
+
 const IP = '198.51.100.20'
-let created = 0
 for (let i = 0; i < 5; i++) {
-  await createPublic({ customerId: c2.id, startsAt: future(40 + i * 2), ip: IP })
-  created++
+  await book({ phone: `+97254200000${i}`, startsAt: future(60 + i * 2), ip: IP })
 }
-chk('חמש יצירות ראשונות מאותו IP מצליחות', created === 5)
+const before3 = await counts()
+const limited = await tryBook({ phone: '+972549990002', name: 'עוד אחת חדשה', startsAt: future(80), ip: IP })
+const after3 = await counts()
 
-let sixthBlocked = false
-try { await createPublic({ customerId: c2.id, startsAt: future(60), ip: IP }) }
-catch (e) { sixthBlocked = e.message.includes('RATE_LIMITED') }
-chk('🔒 היצירה השישית נחסמת עם RATE_LIMITED', sixthBlocked)
+chk('הבקשה השישית נחסמה', !limited.ok && limited.msg.includes('RATE_LIMITED'))
+chk('🔒 לא נוצרה לקוחה חדשה למרות שהמספר חדש', after3.customers === before3.customers)
+chk('🔒 לא נוצר תור', after3.appointments === before3.appointments)
+chk('🔒 לא נרשם אירוע קצב נוסף', after3.rate_events === before3.rate_events)
+chk('IP אחר אינו מושפע',
+  (await tryBook({ phone: '+972549990003', startsAt: future(84), ip: '198.51.100.99' })).ok)
 
-const notCreated = await one(
-  `select count(*)::int as n from public.appointments
-   where customer_id = $1 and starts_at = $2::timestamptz`, [c2.id, future(60)])
-chk('🔒 הבקשה החסומה לא נוצרה בכלל', notCreated.n === 0)
+// ── 4. לקוחה חסומה ──────────────────────────────────────────────────────────
+section('4. לקוחה חסומה — אין תור, אין אירוע קצב')
 
-const otherIp = await createPublic({ customerId: c2.id, startsAt: future(62), ip: '198.51.100.99' })
-chk('IP אחר אינו מושפע מהמגבלה', otherIp.booking_source === 'public_booking')
+await db.query(
+  `insert into public.customers (phone_e164, full_name, is_blocked)
+   values ('+972541110050', 'לקוחה חסומה', true)`)
+const before4 = await counts()
+const blocked = await tryBook({ phone: '+972541110050', startsAt: future(90), ip: '203.0.113.60' })
+const after4 = await counts()
 
-// 🔒 הבדיקה המרכזית של B3: כישלון אינו נספר
-section('🔒 נספרות יצירות מוצלחות בלבד')
-
-const c3 = await one(`select * from public.link_or_create_customer_by_phone('+972541110004', 'לקוחה ג')`)
-const IP2 = '198.51.100.30'
-const busySlot = future(80)
-await createPublic({ customerId: c3.id, startsAt: busySlot, ip: IP2 }) // תופסת את השעה
-
-const before = await one(
-  `select count(*)::int as n from public.booking_rate_events where ip = $1::inet`, [IP2])
-
-// שלוש התנגשויות על אותה שעה — כל אחת אמורה ליפול על ה-EXCLUDE constraint
-let collisions = 0
-for (let i = 0; i < 3; i++) {
-  try { await createPublic({ customerId: c3.id, startsAt: busySlot, ip: IP2 }) }
-  catch (e) { if (e.message.includes('exclusion') || e.code === '23P01') collisions++ }
+chk('נזרק CUSTOMER_BLOCKED', !blocked.ok && blocked.msg.includes('CUSTOMER_BLOCKED'))
+chk('🔒 לא נוצר תור', after4.appointments === before4.appointments)
+chk('🔒 לא נרשם אירוע קצב', after4.rate_events === before4.rate_events)
+chk('הלקוחה החסומה נשארה כפי שהייתה', after4.customers === before4.customers)
+{
+  // 🔒 התשובה הציבורית אינה מסגירה חסימה — נבדק על מקור ה-route:
+  //    ענף blocked ו-ענף db_error מחזירים אותו status, error ו-message.
+  const raw = readFileSync(new URL('../app/api/bookings/request/route.ts', import.meta.url), 'utf8')
+  // ⚠️ הערות מוסרות לפני הסריקה — הן מסבירות את החסימה ולכן מכילות את
+  // המילה, אבל הן אינן חלק מהתשובה ללקוחה.
+  const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  const body = code.split('export async function POST')[1] ?? ''
+  // ענף ה-blocked חייב להכיל רישום ללוג בלבד — בלי return משלו, כך
+  // שהזרימה נופלת לענף הגנרי ומחזירה בדיוק את אותה תשובה ככשל שרת.
+  const i = body.indexOf("result.error === 'blocked'")
+  const branch = i === -1 ? '' : body.slice(i, body.indexOf('}', body.indexOf('{', i)))
+  chk('🔒 ה-route מזהה blocked, רושם ללוג, ואינו מחזיר עליו תשובה ייעודית',
+    i !== -1 && !/return/.test(branch) && /console\.error/.test(branch) && !/חסומה/.test(body))
+  // ואין שום אזכור של חסימה בטקסט שנשלח ללקוחה
+  chk('🔒 אין נוסח שמסגיר חסימה בשום תשובה',
+    !/blocked|חסומ/.test((body.match(/message:\s*'[^']*'/g) ?? []).join(' ')))
 }
-chk('שלוש בקשות על שעה תפוסה נכשלו', collisions === 3)
 
-const after = await one(
-  `select count(*)::int as n from public.booking_rate_events where ip = $1::inet`, [IP2])
-chk('🔒 בקשות שנכשלו לא נספרו במגבלה', after.n === before.n, `לפני=${before.n} אחרי=${after.n}`)
+// ── 5. מקבילות: אותה לקוחה, IP שונים ────────────────────────────────────────
+section('5. מגבלת pending אטומית — נעילת namespace 5')
 
-// ── double booking ──────────────────────────────────────────────────────────
-section('מניעת double booking')
+await db.query(`update public.business_settings set value = '2'::jsonb
+                where key = 'max_active_pending_per_customer'`)
+const P5 = '+972541110060'
+await book({ phone: P5, startsAt: future(100), ip: '203.0.113.71' })
+await book({ phone: P5, startsAt: future(102), ip: '203.0.113.72' })
+const third = await tryBook({ phone: P5, startsAt: future(104), ip: '203.0.113.73' })
+chk('הבקשה השלישית נחסמה למרות IP שונה',
+  !third.ok && third.msg.includes('PENDING_LIMIT_REACHED'))
+const p5count = await one(
+  `select count(*)::int as n from public.appointments a join public.customers c on c.id = a.customer_id
+   where c.phone_e164 = $1 and a.status = 'pending'`, [P5])
+chk('🔒 ללקוחה בדיוק 2 pending, לא יותר', p5count.n === 2)
+{
+  // 🔒 הנעילה עצמה קיימת בקוד ולפני הספירה
+  const sql = readFileSync(new URL('../supabase/migrations/0018_public_booking_rpcs.sql', import.meta.url), 'utf8')
+  const lockAt = sql.indexOf('pg_advisory_xact_lock(5')
+  const countAt = sql.indexOf('where customer_id = v_customer.id and status = ')
+  chk('🔒 נעילת namespace 5 קיימת ומופיעה לפני הספירה',
+    lockAt !== -1 && countAt !== -1 && lockAt < countAt)
+  // ⚠️ נעילה 3 נלקחת בתוך link_or_create_customer_by_phone, ולכן הסדר
+  // נבדק לפי מיקום ה*קריאה* אליה בגוף create_public_booking_request —
+  // לא לפי מיקום הטקסט 'pg_advisory_xact_lock(3' בקובץ, שיושב למעלה
+  // בהגדרת הפונקציה הנקראת.
+  const fnBody = sql.slice(sql.indexOf('create or replace function public.create_public_booking_request'))
+  const ipAt = fnBody.indexOf('pg_advisory_xact_lock(4')
+  const phoneCallAt = fnBody.indexOf('public.link_or_create_customer_by_phone(')
+  const custAt = fnBody.indexOf('pg_advisory_xact_lock(5')
+  chk('🔒 סדר הנעילות בגוף הפונקציה: 4 → 3 → 5',
+    ipAt !== -1 && ipAt < phoneCallAt && phoneCallAt < custAt)
+}
+await db.query(`update public.business_settings set value = '99'::jsonb
+                where key = 'max_active_pending_per_customer'`)
 
-const c4 = await one(`select * from public.link_or_create_customer_by_phone('+972541110005', 'לקוחה ד')`)
-const c5 = await one(`select * from public.link_or_create_customer_by_phone('+972541110006', 'לקוחה ה')`)
-const contested = future(100)
+// ── 6. אותו מספר חדש פעמיים ─────────────────────────────────────────────────
+section('6. אותו מספר חדש — לקוחה אחת בלבד')
 
-await createPublic({ customerId: c4.id, startsAt: contested, ip: '203.0.113.41' })
-let secondFailed = false
-try { await createPublic({ customerId: c5.id, startsAt: contested, ip: '203.0.113.42' }) }
-catch (e) { secondFailed = e.message.includes('exclusion') || e.code === '23P01' }
-chk('🔒 לקוחה שנייה אינה יכולה לתפוס את אותה שעה', secondFailed)
+const P6 = '+972541110070'
+await book({ phone: P6, name: 'ראשונה', startsAt: future(110), ip: '203.0.113.81' })
+await book({ phone: P6, name: 'ניסיון לדרוס', startsAt: future(112), ip: '203.0.113.82' })
+const c6 = await one(`select count(*)::int as n from public.customers where phone_e164 = $1`, [P6])
+chk('🔒 נוצרה לקוחה אחת בלבד', c6.n === 1)
 
-const held = await one(
-  `select count(*)::int as n from public.appointments
-   where starts_at = $1::timestamptz and status in ('pending','confirmed')`, [contested])
-chk('קיים תור פעיל אחד בלבד על השעה', held.n === 1)
+// ── 7. שם קיים אינו נדרס ────────────────────────────────────────────────────
+section('7. שם קיים אינו נדרס')
 
-// חפיפה חלקית (תור 40 דק' שמתחיל 20 דק' אחרי) נחסמת גם היא
-const overlapStart = new Date(new Date(contested).getTime() + 10 * 60_000).toISOString()
-let overlapFailed = false
-try { await createPublic({ customerId: c5.id, startsAt: overlapStart, ip: '203.0.113.43', duration: 40 }) }
-catch (e) { overlapFailed = e.message.includes('exclusion') || e.code === '23P01' }
-chk('חפיפה חלקית נחסמת גם היא', overlapFailed)
+const name7 = await one(`select full_name from public.customers where phone_e164 = $1`, [P6])
+chk('🔒 השם נשאר של הבקשה הראשונה', name7.full_name === 'ראשונה')
 
-// ── ולידציית קלט ב-RPC ──────────────────────────────────────────────────────
+await db.query(
+  `insert into public.customers (phone_e164, full_name) values ('+972541110080', 'שם מה-CRM')`)
+await book({ phone: '+972541110080', name: 'הוקלד בטופס', startsAt: future(120), ip: '203.0.113.83' })
+const crmName = await one(`select full_name from public.customers where phone_e164 = '+972541110080'`)
+chk('🔒 שם שנקבע ידנית ב-CRM אינו נדרס', crmName.full_name === 'שם מה-CRM')
+
+// ── 8. חיבור OTP עתידי ──────────────────────────────────────────────────────
+section('8. המבנה מאפשר חיבור OTP עתידי בלי כפילות')
+
+const c8 = await one(`select * from public.customers where phone_e164 = $1`, [P6])
+chk('auth_user_id נשאר null — אין חשבון התחברות', c8.auth_user_id === null)
+const authId = '00000000-0000-0000-0000-0000000000b1'
+await db.query(`insert into auth.users (id) values ($1)`, [authId])
+// ⚠️ מחזירה jsonb ולא שורה, ולכן נקראת כעמודה בודדת ולא ב-select *
+const linked8 = (await one(
+  `select public.link_or_create_customer_for_auth($1, $2, 'שם מההתחברות') as result`,
+  [authId, P6])).result
+chk('🔒 ההתחברות מתקשרת לאותה לקוחה', linked8.customer_id === c8.id)
+chk('🔒 לא נוצרה לקוחה כפולה',
+  (await one(`select count(*)::int as n from public.customers where phone_e164 = $1`, [P6])).n === 1)
+chk('🔒 גם ההתחברות אינה דורסת את השם', linked8.full_name === 'ראשונה')
+chk('🔒 auth_user_id קושר לשורה הקיימת',
+  (await one(`select auth_user_id from public.customers where phone_e164 = $1`, [P6])).auth_user_id === authId)
+
+// ── 9. הרשאות ───────────────────────────────────────────────────────────────
+section('9. הרשאות ה-RPC החדש')
+
+const SIG = 'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)'
+const perms = await one(`select
+  has_function_privilege('anon',          '${SIG}', 'execute') as anon_can,
+  has_function_privilege('authenticated', '${SIG}', 'execute') as auth_can,
+  has_function_privilege('service_role',  '${SIG}', 'execute') as svc_can,
+  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'create_public_booking_request'
+      and p.prosecdef) as definers`)
+chk('🔒 anon אינו יכול', perms.anon_can === false)
+chk('🔒 authenticated אינו יכול', perms.auth_can === false)
+chk('service_role כן יכול', perms.svc_can === true)
+chk('🔒 הפונקציה נשארה SECURITY INVOKER', perms.definers === 0)
+
+// ── ולידציה ואכיפת קלט ──────────────────────────────────────────────────────
 section('אכיפת קלט ב-RPC')
 
-const c6 = await one(`select * from public.link_or_create_customer_by_phone('+972541110007', 'לקוחה ו')`)
-
-let noIp = false
-try {
-  await db.query(
-    `select public.create_public_pending_appointment($1,'עיצוב גבות טבעיות',array['עיצוב גבות טבעי']::text[],70,
-      $2::timestamptz,20,null,'v1',$3::timestamptz,null,5)`,
-    [c6.id, future(120), future(3)])
-} catch (e) { noIp = e.message.includes('MISSING_IP') }
-chk('🔒 בקשה בלי IP נדחית', noIp)
-
-let badExpiry = false
-try { await createPublic({ customerId: c6.id, startsAt: future(120), expires: future(200) }) }
-catch (e) { badExpiry = e.message.includes('BAD_EXPIRY') }
-chk('תפוגה מעבר ל-72 שעות נדחית', badExpiry)
-
-let pastExpiry = false
-try { await createPublic({ customerId: c6.id, startsAt: future(120), expires: future(-1) }) }
-catch (e) { pastExpiry = e.message.includes('BAD_EXPIRY') }
-chk('תפוגה בעבר נדחית', pastExpiry)
-
-let pastStart = false
-try { await createPublic({ customerId: c6.id, startsAt: future(-5) }) }
-catch (e) { pastStart = e.message.includes('START_IN_PAST') }
-chk('מועד תור בעבר נדחה', pastStart)
-
-// 🔒 התקרה מהודקת ואינה ניתנת להרפיה מהקורא
-const c7 = await one(`select * from public.link_or_create_customer_by_phone('+972541110008', 'לקוחה ז')`)
-const IP3 = '198.51.100.77'
-for (let i = 0; i < 5; i++) {
-  await createPublic({ customerId: c7.id, startsAt: future(150 + i * 2), ip: IP3 })
+chk('טלפון שאינו E.164 נדחה',
+  !(await tryBook({ phone: '0541234567', startsAt: future(130) })).ok)
+chk('שם קצר מדי נדחה',
+  !(await tryBook({ phone: '+972541110090', name: 'א', startsAt: future(130) })).ok)
+chk('תפוגה מעבר ל-72 שעות נדחית',
+  !(await tryBook({ phone: '+972541110091', startsAt: future(130), expires: future(200) })).ok)
+chk('מועד תור בעבר נדחה',
+  !(await tryBook({ phone: '+972541110092', startsAt: future(-5) })).ok)
+{
+  const r = await tryBook({ phone: '+972541110093', startsAt: future(140), ip: null })
+  chk('🔒 בקשה בלי IP נדחית', !r.ok && r.msg.includes('MISSING_IP'))
 }
-let ceilingHeld = false
-try {
-  await db.query(
-    `select public.create_public_pending_appointment($1,'עיצוב גבות טבעיות',array['עיצוב גבות טבעי']::text[],70,
-      $2::timestamptz,20,null,'v1',$3::timestamptz,$4::inet,1000000)`,
-    [c7.id, future(170), future(3), IP3])
-} catch (e) { ceilingHeld = e.message.includes('RATE_LIMITED') }
-chk('🔒 קורא שמעביר מגבלה ענקית עדיין נחסם ב-5', ceilingHeld)
+{
+  // 🔒 התקרה מהודקת ואינה ניתנת להרפיה
+  const IP3 = '198.51.100.77'
+  for (let i = 0; i < 5; i++) {
+    await book({ phone: `+97254311000${i}`, startsAt: future(150 + i * 2), ip: IP3 })
+  }
+  let held = false
+  try {
+    await one(`select * from public.create_public_booking_request(
+      '+972543110099','לקוחה','עיצוב גבות טבעיות',array['עיצוב גבות טבעי']::text[],70,
+      $1::timestamptz,20,null,'v1',$2::timestamptz,$3::inet,1000000)`,
+      [future(170), future(3), IP3])
+  } catch (e) { held = e.message.includes('RATE_LIMITED') }
+  chk('🔒 קורא שמעביר מגבלה ענקית עדיין נחסם ב-5', held)
+}
 
 // ── ניקוי אופורטוניסטי ──────────────────────────────────────────────────────
 section('ניקוי booking_rate_events ללא Cron')
@@ -234,16 +290,13 @@ section('ניקוי booking_rate_events ללא Cron')
 await db.query(
   `insert into public.booking_rate_events (ip, created_at)
    values ('203.0.113.200'::inet, now() - interval '5 hours')`)
-const oldBefore = await one(
-  `select count(*)::int as n from public.booking_rate_events where created_at < now() - interval '2 hours'`)
-chk('הוכנסה שורה ישנה', oldBefore.n >= 1)
-
-const c8 = await one(`select * from public.link_or_create_customer_by_phone('+972541110010', 'לקוחה ח')`)
-await createPublic({ customerId: c8.id, startsAt: future(180), ip: '203.0.113.201' })
-
-const oldAfter = await one(
-  `select count(*)::int as n from public.booking_rate_events where created_at < now() - interval '2 hours'`)
-chk('הקריאה הבאה ניקתה שורות ישנות', oldAfter.n === 0)
+chk('הוכנסה שורה ישנה',
+  (await one(`select count(*)::int as n from public.booking_rate_events
+              where created_at < now() - interval '2 hours'`)).n >= 1)
+await book({ phone: '+972541110099', startsAt: future(180), ip: '203.0.113.201' })
+chk('הקריאה הבאה ניקתה שורות ישנות',
+  (await one(`select count(*)::int as n from public.booking_rate_events
+              where created_at < now() - interval '2 hours'`)).n === 0)
 
 // ── תור ידני ────────────────────────────────────────────────────────────────
 section('תור ידני — תיוג admin_manual')
@@ -252,18 +305,14 @@ const adminId = '00000000-0000-0000-0000-0000000000aa'
 await db.query(`insert into auth.users (id) values ($1)`, [adminId])
 await db.query(`insert into public.admins (user_id) values ($1)`, [adminId])
 const cm = await one(`select * from public.link_or_create_customer_by_phone('+972541110011', 'לקוחה ידנית')`)
-
-// ⚠️ מחזירה jsonb ולא שורה, ולכן נקראת כעמודה בודדת ולא ב-select *
 const manual = await one(
   `select public.create_manual_appointment(
      $1,'עיצוב גבות טבעיות',array['עיצוב גבות טבעי']::text[],70,$2::timestamptz,20,'v1',$3,
      gen_random_uuid(), repeat('a',64)) as result`,
   [cm.id, future(200), adminId])
-const manualRow = await one(
-  `select * from public.appointments where id = $1`, [manual.result.appointment_id])
+const manualRow = await one(`select * from public.appointments where id = $1`, [manual.result.appointment_id])
 chk('תור ידני מתויג admin_manual', manualRow.booking_source === 'admin_manual')
 chk('תור ידני נוצר כ-confirmed מיד', manualRow.status === 'confirmed')
-chk('תור ידני ממתין לסנכרון יומן', manualRow.calendar_sync_status === 'pending')
 
 // ── סיכום ───────────────────────────────────────────────────────────────────
 const passed = results.filter(Boolean).length

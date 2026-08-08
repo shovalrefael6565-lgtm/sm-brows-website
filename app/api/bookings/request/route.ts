@@ -3,8 +3,7 @@ import { normalizePhone } from '@/lib/phone'
 import { resolveClientIp } from '@/lib/clientIp'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { bookingRateLimitMessage } from '@/lib/bookingRateLimit'
-import { linkOrCreateCustomerByPhone } from '@/lib/db/customers'
-import { createPublicPendingAppointment } from '@/lib/db/appointments'
+import { createPublicBookingRequest } from '@/lib/db/appointments'
 import { getBusyRanges } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
@@ -213,35 +212,17 @@ export async function POST(req: NextRequest) {
     console.error('[bookings/request] calendar pre-check failed', err)
   }
 
-  // ── הלקוחה ─────────────────────────────────────────────────────────────
-  const resolved = await linkOrCreateCustomerByPhone(phone, fullName)
-  if (!resolved.ok) {
-    if (resolved.error === 'bad_phone' || resolved.error === 'bad_name') {
-      return fail({ status: 400, error: 'invalid_details', message: 'הפרטים שהוזנו אינם תקינים.' })
-    }
-    return fail({
-      status: 503,
-      error: 'server_error',
-      message: 'לא הצלחנו לשמור את הבקשה כרגע. הבקשה לא נשמרה — אפשר לשלוח לנו אותה בוואטסאפ.',
-      fallback: true,
-    })
-  }
-
-  const customer = resolved.customer
-  if (customer.is_blocked) {
-    return fail({
-      status: 403,
-      error: 'blocked',
-      message: 'לא ניתן לקבוע תור דרך האתר. יש ליצור קשר בוואטסאפ.',
-      fallback: true,
-    })
-  }
-
   const notes =
     typeof body.notes === 'string' ? body.notes.trim().slice(0, 1000) || null : null
 
-  const result = await createPublicPendingAppointment({
-    customerId: customer.id,
+  /*
+   * 🔒 קריאה **אחת**, טרנזקציה אחת: איתור/יצירת הלקוחה, אכיפת מגבלת הקצב,
+   * בדיקת ה-pending והיצירה — הכול יחד. כישלון בכל שלב מגלגל את הכול
+   * לאחור, ולכן אין מצב של לקוחה שנוצרה בלי תור.
+   */
+  const result = await createPublicBookingRequest({
+    phoneE164: phone,
+    fullName,
     serviceKey,
     variants,
     priceTotal,
@@ -272,6 +253,25 @@ export async function POST(req: NextRequest) {
       fallback: true,
     })
   }
+  if (result.error === 'invalid_details') {
+    return fail({ status: 400, error: 'invalid_details', message: 'הפרטים שהוזנו אינם תקינים.' })
+  }
+
+  /*
+   * 🔒 **לקוחה חסומה מקבלת בדיוק את אותה תשובה ככשל שרת.**
+   *
+   * ⚠️ נוסח ייעודי ("לא ניתן לקבוע תור דרך האתר") היה הופך את ה-endpoint
+   * לאורקל: מי ששולח מספרים ומשווה תשובות יכול היה למפות אילו מספרים
+   * קיימים במערכת ואילו מהם חסומים. הסטטוס, קוד השגיאה וההודעה זהים
+   * לחלוטין לענף ה-db_error שמתחתיו — אין שום שדה שמבדיל ביניהם.
+   *
+   * הידיעה שהתקבלה בקשה מלקוחה חסומה נשארת בלוג השרת בלבד. ⚠️ בלי טלפון
+   * ובלי שם — לוג אינו מקום לנתוני לקוחות.
+   */
+  if (result.error === 'blocked') {
+    console.error('[bookings/request] blocked customer attempted a booking')
+  }
+
   if (result.error || !result.appointment) {
     return fail({
       status: 500,

@@ -144,9 +144,9 @@ const ASSERTION_MIGRATIONS = {
    *     שמאפשר לברר אילו מספרי טלפון קיימים במערכת, ולזהם את טבלת
    *     הלקוחות ברשומות מזויפות.
    *
-   *   • create_public_pending_appointment — מקבלת customer_id ו-expires_at
-   *     כפרמטרים. חשיפה ל-anon הייתה מאפשרת ליצור בקשות עבור **כל** לקוחה,
-   *     לעקוף את כל הוולידציה ב-route, ולדלג על חלון הזמינות כולו.
+   *   • create_public_booking_request — יוצרת לקוחה, תור ואירוע קצב
+   *     בטרנזקציה אחת. חשיפה ל-anon הייתה מאפשרת לייצר לקוחות ותורים
+   *     בהיקף בלתי מוגבל ולדלג על חלון הזמינות כולו.
    *
    * create_manual_appointment נשארת ממופה ל-0010: היא מוחלפת ב-0018
    * ב-CREATE OR REPLACE (שמשמר ACL), ו-0018 מוסיפה את ה-REVOKE/GRANT
@@ -154,7 +154,7 @@ const ASSERTION_MIGRATIONS = {
    */
   '0018_public_booking_rpcs.sql': [
     'link_or_create_customer_by_phone(text,text)',
-    'create_public_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer)',
+    'create_public_booking_request(text,text,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer)',
   ],
 }
 

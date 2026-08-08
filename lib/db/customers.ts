@@ -167,66 +167,16 @@ export async function resolveCustomerForLogin(
   }
 }
 
-export type PhoneResolutionError = 'bad_phone' | 'bad_name' | 'db_error'
-
-/**
- * לקוחה לפי טלפון מנורמל — למסלול ההזמנה **הציבורי**, ללא OTP.
+/*
+ * ⚠️ אין כאן עוטף TS ל-link_or_create_customer_by_phone (0018).
  *
- * ⚠️ אין לבלבל בין זו ל-resolveCustomerForLogin. ההבדל אינו טכני אלא
- * מהותי: שם הטלפון **אומת** בקוד חד-פעמי, וכאן הוא רק **הוקלד**. לכן:
+ * פונקציית ה-SQL קיימת ומוענקת ל-service_role, אבל היא נקראת **אך ורק
+ * מתוך** create_public_booking_request, באותה טרנזקציה. קריאה נפרדת אליה
+ * מהאפליקציה הייתה מחזירה בדיוק את הבאג ששלב 15B תיקן: לקוחה שנוצרת
+ * ומתחייבת לפני שהתור נבדק, ומגבלת קצב שאינה מגנה על יצירת לקוחות.
  *
- *   • כאן לא נוצר auth user, לא נשלח OTP, ולא נוצר session.
- *   • הלקוחה שנוצרת כאן היא רשומה עסקית בלבד. היא לא יכולה להתחבר
- *     ולא לראות שום דבר — עד שתתחבר בעצמה עם אותו מספר, ואז
- *     resolveCustomerForLogin תקשר את החשבון לשורה הזו בדיוק.
- *   • שם של לקוחה קיימת **אינו נדרס** (נאכף ב-RPC עצמו).
- *
- * ⚠️ הקורא לא יקבל שום רמז לשאלה אם הלקוחה כבר הייתה קיימת. ההבחנה הזו
- * לא מוחזרת בכוונה — היא הייתה הופכת את הטופס הציבורי לכלי שמאפשר לברר
- * אילו מספרים הם לקוחות של העסק.
+ * מי שצריך ליצור לקוחה מהמסלול הציבורי — יקרא ל-createPublicBookingRequest.
  */
-export async function linkOrCreateCustomerByPhone(
-  phoneE164: string,
-  fullName: string,
-): Promise<{ ok: true; customer: Customer } | { ok: false; error: PhoneResolutionError }> {
-  const db = createSupabaseAdminClient()
-  const { data, error } = await db.rpc('link_or_create_customer_by_phone', {
-    p_phone_e164: phoneE164,
-    p_full_name: fullName,
-  })
-
-  if (error) {
-    if (error.message?.includes('BAD_PHONE')) return { ok: false, error: 'bad_phone' }
-    if (error.message?.includes('BAD_NAME')) return { ok: false, error: 'bad_name' }
-    // ⚠️ לא נרשם כאן הטלפון ולא השם — רק ההודעה של Postgres.
-    console.error('[customers] link_or_create_by_phone failed', error.message)
-    return { ok: false, error: 'db_error' }
-  }
-
-  const row = data as unknown as {
-    id: string
-    phone_e164: string
-    full_name: string
-    created_at: string
-    is_blocked: boolean
-  } | null
-
-  if (!row?.id) {
-    console.error('[customers] link_or_create_by_phone returned no row')
-    return { ok: false, error: 'db_error' }
-  }
-
-  return {
-    ok: true,
-    customer: {
-      id: row.id,
-      phone_e164: row.phone_e164,
-      full_name: row.full_name,
-      created_at: row.created_at,
-      is_blocked: row.is_blocked,
-    },
-  }
-}
 
 /** קריאת כרטיס לקוחה לפי מזהה — לשימוש אחרי אימות session בלבד */
 export async function getCustomerById(id: string): Promise<Customer | null> {

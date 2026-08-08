@@ -75,9 +75,26 @@ export async function createPendingAppointment(
   return { appointment: data as AppointmentSummary }
 }
 
-export type PublicAppointmentCreateError = AppointmentCreateError | 'rate_limited' | 'bad_request'
+export type PublicBookingError =
+  | 'slot_taken'
+  | 'pending_limit_reached'
+  | 'rate_limited'
+  | 'blocked'
+  | 'invalid_details'
+  | 'db_error'
 
-export interface CreatePublicAppointmentInput extends CreateAppointmentInput {
+export interface CreatePublicBookingInput {
+  /** מנורמל ל-E.164 לפני הקריאה (lib/phone.ts) */
+  phoneE164: string
+  fullName: string
+  serviceKey: string
+  variants: string[]
+  priceTotal: number
+  isoDate: string
+  time: string
+  durationMin: number
+  notes: string | null
+  policyVersion: string
   /** כתובת מהימנה בלבד — ראה lib/clientIp.ts. הקורא כבר אכף fail-closed. */
   ip: string
   /** מחושב ב-lib/pendingExpiry.ts. ה-RPC אוכף שהוא סביר, לא משכפל את הכלל. */
@@ -85,24 +102,25 @@ export interface CreatePublicAppointmentInput extends CreateAppointmentInput {
 }
 
 /**
- * יצירת בקשת תור מהמסלול הציבורי.
+ * בקשת תור מהמסלול הציבורי — **קריאה אחת, טרנזקציה אחת**.
  *
- * ⚠️ אינה גרסה נוספת של createPendingAppointment אלא מסלול נפרד, ובכוונה:
- *   • התפוגה מחושבת באפליקציה ונשלחת (כלל "יום העבודה הבא").
- *   • מגבלת הקצב לפי IP נאכפת בתוך אותה טרנזקציה.
- *   • booking_source נרשם כ-'public_booking'.
+ * ⚠️ מקבלת טלפון ולא customerId, בכוונה. הזהות נפתרת בתוך ה-RPC, ולכן:
+ *   • אין חלון שבו נוצרה לקוחה והתור נכשל (partial write)
+ *   • מגבלת הקצב נאכפת **לפני** יצירת הלקוחה, ולכן אי אפשר לייצר שורות
+ *     customers ע"י בקשות שנחסמות
+ *   • ספירת ה-pending של הלקוחה אטומית (נעילת namespace 5)
  *
- * 🔒 ההגנה מפני חפיפה נשארת ה-EXCLUDE constraint, בדיוק כמו בכל מסלול
- * אחר. אין כאן בדיקת "האם הסלוט פנוי" לפני הכתיבה.
+ * 🔒 ההגנה מפני חפיפה נשארת ה-EXCLUDE constraint, כמו בכל מסלול אחר.
  */
-export async function createPublicPendingAppointment(
-  input: CreatePublicAppointmentInput,
-): Promise<{ appointment?: AppointmentSummary; error?: PublicAppointmentCreateError }> {
+export async function createPublicBookingRequest(
+  input: CreatePublicBookingInput,
+): Promise<{ appointment?: AppointmentSummary; error?: PublicBookingError }> {
   const db = createSupabaseAdminClient()
   const startsAt = israelWallTimeToUtc(input.isoDate, input.time)
 
-  const { data, error } = await db.rpc('create_public_pending_appointment', {
-    p_customer_id: input.customerId,
+  const { data, error } = await db.rpc('create_public_booking_request', {
+    p_phone_e164: input.phoneE164,
+    p_full_name: input.fullName,
     p_service_key: input.serviceKey,
     p_variants: input.variants,
     p_price_total: input.priceTotal,
@@ -120,17 +138,24 @@ export async function createPublicPendingAppointment(
     if (error.code === '23P01') return { error: 'slot_taken' }
     if (error.message?.includes('RATE_LIMITED')) return { error: 'rate_limited' }
     if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
-    // קלט שנדחה ע"י ה-RPC (IP חסר, תפוגה לא סבירה, מועד בעבר) — באג אצלנו,
-    // לא מצב שהלקוחה יכולה לתקן. נרשם ומוחזר כשגיאת בקשה.
+    /*
+     * ⚠️ לקוחה חסומה. הקוד הזה קיים כדי שהשרת יידע מה קרה — ה-route
+     * **חייב** להחזיר עליו תשובה גנרית, זהה לכשל שרת. ראה שם.
+     */
+    if (error.message?.includes('CUSTOMER_BLOCKED')) return { error: 'blocked' }
+    if (error.message?.includes('BAD_PHONE') || error.message?.includes('BAD_NAME')) {
+      return { error: 'invalid_details' }
+    }
+    // קלט שנדחה ע"י ה-RPC (IP חסר, תפוגה לא סבירה, מועד בעבר) — באג אצלנו.
     if (
       error.message?.includes('MISSING_IP') ||
       error.message?.includes('BAD_EXPIRY') ||
       error.message?.includes('START_IN_PAST')
     ) {
-      console.error('[appointments] public create rejected input', error.message)
-      return { error: 'bad_request' }
+      console.error('[appointments] public booking rejected input', error.message)
+      return { error: 'db_error' }
     }
-    console.error('[appointments] create_public_pending_appointment failed', error.message)
+    console.error('[appointments] create_public_booking_request failed', error.message)
     return { error: 'db_error' }
   }
 

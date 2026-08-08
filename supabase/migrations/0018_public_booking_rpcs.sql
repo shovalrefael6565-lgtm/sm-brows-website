@@ -7,35 +7,61 @@
 -- ─── מה הקובץ הזה מוסיף ────────────────────────────────────────────────────
 --
 --   1. link_or_create_customer_by_phone — לקוחה לפי טלפון מנורמל, בלי OTP.
---   2. create_public_pending_appointment — בקשה ציבורית + הגבלת קצב, הכול
+--      נקראת **מתוך** create_public_booking_request, לא מה-route.
+--   2. create_public_booking_request — לקוחה + בקשה + אירוע קצב, הכול
 --      בטרנזקציה אחת.
 --   3. create_manual_appointment — מוחלפת בשינוי של שתי שורות בלבד, כדי
 --      שתסמן booking_source = 'admin_manual'. אין שינוי התנהגות.
 --
--- ─── 🔒 למה הגבלת הקצב חיה כאן ולא באפליקציה ──────────────────────────────
+-- ─── 🔒 למה הכול בטרנזקציה אחת ─────────────────────────────────────────────
 --
--- משלב 15B המסלול הציבורי אינו דורש OTP, ולכן מגבלת ה-IP היא אחת משתי
--- ההגנות היחידות מפני תפיסת סלוטים המונית. "לספור ואז ליצור" כשתי קריאות
--- נפרדות הוא בדיוק ה-race שהיה ב-OTP לפני 0013: חמש בקשות מקבילות עוברות
--- כולן את הספירה ואז יוצרות חמש הזמנות מעבר למכסה.
+-- בגרסה קודמת של הקובץ הזה ה-route קרא לשתי פונקציות בזו אחר זו: קודם
+-- יצירת הלקוחה, אחר כך יצירת התור. **שתי טרנזקציות נפרדות**, ומכאן שתי
+-- תקלות:
 --
--- הספירה, ההחלטה, היצירה ורישום האירוע קורים כאן בטרנזקציה אחת, מאחורי
--- pg_advisory_xact_lock על ה-IP. אין דרך לעקוף את זה מהאפליקציה.
+--   • בקשה שנכשלה (השעה נתפסה / מעל המכסה) השאירה לקוחה חדשה בלי שום תור.
 --
--- ⚠️ **נספרות יצירות מוצלחות בלבד.** רישום האירוע מתבצע *אחרי* ה-INSERT
--- של התור. בקשה שנפלה על ה-EXCLUDE constraint (השעה נתפסה) מגלגלת את כל
--- הטרנזקציה לאחור, כולל רישום האירוע — ולכן לקוחה אמיתית שנתקלה בשעה
--- תפוסה אינה שורפת את המכסה שלה. זו ההחלטה שאושרה ב-B3.
+--   • 🔴 **מגבלת הקצב לא הגנה על יצירת לקוחות כלל.** היא נאכפה בפונקציה
+--     השנייה, כלומר *אחרי* שהלקוחה כבר התחייבה. תוקף יכול היה לשגר אלפי
+--     בקשות עם מספרים אקראיים, לקבל 429 על כל אחת, ולייצר שורת customers
+--     בכל פעם.
 --
--- ─── סדר הנעילות ──────────────────────────────────────────────────────────
+-- לכן: פונקציה אחת, טרנזקציה אחת, ו**בדיקת הקצב לפני יצירת הלקוחה**.
+-- כל כישלון מגלגל לאחור את הלקוחה, התור, ההיסטוריה ואירוע הקצב יחד.
 --
--- 🔒 מרחבי מפתח נפרדים לחלוטין מ-0013 (שמשתמש ב-1=טלפון, 2=IP):
---       3 = טלפון עבור link_or_create_customer_by_phone
---       4 = IP     עבור create_public_pending_appointment
+-- ⚠️ **נספרות יצירות מוצלחות בלבד.** רישום אירוע הקצב מתבצע *אחרון*.
+-- בקשה שנפלה על ה-EXCLUDE constraint (השעה נתפסה) מגלגלת את כל הטרנזקציה
+-- לאחור, כולל רישום האירוע — ולכן לקוחה אמיתית שנתקלה בשעה תפוסה אינה
+-- שורפת את המכסה שלה. זו ההחלטה שאושרה ב-B3.
 --
--- שתי הפונקציות נקראות ברצף מה-route (קודם לקוחה, אחר כך תור), אך כל אחת
--- נועלת מרחב אחר ומשחררת ב-commit של הטרנזקציה שלה. אין מסלול שבו אחת
--- מחזיקה נעילה ומחכה לשנייה.
+-- ============================================================================
+-- 🔒 אינווריאנטת סדר הנעילות — חובה לקרוא לפני שמוסיפים מסלול חדש
+-- ============================================================================
+--
+-- מרחבי המפתח בפרויקט:
+--
+--   1 = טלפון        (0013/0014 — OTP)
+--   2 = IP           (0013 — OTP)
+--   3 = טלפון        (כאן — resolve/create לקוחה במסלול הציבורי)
+--   4 = IP           (כאן — מגבלת קצב להזמנה ציבורית)
+--   5 = customer_id  (כאן — **יצירת pending עבור לקוחה**) ← שמור
+--
+-- ⚠️ **namespace 5 שמור אך ורק לנעילת יצירת pending לפי customer_id.**
+-- כל מסלול עתידי שסופר pending של לקוחה לפני שהוא יוצר עוד אחד — ובכלל
+-- זה האזור האישי ב-15D — **חייב** לאחוז בו לפני הספירה. בלעדיו הספירה
+-- אינה אטומית: שתי בקשות לאותה לקוחה עוברות אותה יחד ושוברות את
+-- max_active_pending_per_customer.
+--
+-- ⚠️ **הסדר קבוע ואינו תלוי בקלט:**
+--
+--       המסלול הציבורי (כאן):        4  →  3  →  5
+--       האזור האישי (15D):           5 בלבד
+--
+-- 🔴 **אסור לאזור האישי — או לכל מסלול אחר — לתפוס 4 או 3 אחרי 5.**
+-- זה המסלול היחיד שיוצר מעגל המתנה, ולכן deadlock. מי שצריך את שלושתם
+-- חייב לקחת אותם בסדר 4 → 3 → 5 בדיוק, כמו כאן.
+--
+-- שני המסלולים תופסים את 5 **אחרון**, ולכן אין ביניהם מעגל.
 --
 -- ─── SECURITY INVOKER ─────────────────────────────────────────────────────
 --
@@ -129,7 +155,7 @@ comment on function public.link_or_create_customer_by_phone(text, text) is
 
 
 -- ============================================================================
--- חלק 2 — בקשת תור ציבורית + הגבלת קצב, בטרנזקציה אחת
+-- חלק 2 — בקשת תור ציבורית: לקוחה + תור + אירוע קצב, בטרנזקציה אחת
 --
 -- ⚠️ **התקרה מהודקת כאן ואינה ניתנת להרפיה.** קורא שיעביר
 -- p_max_per_ip_per_hour = 1000000 יקבל 5. אותו דפוס כמו ב-issue_otp_atomic:
@@ -141,10 +167,20 @@ comment on function public.link_or_create_customer_by_phone(text, text) is
 -- והיא חיה ב-TypeScript. שכפול הכלל ב-SQL היה יוצר בדיוק את הבאג שהתגלה
 -- ב-15A (90 דקות בשני קבצים שהתבדרו). ה-RPC **אוכף שהערך סביר** אך אינו
 -- משכפל את הלוגיקה העסקית.
+--
+-- ⚠️ **הפונקציה מקבלת טלפון, לא customer_id.** הזהות נפתרת בפנים, ולכן
+-- אין דרך לקרוא לה עבור לקוחה שרירותית, ואין חלון שבו לקוחה נוצרה אך
+-- התור נכשל.
+--
+-- ⚠️ **לקוחה חסומה מטופלת כאן ולא ב-route.** היא זורקת CUSTOMER_BLOCKED,
+-- וה-route ממפה אותה לאותה תשובה גנרית בדיוק כמו כשל שרת — ראה את ההערה
+-- ב-app/api/bookings/request/route.ts. אסור שהתשובה הציבורית תסגיר
+-- שהמספר קיים, לא קיים או חסום.
 -- ============================================================================
 
-create or replace function public.create_public_pending_appointment(
-  p_customer_id         uuid,
+create or replace function public.create_public_booking_request(
+  p_phone_e164          text,
+  p_full_name           text,
   p_service_key         text,
   p_variants            text[],
   p_price_total         integer,
@@ -167,11 +203,14 @@ declare
   c_expiry_max   constant interval := interval '72 hours';
 
   v_ip_count     integer;
+  v_customer     public.customers;
   v_max_pending  integer;
   v_active_count integer;
   v_row          public.appointments;
 begin
   -- ── ולידציה ────────────────────────────────────────────────────────────
+  -- הטלפון והשם נבדקים בתוך link_or_create_customer_by_phone, אך רק אחרי
+  -- מגבלת הקצב — כדי שקלט פסול לא יעקוף אותה.
   if p_ip is null then
     raise exception 'MISSING_IP' using errcode = '22023';
   end if;
@@ -182,7 +221,7 @@ begin
     raise exception 'START_IN_PAST' using errcode = '22023';
   end if;
 
-  -- ── 🔒 נעילה על ה-IP, לפני הספירה ──────────────────────────────────────
+  -- ── 🔒 נעילה 1 מתוך 3: IP (namespace 4) ────────────────────────────────
   perform pg_advisory_xact_lock(4, hashtext(host(p_ip)));
 
   -- ── ניקוי אופורטוניסטי ─────────────────────────────────────────────────
@@ -192,6 +231,10 @@ begin
   where created_at < now() - interval '2 hours';
 
   -- ── מגבלת הקצב ─────────────────────────────────────────────────────────
+  --
+  -- 🔒 **לפני יצירת הלקוחה, ובכוונה.** זה מה שמונע מתוקף לייצר שורת
+  -- customers על כל בקשה חסומה. הבדיקה הזו היא השער הראשון שכל בקשה
+  -- ציבורית פוגשת אחרי הוולידציה.
   select count(*)::integer into v_ip_count
   from public.booking_rate_events
   where ip = p_ip
@@ -200,6 +243,25 @@ begin
   if v_ip_count >= c_ip_max then
     raise exception 'RATE_LIMITED' using errcode = 'P0012';
   end if;
+
+  -- ── 🔒 נעילה 2 מתוך 3: טלפון (namespace 3, בתוך הפונקציה הנקראת) ───────
+  -- אותה טרנזקציה, ולכן לקוחה שנוצרת כאן מתגלגלת לאחור יחד עם כל כישלון
+  -- בהמשך. השם של לקוחה קיימת אינו נדרס (ראה חלק 1).
+  v_customer := public.link_or_create_customer_by_phone(p_phone_e164, p_full_name);
+
+  -- ── לקוחה חסומה ────────────────────────────────────────────────────────
+  -- ⚠️ errcode ייעודי כדי שהשרת יוכל לרשום מה קרה. התשובה הציבורית
+  -- **חייבת** להיות זהה לכשל גנרי — ראה ה-route.
+  if v_customer.is_blocked then
+    raise exception 'CUSTOMER_BLOCKED' using errcode = 'P0013';
+  end if;
+
+  -- ── 🔒 נעילה 3 מתוך 3: הלקוחה (namespace 5) ────────────────────────────
+  --
+  -- 🔒 בלי זה הספירה למטה אינה אטומית: שתי בקשות לאותה לקוחה מ-IP שונים
+  -- נועלות מפתחות IP שונים, עוברות את הספירה יחד, ושוברות את
+  -- max_active_pending_per_customer. **15D חייב לאחוז באותה נעילה.**
+  perform pg_advisory_xact_lock(5, hashtext(v_customer.id::text));
 
   -- ── תפוגת בקשות ישנות, ואז המגבלה ללקוחה ───────────────────────────────
   -- אותו סדר בדיוק כמו create_pending_appointment (0003): בקשה שכבר פגה
@@ -212,7 +274,7 @@ begin
 
   select count(*)::integer into v_active_count
     from public.appointments
-    where customer_id = p_customer_id and status = 'pending';
+    where customer_id = v_customer.id and status = 'pending';
 
   if v_active_count >= v_max_pending then
     raise exception 'PENDING_LIMIT_REACHED' using errcode = 'P0001';
@@ -221,13 +283,14 @@ begin
   -- ── היצירה ─────────────────────────────────────────────────────────────
   -- ends_at נכתב ע"י הטריגר set_appointment_end ולכן אינו נשלח כאן.
   -- ⚠️ אם ה-EXCLUDE constraint נכשל (23P01), כל הטרנזקציה מתגלגלת לאחור —
-  -- כולל רישום אירוע הקצב שלמטה. זה בדיוק מה שמבטיח "נספרות הצלחות בלבד".
+  -- הלקוחה, ההיסטוריה ואירוע הקצב יחד. זה מה שמבטיח גם "אין partial write"
+  -- וגם "נספרות הצלחות בלבד".
   insert into public.appointments (
     customer_id, service_key, variants, price_total,
     starts_at, duration_min, status,
     pending_expires_at, notes, policy_version, booking_source
   ) values (
-    p_customer_id, p_service_key, coalesce(p_variants, '{}'), p_price_total,
+    v_customer.id, p_service_key, coalesce(p_variants, '{}'), p_price_total,
     p_starts_at, p_duration_min, 'pending',
     p_expires_at, p_notes, p_policy_version, 'public_booking'
   )
@@ -236,7 +299,7 @@ begin
   insert into public.appointment_history (
     appointment_id, action, from_status, to_status, to_starts_at, actor, actor_id
   ) values (
-    v_row.id, 'created', null, 'pending', v_row.starts_at, 'customer', p_customer_id
+    v_row.id, 'created', null, 'pending', v_row.starts_at, 'customer', v_customer.id
   );
 
   -- ── רישום אירוע הקצב, אחרון ────────────────────────────────────────────
@@ -246,8 +309,8 @@ begin
 end;
 $$;
 
-comment on function public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer) is
-  'בקשת תור מהמסלול הציבורי. סופרת ואוכפת מגבלת IP באותה טרנזקציה, ורושמת אירוע קצב רק על יצירה שהצליחה.';
+comment on function public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer) is
+  'בקשת תור מהמסלול הציבורי: לקוחה, תור ואירוע קצב בטרנזקציה אחת. נועלת 4→3→5. מגבלת ה-IP נאכפת לפני יצירת הלקוחה.';
 
 
 -- ============================================================================
@@ -396,7 +459,7 @@ $$;
 -- authenticated, ו-PostgREST ממשיך לחשוף את הפונקציה לכל מי שמחזיק את
 -- מפתח ה-anon.
 --
--- ⚠️ כאן זה חמור במיוחד: create_public_pending_appointment מקבלת
+-- ⚠️ כאן זה חמור במיוחד: create_public_booking_request מקבלת
 -- customer_id ו-expires_at כפרמטרים וסומכת על כך שהקורא כבר אימת אותם.
 -- חשיפה ל-anon הייתה מאפשרת ליצור בקשות עבור **כל** לקוחה, לעקוף את כל
 -- הוולידציה ב-route, ולדלג על חלון הזמינות כולו.
@@ -410,13 +473,13 @@ $$;
 
 revoke execute on function public.link_or_create_customer_by_phone(text, text)
   from public, anon, authenticated;
-revoke execute on function public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)
+revoke execute on function public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)
   from public, anon, authenticated;
 revoke execute on function public.create_manual_appointment(uuid, text, text[], integer, timestamptz, integer, text, uuid, uuid, text)
   from public, anon, authenticated;
 
 grant execute on function public.link_or_create_customer_by_phone(text, text) to service_role;
-grant execute on function public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer) to service_role;
+grant execute on function public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer) to service_role;
 grant execute on function public.create_manual_appointment(uuid, text, text[], integer, timestamptz, integer, text, uuid, uuid, text) to service_role;
 
 
@@ -432,16 +495,16 @@ begin
 
   if not exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname = 'create_public_pending_appointment'
+    where n.nspname = 'public' and p.proname = 'create_public_booking_request'
   ) then
-    raise exception '0018: create_public_pending_appointment לא נוצרה' using errcode = 'P0103';
+    raise exception '0018: create_public_booking_request לא נוצרה' using errcode = 'P0103';
   end if;
 
   -- 🔒 שתיהן חייבות להישאר INVOKER. prosecdef = true מסמן DEFINER.
   if exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname in ('link_or_create_customer_by_phone', 'create_public_pending_appointment')
+      and p.proname in ('link_or_create_customer_by_phone', 'create_public_booking_request')
       and p.prosecdef
   ) then
     raise exception '0018: פונקציה הוגדרה כ-SECURITY DEFINER' using errcode = 'P0103';
@@ -462,12 +525,12 @@ begin
   then raise exception '0018: authenticated יכול להפעיל את link_or_create_customer_by_phone'; end if;
 
   if has_function_privilege('anon',
-       'public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
-  then raise exception '0018: anon יכול להפעיל את create_public_pending_appointment'; end if;
+       'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
+  then raise exception '0018: anon יכול להפעיל את create_public_booking_request'; end if;
 
   if has_function_privilege('authenticated',
-       'public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
-  then raise exception '0018: authenticated יכול להפעיל את create_public_pending_appointment'; end if;
+       'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
+  then raise exception '0018: authenticated יכול להפעיל את create_public_booking_request'; end if;
 
   -- ⚠️ הכיוון ההפוך: ההרשאה של service_role חייבת *להישמר*. בדיקה שרק
   -- מוודאת ש-anon חסום הייתה עוברת גם אם REVOKE סגר את כולם.
@@ -476,8 +539,8 @@ begin
   then raise exception '0018: service_role איבד את link_or_create_customer_by_phone'; end if;
 
   if not has_function_privilege('service_role',
-       'public.create_public_pending_appointment(uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
-  then raise exception '0018: service_role איבד את create_public_pending_appointment'; end if;
+       'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)', 'execute')
+  then raise exception '0018: service_role איבד את create_public_booking_request'; end if;
 
   if not has_function_privilege('service_role',
        'public.create_manual_appointment(uuid, text, text[], integer, timestamptz, integer, text, uuid, uuid, text)', 'execute')
