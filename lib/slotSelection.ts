@@ -5,7 +5,7 @@
  * חשוב להבין את ההפרדה בין שני דברים שונים לגמרי:
  *
  *   • כללי הזמינות העסקיים (lib/bookingWindow.ts + lib/specialAvailability.ts):
- *     אילו ימים פתוחים, אילו שעות קיימות ברשת, 90 דק' הכנה, שישי/שבת.
+ *     אילו ימים פתוחים, אילו שעות קיימות ברשת, חלון ההכנה, שישי/שבת.
  *     אלה כללים אמיתיים והשרת אוכף אותם.
  *
  *   • אלגוריתם ההצגה (הקובץ הזה): מתוך הסלוטים שבאמת פנויים, אילו להראות
@@ -23,7 +23,7 @@
  */
 
 import { specialSlotsFor } from './specialAvailability'
-import { businessDayOffset, TIME_SLOTS } from './bookingWindow'
+import { businessDayOffset, TIME_SLOTS, MIN_LEAD_MINUTES } from './bookingWindow'
 
 export interface BusyRange {
   start: string
@@ -136,11 +136,12 @@ export function selectVisibleSlots({
   const nowHour  = parseInt(nowParts.find(p => p.type === 'hour')!.value)
   const nowMinute = parseInt(nowParts.find(p => p.type === 'minute')!.value)
   const isViewingToday = day === nowDay && month === nowMonth && year === nowYear
-  // בהיום — להציג רק שעות לפחות 90 דק' מעכשיו (חלון הכנה, בלי הפתעות של רגע אחרון)
-  const minStartMin = isViewingToday ? nowHour * 60 + nowMinute + 90 : 0
+  // בהיום — רק שעות שמתחילות לפחות MIN_LEAD_MINUTES מעכשיו.
+  // 🔒 אותו קבוע שהשרת אוכף ב-hasLeadTime. אין כאן מספר משלנו.
+  const minStartMin = isViewingToday ? nowHour * 60 + nowMinute + MIN_LEAD_MINUTES : 0
 
   // ── זמינות מיוחדת (חריגה זמנית, מוגדרת ב-lib/specialAvailability.ts) ──
-  // תוספת בלבד: אותו חלון הכנה של 90 דק' ואותה בדיקת תפוסה מול Google Calendar.
+  // תוספת בלבד: אותו חלון הכנה (MIN_LEAD_MINUTES) ואותה בדיקת תפוסה מול Google Calendar.
   const specialFree = specialSlotsFor(year, month, day)
     .filter(slot => toMin(slot) >= minStartMin)
     .filter(slot => !isSlotTaken(slot, busyRanges))

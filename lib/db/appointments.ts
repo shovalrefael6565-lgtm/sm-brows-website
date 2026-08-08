@@ -4,6 +4,7 @@ import {
   BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
   israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
 } from '@/lib/israelTime'
+import { PUBLIC_BOOKING_MAX_PER_IP_PER_HOUR } from '@/lib/bookingRateLimit'
 
 /**
  * גישה ל-appointments — הצד שנוגע בבסיס הנתונים.
@@ -74,6 +75,68 @@ export async function createPendingAppointment(
   return { appointment: data as AppointmentSummary }
 }
 
+export type PublicAppointmentCreateError = AppointmentCreateError | 'rate_limited' | 'bad_request'
+
+export interface CreatePublicAppointmentInput extends CreateAppointmentInput {
+  /** כתובת מהימנה בלבד — ראה lib/clientIp.ts. הקורא כבר אכף fail-closed. */
+  ip: string
+  /** מחושב ב-lib/pendingExpiry.ts. ה-RPC אוכף שהוא סביר, לא משכפל את הכלל. */
+  expiresAt: Date
+}
+
+/**
+ * יצירת בקשת תור מהמסלול הציבורי.
+ *
+ * ⚠️ אינה גרסה נוספת של createPendingAppointment אלא מסלול נפרד, ובכוונה:
+ *   • התפוגה מחושבת באפליקציה ונשלחת (כלל "יום העבודה הבא").
+ *   • מגבלת הקצב לפי IP נאכפת בתוך אותה טרנזקציה.
+ *   • booking_source נרשם כ-'public_booking'.
+ *
+ * 🔒 ההגנה מפני חפיפה נשארת ה-EXCLUDE constraint, בדיוק כמו בכל מסלול
+ * אחר. אין כאן בדיקת "האם הסלוט פנוי" לפני הכתיבה.
+ */
+export async function createPublicPendingAppointment(
+  input: CreatePublicAppointmentInput,
+): Promise<{ appointment?: AppointmentSummary; error?: PublicAppointmentCreateError }> {
+  const db = createSupabaseAdminClient()
+  const startsAt = israelWallTimeToUtc(input.isoDate, input.time)
+
+  const { data, error } = await db.rpc('create_public_pending_appointment', {
+    p_customer_id: input.customerId,
+    p_service_key: input.serviceKey,
+    p_variants: input.variants,
+    p_price_total: input.priceTotal,
+    p_starts_at: startsAt.toISOString(),
+    p_duration_min: input.durationMin,
+    p_notes: input.notes,
+    p_policy_version: input.policyVersion,
+    p_expires_at: input.expiresAt.toISOString(),
+    p_ip: input.ip,
+    p_max_per_ip_per_hour: PUBLIC_BOOKING_MAX_PER_IP_PER_HOUR,
+  })
+
+  if (error) {
+    // 23P01 = exclusion_violation — השעה נתפסה ע"י תור פעיל אחר
+    if (error.code === '23P01') return { error: 'slot_taken' }
+    if (error.message?.includes('RATE_LIMITED')) return { error: 'rate_limited' }
+    if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
+    // קלט שנדחה ע"י ה-RPC (IP חסר, תפוגה לא סבירה, מועד בעבר) — באג אצלנו,
+    // לא מצב שהלקוחה יכולה לתקן. נרשם ומוחזר כשגיאת בקשה.
+    if (
+      error.message?.includes('MISSING_IP') ||
+      error.message?.includes('BAD_EXPIRY') ||
+      error.message?.includes('START_IN_PAST')
+    ) {
+      console.error('[appointments] public create rejected input', error.message)
+      return { error: 'bad_request' }
+    }
+    console.error('[appointments] create_public_pending_appointment failed', error.message)
+    return { error: 'db_error' }
+  }
+
+  return { appointment: data as AppointmentSummary }
+}
+
 export type AppointmentCancelError = 'not_found' | 'db_error'
 
 /**
@@ -126,9 +189,11 @@ const ADMIN_APPOINTMENT_COLUMNS =
   'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
   'pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_operation, ' +
   'calendar_sync_error, calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
-  'customer_id, customers(full_name, phone_e164)'
+  'booking_source, customer_id, customers(full_name, phone_e164)'
 
 export type CalendarSyncOperation = 'upsert' | 'delete'
+
+export type BookingSource = 'public_booking' | 'personal_area' | 'admin_manual'
 
 export interface AdminAppointmentRow extends AppointmentRow {
   ends_at: string
@@ -143,6 +208,8 @@ export interface AdminAppointmentRow extends AppointmentRow {
   calendar_sync_started_at: string | null
   calendar_synced_at: string | null
   calendar_sync_attempt_count: number
+  /** null = נוצר לפני 0017 ולא נרשם. אין backfill. */
+  booking_source: BookingSource | null
 }
 
 type JoinedAdminRow = AppointmentRow & {
@@ -155,6 +222,7 @@ type JoinedAdminRow = AppointmentRow & {
   calendar_sync_started_at: string | null
   calendar_synced_at: string | null
   calendar_sync_attempt_count: number
+  booking_source: BookingSource | null
   customer_id: string
   customers: { full_name: string; phone_e164: string } | null
 }
@@ -178,6 +246,7 @@ function toAdminRow(r: JoinedAdminRow): AdminAppointmentRow {
     calendar_sync_started_at: r.calendar_sync_started_at,
     calendar_synced_at: r.calendar_synced_at,
     calendar_sync_attempt_count: r.calendar_sync_attempt_count,
+    booking_source: r.booking_source ?? null,
     customer_id: r.customer_id,
     customer_full_name: r.customers?.full_name ?? '',
     customer_phone_e164: r.customers?.phone_e164 ?? '',

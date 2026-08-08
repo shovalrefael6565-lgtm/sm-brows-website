@@ -7,6 +7,63 @@
  * בהמשך בלי לגעת בלוגיקת האישור/הדחייה עצמה.
  */
 
+/**
+ * נוסח **בקשת התור** שהלקוחה שולחת לשובל.
+ *
+ * ⚠️ הועתק מילה במילה מ-`BookingForm.buildWhatsAppMessage`, שהיה עד שלב
+ * 15B הנוסח היחיד ו-חי בתוך הקומפוננטה. החילוץ לכאן נועד לדבר אחד בלבד:
+ * שהאזור האישי (15D) ישלח **בדיוק** את אותו נוסח, בלי עותק שני שיתבדר.
+ *
+ * ⚠️ כל שינוי כאן משנה את הנוסח שהלקוחות שולחות היום.
+ * `scripts/test-whatsapp-templates.mjs` מחזיק snapshot של הנוסח ונכשל על
+ * כל סטייה — כולל רווח או אמוג'י.
+ *
+ * ⚠️ הקובץ הזה אינו 'server-only' בכוונה: הפונקציה נקראת מקומפוננטת לקוח.
+ * אין בה שום סוד ושום גישה ל-DB.
+ */
+export interface BookingRequestMessageParams {
+  customerName: string
+  /** כפי שהוקלד בטופס — לתצוגה בלבד, לא מנורמל */
+  phone: string
+  /** שם הטיפול המוצג (וריאציות מאוחדות ב-' + ', או שם השירות) */
+  treatment: string
+  /** סה"כ מחיר. 0 או undefined ⟶ השורה מושמטת */
+  priceTotal?: number
+  /** האם להוסיף קידומת "סה"כ " לפני המחיר (עיצוב טבעי בלבד) */
+  priceIsSum?: boolean
+  /** משך מוצג, למשל '40 דקות'. undefined ⟶ השורה מושמטת */
+  durationLabel?: string
+  /** תאריך בעברית לתצוגה, למשל '24 אוגוסט 2026' */
+  dateLabel?: string
+  /** שעה או טווח שעות, למשל '17:00' או '17:00–17:40' */
+  timeLabel?: string
+  notes?: string
+  policyVersion: string
+  /** חותמת הזמן הישראלית של אישור המדיניות */
+  policyAcceptedAt: string
+}
+
+export function buildBookingRequestMessage(p: BookingRequestMessageParams): string {
+  const lines = [
+    'היי שובל 🤍',
+    '',
+    'בקשת תור חדשה 🌸',
+    '',
+    `👤 ${p.customerName}`,
+    `📞 ${p.phone}`,
+    '',
+    `💆 ${p.treatment}`,
+    ...(p.priceTotal ? [`💰 ${p.priceIsSum ? 'סה"כ ' : ''}₪${p.priceTotal}`] : []),
+    ...(p.durationLabel ? [`⏱️ ${p.durationLabel}`] : []),
+    ...(p.dateLabel ? [`📅 ${p.dateLabel}`] : []),
+    ...(p.timeLabel ? [`⏰ ${p.timeLabel}`] : []),
+    ...(p.notes?.trim() ? ['', `📝 ${p.notes}`] : []),
+    '',
+    `✅ אישרה את מדיניות התורים והביטולים (גרסה ${p.policyVersion}) — ${p.policyAcceptedAt}`,
+  ]
+  return lines.join('\n')
+}
+
 export function buildApprovalMessage(params: {
   customerName: string
   date: string

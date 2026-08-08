@@ -512,9 +512,19 @@ section('ביטול וסיום תור — כל סטטוס שאינו confirmed')
 const enumValues = (await q(`
   select e.enumlabel v from pg_enum e join pg_type t on t.oid = e.enumtypid
   where t.typname = 'appointment_status' order by e.enumsortorder`)).map(r => r.v)
-chk('enum appointment_status מכיל 8 ערכים', enumValues.length === 8, enumValues.join(','))
-chk("⚠️ אין ערך 'rejected' — דחייה נרשמת כ-cancelled_by_business",
-  !enumValues.includes('rejected'))
+// ⚠️ שלב 15B הוסיף 'rejected' ל-enum (0016). הערך **אינו בשימוש עדיין** —
+// דחייה עדיין נרשמת כ-cancelled_by_business, והמסלול ייכנס לשימוש ב-15C.
+chk('enum appointment_status מכיל 9 ערכים', enumValues.length === 9, enumValues.join(','))
+chk("'rejected' קיים ב-enum מאז 0016", enumValues.includes('rejected'))
+
+/*
+ * 🔒 זו הבדיקה שבאמת מגנה: הכלל ב-sync_appointment_reminders הוא
+ * "כל מה שאינו confirmed מבטל", ולכן **כל ערך חדש ב-enum מכוסה
+ * אוטומטית** — כולל 'rejected' וכולל ערכים שיתווספו בעתיד.
+ *
+ * הלולאה למטה רצה על enumValues שנקראו מה-DB בזמן ריצה, ולא על רשימה
+ * כתובה בקוד. ערך שיתווסף ל-enum ולא יבטל תזכורות יפיל אותה מיד.
+ */
 
 for (const st of enumValues.filter(v => v !== 'confirmed' && v !== 'pending')) {
   const c = uuid()

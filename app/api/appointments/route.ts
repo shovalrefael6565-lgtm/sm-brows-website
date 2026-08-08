@@ -9,7 +9,7 @@ import {
   NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS,
   LIFTING_PRICE, LIFTING_DURATION_MIN, NATURAL_DURATION_MIN,
 } from '@/lib/services'
-import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime } from '@/lib/bookingWindow'
+import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime, MIN_LEAD_MINUTES } from '@/lib/bookingWindow'
 import { POLICY_VERSION } from '@/lib/bookingPolicy'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
  * שכבות הבדיקה, בסדר:
  *   1. session תקף (401 אם לא) — מונע יצירת בקשה בלי אימות טלפון.
  *   2. תבנית הקלט (400).
- *   3. חלון הזמינות (יום פתוח, שעה ברשת, 90 דק' הכנה) — 400/'date_unavailable'.
+ *   3. חלון הזמינות (יום פתוח, שעה ברשת, חלון ההכנה) — 400/'date_unavailable'.
  *   4. Google Calendar — בדיקה מוקדמת וזולה, לא חזות הכל (ראה למטה).
  *   5. ה-EXCLUDE constraint ב-DB — ההגנה האמיתית מפני התנגשות, כולל race.
  */
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   if (!hasLeadTime(year, month, day, time)) {
     return NextResponse.json(
-      { error: 'too_soon', message: 'יש לבחור שעה שמתחילה לפחות 90 דקות מעכשיו.' },
+      { error: 'too_soon', message: `יש לבחור שעה שמתחילה לפחות ${MIN_LEAD_MINUTES} דקות מעכשיו.` },
       { status: 400 },
     )
   }

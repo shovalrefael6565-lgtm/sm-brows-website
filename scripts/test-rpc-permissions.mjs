@@ -134,6 +134,28 @@ const ASSERTION_MIGRATIONS = {
     'verify_otp_atomic(text,text,text,integer)',
     'discard_otp_issue_atomic(bigint,text,text)',
   ],
+  /**
+   * שלב 15B — המסלול הציבורי.
+   *
+   * ⚠️ שתי אלה הן ה-RPCs הרגישים ביותר שנוספו מאז 0001, כי הן משרתות
+   * endpoint שאינו מאומת:
+   *
+   *   • link_or_create_customer_by_phone — חשיפה ל-anon הופכת אותה לאורקל
+   *     שמאפשר לברר אילו מספרי טלפון קיימים במערכת, ולזהם את טבלת
+   *     הלקוחות ברשומות מזויפות.
+   *
+   *   • create_public_pending_appointment — מקבלת customer_id ו-expires_at
+   *     כפרמטרים. חשיפה ל-anon הייתה מאפשרת ליצור בקשות עבור **כל** לקוחה,
+   *     לעקוף את כל הוולידציה ב-route, ולדלג על חלון הזמינות כולו.
+   *
+   * create_manual_appointment נשארת ממופה ל-0010: היא מוחלפת ב-0018
+   * ב-CREATE OR REPLACE (שמשמר ACL), ו-0018 מוסיפה את ה-REVOKE/GRANT
+   * שוב מפורשות — אותו דפוס בדיוק כמו list_crm_customers ב-0009/0010.
+   */
+  '0018_public_booking_rpcs.sql': [
+    'link_or_create_customer_by_phone(text,text)',
+    'create_public_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

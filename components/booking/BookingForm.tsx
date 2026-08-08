@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, ChevronLeft, Check, Calendar, Clock, User, Phone,
-  MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon, Loader2, ShieldCheck,
+  MessageSquare, Sparkles, ArrowRight, ArrowDown, Pencil, Moon, Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
@@ -14,7 +14,8 @@ import {
   getIsraelToday, selectVisibleSlots, filterLiftingStarts,
 } from '@/lib/slotSelection'
 import { businessDayOffset as businessDayOffsetOf } from '@/lib/bookingWindow'
-import { normalizePhone, isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
+import { isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
+import { buildBookingRequestMessage } from '@/lib/whatsappTemplates'
 import {
   NATURAL_SERVICE as NATURAL, LIFTING_SERVICE as LIFTING,
   LIFTING_PRICE, LIFTING_DURATION_MIN as LIFTING_MINUTES, NATURAL_VARIANTS,
@@ -84,8 +85,26 @@ const EMPTY_FORM: FormData = {
   policyAccepted: false,
 }
 
-/** מצב זרימת אימות הטלפון + שמירת הבקשה — רלוונטי רק לטיפולים עם יומן */
-type BookingPhase = 'form' | 'sending-otp' | 'awaiting-otp' | 'verifying-otp' | 'saving'
+/**
+ * מצב שמירת הבקשה — רלוונטי רק לטיפולים עם יומן.
+ *
+ * ⚠️ משלב 15B אין כאן שלב OTP. המסלול הציבורי אינו דורש התחברות, והבקשה
+ * נשמרת לפי הטלפון שהוקלד (ראה app/api/bookings/request). האזור האישי
+ * הוא מסלול נפרד ומאומת, ואינו עובר דרך הקומפוננטה הזו.
+ */
+type BookingPhase = 'form' | 'saving'
+
+/**
+ * כשל שמירה שהלקוחה צריכה לראות.
+ *
+ * ⚠️ `fallback` אינו קישוט: הוא מה שמונע silent failure. כשהבקשה **לא**
+ * נשמרה, הלקוחה חייבת גם לדעת את זה וגם לקבל דרך להגיע לשובל בכל זאת —
+ * אחרת אנחנו מאבדים אותה בשקט.
+ */
+interface SaveFailure {
+  message: string
+  fallback: boolean
+}
 
 interface SessionInfo {
   loggedIn: boolean
@@ -181,14 +200,10 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
    */
   const [slotsUnavailable, setSlotsUnavailable] = useState(false)
 
-  // ── אימות טלפון + שמירת הבקשה (רק לטיפולים עם יומן — natural/lifting) ──
+  // ── שמירת הבקשה (רק לטיפולים עם יומן — natural/lifting) ──
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [phase, setPhase] = useState<BookingPhase>('form')
-  const [otpCode, setOtpCode] = useState('')
-  const [otpError, setOtpError] = useState<string | null>(null)
-  const [otpMaskedPhone, setOtpMaskedPhone] = useState('')
-  const [otpCooldown, setOtpCooldown] = useState(0)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<SaveFailure | null>(null)
   // חלון וואטסאפ שנפתח ריק בתוך אירוע הלחיצה הסינכרוני (ראה handleSubmit) —
   // כדי שחוסמי פופאפים לא יחסמו את הניווט המאוחר יותר, אחרי אימות/שמירה
   // אסינכרוניים. window.open בתוך async לאחר await כמעט תמיד נחסם.
@@ -216,9 +231,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // כשהדגל כבוי, גם טיפולי יומן נשארים בזרימת הוואטסאפ הישנה — אין OTP
   // ואין שמירה ב-Supabase, בדיוק כמו לפני שלבים 1–3.
   const newFlowActive = newBookingSystemEnabled && isCalendar
-  // מסך אימות הקוד מוצג רק אחרי שנשלח קוד בפועל, ולא בזמן השליחה עצמה
-  // (כדי לא להבזיק "הזינו קוד" עם מספר ממוסך ריק לפני שהוא נטען)
-  const otpPanelVisible = isCalendar && otpMaskedPhone !== '' && phase !== 'form' && phase !== 'sending-otp'
   const cells = buildCalendar(viewYear, viewMonth)
 
   /**
@@ -343,13 +355,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
       name: f.name || session.fullName || f.name,
     }))
   }, [session])
-
-  // ספירה לאחור ל"שליחה חוזרת" של קוד האימות
-  useEffect(() => {
-    if (otpCooldown <= 0) return
-    const id = setInterval(() => setOtpCooldown(c => Math.max(0, c - 1)), 1000)
-    return () => clearInterval(id)
-  }, [otpCooldown])
 
   const isPast = (day: number) => {
     const d = new Date(viewYear, viewMonth, day)
@@ -476,27 +481,27 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
       timeStyle: 'short',
     }).format(new Date())
 
-  const buildWhatsAppMessage = () => {
-    const service = isCalendar ? summaryTreatment : form.service
-    const lines = [
-      'היי שובל 🤍',
-      '',
-      'בקשת תור חדשה 🌸',
-      '',
-      `👤 ${form.name}`,
-      `📞 ${form.phone}`,
-      '',
-      `💆 ${service}`,
-      ...(isCalendar && summaryPrice ? [`💰 ${isNatural ? 'סה"כ ' : ''}₪${summaryPrice}`] : []),
-      ...(isLifting ? ['⏱️ 40 דקות'] : []),
-      ...(form.date ? [`📅 ${form.date}`] : []),
-      ...(form.time ? [`⏰ ${isLifting ? liftingRange : form.time}`] : []),
-      ...(form.notes.trim() ? ['', `📝 ${form.notes}`] : []),
-      '',
-      `✅ אישרה את מדיניות התורים והביטולים (גרסה ${POLICY_VERSION}) — ${acceptedAtLabel()}`,
-    ]
-    return encodeURIComponent(lines.join('\n'))
-  }
+  /**
+   * ⚠️ הנוסח עצמו חי ב-lib/whatsappTemplates.ts ולא כאן. הוא זהה תו-בתו
+   * למה שהיה בקומפוננטה עד שלב 15B — החילוץ נועד לכך שהאזור האישי (15D)
+   * ישלח בדיוק את אותה הודעה, בלי עותק שני שיתבדר.
+   */
+  const buildWhatsAppMessage = () =>
+    encodeURIComponent(
+      buildBookingRequestMessage({
+        customerName: form.name,
+        phone: form.phone,
+        treatment: isCalendar ? summaryTreatment : form.service,
+        priceTotal: isCalendar ? summaryPrice : 0,
+        priceIsSum: isNatural,
+        durationLabel: isLifting ? '40 דקות' : undefined,
+        dateLabel: form.date || undefined,
+        timeLabel: form.time ? (isLifting ? liftingRange : form.time) : undefined,
+        notes: form.notes,
+        policyVersion: POLICY_VERSION,
+        policyAcceptedAt: acceptedAtLabel(),
+      }),
+    )
 
   /**
    * פותחת חלון וואטסאפ ריק *עכשיו*, בתוך אירוע הלחיצה הסינכרוני (לפני כל
@@ -533,11 +538,17 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     pendingWhatsAppWin.current = null
   }
 
-  /** שולחת את בקשת התור ל-DB. מחזירה תוצאה מובנית — לעולם לא זורקת */
-  const saveAppointment = async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+  /**
+   * שולחת את בקשת התור ל-DB. מחזירה תוצאה מובנית — לעולם לא זורקת.
+   *
+   * ⚠️ המסלול הציבורי: `/api/bookings/request`, בלי session ובלי OTP.
+   * השם והטלפון נשלחים בגוף הבקשה ומשמשים לאיתור/יצירת הלקוחה בשרת.
+   * `/api/appointments` נשאר המסלול המאומת של האזור האישי.
+   */
+  const saveAppointment = async (): Promise<{ ok: true } | ({ ok: false } & SaveFailure)> => {
     const f = formRef.current
     try {
-      const res = await fetch('/api/appointments', {
+      const res = await fetch('/api/bookings/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -546,21 +557,33 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
           isoDate: f.isoDate,
           time: f.time,
           notes: f.notes,
+          fullName: f.name,
+          phone: f.phone,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) return { ok: false, message: data.message ?? 'לא הצלחנו לשמור את הבקשה.' }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        return {
+          ok: false,
+          message: data.message ?? 'לא הצלחנו לשמור את הבקשה.',
+          fallback: Boolean(data.whatsappFallback),
+        }
+      }
       return { ok: true }
     } catch {
-      return { ok: false, message: 'אין חיבור לאינטרנט. נסי שוב.' }
+      // ⚠️ תקלת רשת היא כישלון שמירה לכל דבר, ולכן מציעה את אותו מסלול
+      // חלופי — הלקוחה לא נשארת בלי דרך להגיע לשובל.
+      return { ok: false, message: 'אין חיבור לאינטרנט. הבקשה לא נשמרה.', fallback: true }
     }
   }
 
   /**
-   * שלב אחרון משותף לשני המסלולים (כבר מאומתת / הרגע אומתה): שמירה ב-DB,
-   * ורק אחרי הצלחה — ניווט חלון הוואטסאפ שכבר פתוח. אם השמירה נכשלת,
-   * החלון הריק נסגר ולא נפתחת שום הודעת וואטסאפ — הלקוחה לא רואה "נשלח"
-   * על בקשה שלא נשמרה.
+   * שמירה ב-DB, ורק אחרי הצלחה — ניווט חלון הוואטסאפ שכבר פתוח.
+   *
+   * 🔒 אם השמירה נכשלת, החלון הריק נסגר ולא נפתחת שום הודעת וואטסאפ:
+   * הלקוחה **לעולם** לא רואה "נשלח" על בקשה שאינה במערכת. במקום זה היא
+   * מקבלת הודעה מפורשת, ובמקרים המתאימים גם כפתור וואטסאפ שמבהיר
+   * שהבקשה לא נשמרה.
    */
   const finalizeBooking = async () => {
     setPhase('saving')
@@ -568,7 +591,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     const result = await saveAppointment()
 
     if (!result.ok) {
-      setSaveError(result.message)
+      setSaveError({ message: result.message, fallback: result.fallback })
       setPhase('form')
       closePendingWhatsApp()
       // יתכן שהשעה נתפסה הרגע (409) — מרעננים את הזמינות כדי שהסלוט
@@ -587,79 +610,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     navigatePendingWhatsApp(`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`)
   }
 
-  /** שולחת קוד אימות למספר שהוזן, ועוברת למסך הזנת הקוד */
-  const requestOtp = async () => {
-    const normalized = normalizePhone(formRef.current.phone)
-    if (!normalized) {
-      setErrors(err => ({ ...err, phone: 'יש להזין מספר נייד ישראלי תקין' }))
-      return
-    }
-    setPhase('sending-otp')
-    setOtpError(null)
-    try {
-      const res = await fetch('/api/auth/otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: normalized, purpose: 'booking' }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setOtpError(data.message ?? 'לא הצלחנו לשלוח את הקוד')
-        if (data.retryAfterSec) setOtpCooldown(Math.min(data.retryAfterSec, 300))
-        setPhase('form')
-        return
-      }
-      setOtpMaskedPhone(data.maskedPhone)
-      setOtpCooldown(60)
-      setOtpCode('')
-      setPhase('awaiting-otp')
-    } catch {
-      setOtpError('אין חיבור לאינטרנט. נסי שוב.')
-      setPhase('form')
-    }
-  }
-
-  /** מאמתת את הקוד שהוזן; בהצלחה — session נוצר בשרת וממשיכים לשמירה */
-  const verifyOtpAndSave = async () => {
-    if (!/^\d{6}$/.test(otpCode)) {
-      setOtpError('יש להזין קוד בן 6 ספרות')
-      return
-    }
-    const normalized = normalizePhone(formRef.current.phone)
-    if (!normalized) {
-      setOtpError('מספר הטלפון אינו תקין')
-      setPhase('form')
-      return
-    }
-    // פתיחת החלון הריק כאן — לחיצה על "אישור קוד" היא בעצמה מחווה משתמש
-    // סינכרונית, ולכן זו ההזדמנות האחרונה לפתוח בלי חסימה
-    openBlankWhatsAppWindow()
-    setPhase('verifying-otp')
-    setOtpError(null)
-    try {
-      const res = await fetch('/api/auth/otp/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: normalized, code: otpCode, purpose: 'booking', fullName: formRef.current.name,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setOtpError(data.message ?? 'הקוד שגוי')
-        setPhase('awaiting-otp')
-        closePendingWhatsApp()
-        return
-      }
-      setSession({ loggedIn: true, phone: normalized, fullName: formRef.current.name })
-      await finalizeBooking()
-    } catch {
-      setOtpError('אין חיבור לאינטרנט. נסי שוב.')
-      setPhase('awaiting-otp')
-      closePendingWhatsApp()
-    }
-  }
-
   /**
    * זרימת הוואטסאפ המקורית — ללא DB, ללא OTP, בלי שום שינוי מהקיים.
    * משמשת גם כשהדגל כבוי (ואז זו הזרימה היחידה) וגם כאפשרות המשנית
@@ -676,6 +626,11 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     else window.location.href = url
   }
 
+  /**
+   * ⚠️ זרימה אחת בלבד. אין הסתעפות לפי מצב התחברות ואין מסלול "בלי
+   * להתחבר" — כל בקשה שנשלחת מהטופס הציבורי נשמרת ב-DB לפני שנפתחת
+   * הודעת וואטסאפ. זו האכיפה בפועל של סעיף 2 בחזון: כל בקשה מתועדת.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (shabbat) return // נעילת שבת — הגנה נוספת מעבר להחלפת הטופס בכרטיס
@@ -686,22 +641,8 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
       return
     }
 
-    const normalized = normalizePhone(form.phone)
-    if (session?.loggedIn && session.phone === normalized) {
-      // כבר מאומתת לאותו מספר בדיוק — אין צורך ב-OTP נוסף
-      openBlankWhatsAppWindow() // עדיין בתוך הלחיצה הסינכרונית
-      void finalizeBooking()
-    } else {
-      // מספר חדש / לא מחוברת / מחוברת עם מספר אחר — חובה אימות מחדש
-      void requestOtp()
-    }
-  }
-
-  /** אפשרות המשנה: "בלי להתחבר" — זהה לגמרי לזרימה הישנה, גם כשהדגל פעיל */
-  const handleWhatsAppWithoutLogin = () => {
-    if (shabbat) return
-    if (!validateFinal()) return
-    openLegacyWhatsApp()
+    openBlankWhatsAppWindow() // עדיין בתוך הלחיצה הסינכרונית
+    void finalizeBooking()
   }
 
   const resetAll = () => {
@@ -711,9 +652,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     setStep(1)
     setErrors({})
     setPhase('form')
-    setOtpCode('')
-    setOtpError(null)
-    setOtpMaskedPhone('')
     setSaveError(null)
   }
 
@@ -1399,82 +1337,36 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
 
         {/* ── ניווט ── */}
         <div ref={ctaRef} className="mt-9 pt-6 border-t border-brand-cream-dark">
+          {/*
+            🔒 כשל שמירה — הודעה מפורשת, ולא מסך הצלחה.
+            כשהשרת מסמן fallback, מוצע גם מסלול וואטסאפ ידני, עם הבהרה
+            חד-משמעית שהבקשה לא נשמרה ושאין שעה שמורה.
+          */}
           {saveError && (
-            <p role="alert" className="text-red-500 text-sm text-center mb-4 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-              {saveError}
-            </p>
+            <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-center">
+              <p className="text-red-600 text-sm font-semibold">{saveError.message}</p>
+              {saveError.fallback && (
+                <>
+                  <p className="text-red-500/90 text-xs mt-1.5 leading-relaxed">
+                    הבקשה לא נשמרה במערכת והשעה אינה שמורה. אפשר לשלוח לנו את הפרטים
+                    בוואטסאפ ונחזור אלייך.
+                  </p>
+                  <a
+                    href={`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 mt-3 bg-[#25D366] text-white font-bold text-sm px-6 py-2.5 rounded-full shadow hover:shadow-md transition-shadow cursor-pointer"
+                  >
+                    <WhatsAppIcon className="w-4 h-4" />
+                    שליחת הפרטים בוואצאפ
+                  </a>
+                </>
+              )}
+            </div>
           )}
 
-          {otpPanelVisible ? (
-            // ── אימות טלפון בעת קביעת תור: קוד נשלח, ממתינים להזנה ואישור ──
-            <div className="space-y-4">
-              <div className="bg-brand-cream border border-brand-cream-dark rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-4 h-4 text-brand-rose flex-shrink-0" aria-hidden="true" />
-                  <p className="text-sm font-bold text-brand-dark">אימות מספר טלפון</p>
-                </div>
-                <p className="text-xs text-brand-muted mb-3">
-                  שלחנו קוד אימות למספר{' '}
-                  <span dir="ltr" className="font-semibold text-brand-dark">{otpMaskedPhone}</span>
-                </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  dir="ltr"
-                  placeholder="000000"
-                  value={otpCode}
-                  disabled={phase !== 'awaiting-otp'}
-                  onChange={ev => {
-                    setOtpCode(ev.target.value.replace(/\D/g, '').slice(0, 6))
-                    setOtpError(null)
-                  }}
-                  aria-invalid={!!otpError}
-                  aria-describedby={otpError ? 'err-otp' : undefined}
-                  className="w-full h-14 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark text-2xl text-center tracking-[0.5em] font-semibold outline-none focus:ring-2 focus:ring-brand-gold disabled:opacity-60"
-                />
-                {otpError && <p id="err-otp" role="alert" className="text-red-500 text-xs mt-2">{otpError}</p>}
-                <div className="flex items-center justify-between mt-3 text-xs">
-                  {phase === 'awaiting-otp' ? (
-                    <button
-                      type="button"
-                      onClick={() => { setPhase('form'); setOtpCode(''); setOtpError(null) }}
-                      className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer"
-                    >
-                      עריכת הפרטים
-                    </button>
-                  ) : <span aria-hidden="true" />}
-                  <button
-                    type="button"
-                    disabled={otpCooldown > 0 || phase !== 'awaiting-otp'}
-                    onClick={requestOtp}
-                    className="text-brand-gold-text font-semibold hover:underline disabled:text-brand-muted disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {otpCooldown > 0 ? `שליחה חוזרת בעוד ${otpCooldown}` : 'שליחה חוזרת'}
-                  </button>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={verifyOtpAndSave}
-                disabled={phase !== 'awaiting-otp' || otpCode.length !== 6}
-                className="w-full inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
-              >
-                {phase === 'verifying-otp' || phase === 'saving' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <WhatsAppIcon className="w-5 h-5" />
-                )}
-                {phase === 'verifying-otp'
-                  ? 'מאמתת קוד…'
-                  : phase === 'saving'
-                  ? 'שומרת את הבקשה…'
-                  : 'אישור קוד ושמירת התור'}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
+          {/* ── ניווט הטופס ── */}
+          <div className="flex items-center gap-3">
               {step > 1 && (
                 <button
                   type="button"
@@ -1499,36 +1391,18 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 <button
                   type="submit"
                   aria-label="שליחת בקשה לתור"
-                  disabled={phase === 'sending-otp' || phase === 'saving'}
+                  disabled={phase === 'saving'}
                   className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
                 >
-                  {phase === 'sending-otp' || phase === 'saving' ? (
+                  {phase === 'saving' ? (
                     <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
                   ) : (
                     <WhatsAppIcon className="w-5 h-5" />
                   )}
-                  {phase === 'sending-otp'
-                    ? 'שולחת קוד…'
-                    : phase === 'saving'
-                    ? 'שומרת את הבקשה…'
-                    : 'שליחת בקשה לתור'}
+                  {phase === 'saving' ? 'שומרת את הבקשה…' : 'שליחת בקשה לתור'}
                 </button>
               )}
             </div>
-          )}
-
-          {/* אפשרות משנית: קביעה בלי אזור אישי — זהה לזרימה הישנה, ללא OTP */}
-          {newFlowActive && !otpPanelVisible && step === totalSteps && (
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={handleWhatsAppWithoutLogin}
-                className="text-xs text-brand-muted underline hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
-              >
-                מעדיפה בלי להתחבר? שלחי בקשה בוואטסאפ
-              </button>
-            </div>
-          )}
         </div>
       </form>
     </div>

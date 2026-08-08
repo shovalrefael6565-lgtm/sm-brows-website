@@ -85,6 +85,54 @@ delete process.env.NEW_BOOKING_SYSTEM_ENABLED
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('POST /api/bookings/request — המסלול הציבורי (15B)')
+//
+// ⚠️ זהו ה-endpoint היחיד שאינו מאומת ושכותב ל-DB. כשהדגל כבוי הוא חייב
+// לחזור להתנהגות legacy מוחלטת: אפס כתיבות, אפס קריאות ל-Supabase, ואפילו
+// בלי לקרוא את גוף הבקשה.
+//
+// ⚠️ **ה-route אינו ניתן לייבוא בהרנס הזה**, בדיוק כמו otp/verify ו-session
+// למטה: הוא מייבא את lib/shabbat.ts שמושך את @hebcal/core, שאין לו export
+// לתנאי react-server. זו מגבלת סביבה ולא פגם בקוד — ולכן החוזה שלו נבדק
+// כאן על **המקור**, ולא בהרצה.
+//
+// ⚠️ אין להפוך את זה ל"נבדק בהרצה" בהצהרה. הבדיקות למטה הן טקסטואליות.
+// האכיפה בפועל של המסלול נבדקת מול Postgres ב-test-public-booking-db.mjs.
+
+{
+  const code = stripComments(src('app/api/bookings/request/route.ts'))
+
+  chk('bookings/request — מחזיר 403 feature_disabled',
+    /feature_disabled/.test(code) && /status:\s*403/.test(code))
+
+  // השער חייב להיות לפני ה-await הראשון בקובץ — כלומר לפני קריאת הגוף,
+  // לפני Google ולפני כל נגיעה ב-Supabase.
+  const gateAt = code.search(/isNewBookingSystemEnabled\(\)/)
+  const firstAwait = code.search(/\bawait\b/)
+  chk('🔒 השער לפני ה-await הראשון בקובץ',
+    gateAt !== -1 && firstAwait !== -1 && gateAt < firstAwait,
+    `gate@${gateAt} await@${firstAwait}`)
+
+  // 🔒 השער גם לפני חילוץ ה-IP ולפני קריאת הגוף
+  const ipAt = code.search(/resolveClientIp\(/)
+  const jsonAt = code.search(/req\.json\(\)/)
+  chk('🔒 השער לפני חילוץ ה-IP ולפני קריאת גוף הבקשה',
+    gateAt < ipAt && gateAt < jsonAt, `gate@${gateAt} ip@${ipAt} json@${jsonAt}`)
+
+  // 🔒 fail-closed על IP — ההגנה המרכזית של מסלול לא מאומת
+  chk('🔒 ה-route נכשל סגור כשאין IP מהימן',
+    /if\s*\(!ipResult\.ok\)/.test(code) && /ip_unavailable/.test(code))
+
+  // 🔒 אין silent failure: הצלחה מוחזרת בדיוק במקום אחד
+  chk('🔒 saved: true מוחזר רק פעם אחת — אחרי יצירה מוצלחת',
+    (code.match(/saved:\s*true/g) ?? []).length === 1)
+
+  // ⚠️ המסלול הציבורי אינו נוגע ב-OTP, ב-session או באזור האישי
+  chk('🔒 ה-route אינו נוגע ב-OTP או ב-session',
+    !/getCurrentCustomerId|issueOtp|verifyOtp|createSession/.test(code))
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 section('verify ו-session — בדיקה מבנית')
 //
 // ⚠️ שני ה-routes האלה **אינם ניתנים לייבוא בהרנס הזה**: הם מגיעים דרך

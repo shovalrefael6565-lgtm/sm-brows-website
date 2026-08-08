@@ -13,6 +13,18 @@ export const STATUS_LABELS: Record<string, { label: string; className: string }>
   expired:                { label: 'תוקף הבקשה פג',        className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
 }
 
+/**
+ * מקור הבקשה, לתצוגה בכרטיס הבקשה הממתינה.
+ *
+ * ⚠️ 'rejected' אינו כאן ולא ב-STATUS_LABELS — הערך נוסף ל-enum ב-0016
+ * אך אינו בשימוש בשלב 15B. הוא ייכנס לתצוגה יחד עם מסלול הדחייה ב-15C.
+ */
+export const BOOKING_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
+  public_booking: { label: 'טופס באתר',   className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
+  personal_area:  { label: 'אזור אישי',   className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  admin_manual:   { label: 'נקבע בניהול', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+}
+
 export function treatmentLabel(appt: Pick<AppointmentRow, 'service_key' | 'variants'>): string {
   if (appt.service_key === NATURAL_SERVICE) {
     const labels = NATURAL_VARIANTS.filter(v => appt.variants.includes(v.id)).map(v => v.label)

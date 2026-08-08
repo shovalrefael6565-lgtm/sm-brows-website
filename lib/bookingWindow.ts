@@ -110,7 +110,17 @@ export function isValidLiftingStart(
   return isValidTimeSlot(year, month, day, nextLabel, now)
 }
 
-/** חלון ההכנה: בהיום — רק שעות שמתחילות לפחות 90 דק' מעכשיו (זהה ל-BookingForm) */
+/**
+ * חלון ההכנה המינימלי להזמנה חדשה, בדקות.
+ *
+ * ⚠️ **מקור אמת יחיד.** עד שלב 15B הערך (90) היה כתוב פעמיים — כאן
+ * וכ-`+ 90` בתוך `selectVisibleSlots` — ושני העותקים יכלו להתבדר בשקט:
+ * השרת היה דוחה שעות שהלקוחה רואה בלוח, או להפך. `slotSelection.ts`
+ * מייבא את הקבוע הזה, ואין יותר מספר שני.
+ */
+export const MIN_LEAD_MINUTES = 40
+
+/** חלון ההכנה: בהיום — רק שעות שמתחילות לפחות MIN_LEAD_MINUTES מעכשיו */
 export function hasLeadTime(
   year: number, month: number, day: number, hhmm: string, now: Date = new Date(),
 ): boolean {
@@ -124,5 +134,5 @@ export function hasLeadTime(
   const nowMin =
     parseInt(nowParts.find(p => p.type === 'hour')!.value, 10) * 60 +
     parseInt(nowParts.find(p => p.type === 'minute')!.value, 10)
-  return toMin(hhmm) >= nowMin + 90
+  return toMin(hhmm) >= nowMin + MIN_LEAD_MINUTES
 }

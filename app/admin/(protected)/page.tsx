@@ -1,6 +1,9 @@
 import { listAppointmentsNeedingAdminAction, type AdminAppointmentRow } from '@/lib/db/appointments'
 import { formatPhoneForDisplay } from '@/lib/phone'
-import { formatDateTimeIL, formatTimeRemaining, treatmentLabel, STATUS_LABELS } from '@/lib/admin/format'
+import {
+  formatDateTimeIL, formatTimeRemaining, treatmentLabel,
+  STATUS_LABELS, BOOKING_SOURCE_LABELS,
+} from '@/lib/admin/format'
 import ApproveRejectButtons from '@/components/admin/ApproveRejectButtons'
 import RetrySyncButton from '@/components/admin/RetrySyncButton'
 import CalendarSyncPanel from '@/components/admin/CalendarSyncPanel'
@@ -66,6 +69,8 @@ function PendingCard({ appt }: { appt: AdminAppointmentRow }) {
   const submitted = formatDateTimeIL(appt.created_at)
   const remaining = formatTimeRemaining(appt.pending_expires_at)
   const status = STATUS_LABELS[appt.status] ?? { label: appt.status, className: '' }
+  // null = בקשה שנוצרה לפני 0017. אין תווית, ולא ממציאים אחת.
+  const source = appt.booking_source ? BOOKING_SOURCE_LABELS[appt.booking_source] : null
 
   return (
     <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 shadow-soft">
@@ -76,9 +81,16 @@ function PendingCard({ appt }: { appt: AdminAppointmentRow }) {
             {formatPhoneForDisplay(appt.customer_phone_e164)}
           </p>
         </div>
-        <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
-          {status.label}
-        </span>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+            {status.label}
+          </span>
+          {source && (
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${source.className}`}>
+              {source.label}
+            </span>
+          )}
+        </div>
       </div>
       <p className="text-sm text-brand-dark font-medium mb-2">
         {treatmentLabel(appt)} · {appt.duration_min} דק׳
