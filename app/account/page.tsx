@@ -13,8 +13,7 @@ import { capabilitiesFor } from '@/lib/appointmentSelfService'
 import { type AppointmentPolicy } from '@/lib/appointmentPolicy'
 import { formatPhoneForDisplay } from '@/lib/phone'
 import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
-import { fmtIsrael, israelDateStr } from '@/lib/israelTime'
-import { Calendar, Clock, RefreshCw } from 'lucide-react'
+import { Calendar, Clock, RefreshCw, CalendarClock } from 'lucide-react'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const metadata: Metadata = {
@@ -66,9 +65,14 @@ interface CardProps {
   appt: CustomerAppointmentRow
   /** null כשלא ניתן היה לטעון מדיניות — אז לא מוצגים כפתורי פעולה כלל */
   policy: AppointmentPolicy | null
+  /**
+   * 🔒 15E — בקשת שינוי מועד פתוחה שמצביעה על התור הזה, אם קיימת.
+   * נוכחותה משנה גם את הכפתורים וגם את מה שהלקוחה קוראת.
+   */
+  openRequest?: CustomerAppointmentRow
 }
 
-function AppointmentCard({ appt, policy }: CardProps) {
+function AppointmentCard({ appt, policy, openRequest }: CardProps) {
   const { date, time } = formatDateTimeIL(appt.starts_at)
   const status = STATUS_LABELS[appt.status] ?? { label: appt.status, className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' }
 
@@ -76,7 +80,9 @@ function AppointmentCard({ appt, policy }: CardProps) {
   // pending ממשיך לקבל את כפתור ביטול הבקשה הקיים משלב 4.
   const isFuture = new Date(appt.starts_at).getTime() > Date.now()
   const canSelfManage = appt.status === 'confirmed' && isFuture && policy !== null
-  const capabilities = canSelfManage && policy ? capabilitiesFor(appt, policy) : null
+  const capabilities = canSelfManage && policy
+    ? capabilitiesFor(appt, policy, new Date(), Boolean(openRequest))
+    : null
 
   // אירוע יומן שעדיין לא סונכרן — הלקוחה צריכה לדעת שהמערכת מודעת לזה
   const syncPending =
@@ -112,20 +118,35 @@ function AppointmentCard({ appt, policy }: CardProps) {
         </p>
       )}
 
+      {/*
+        🔒 15E — בקשת שינוי מועד פתוchה. הניסוח כאן הוא העיקר: הלקוחה
+        חייבת להבין ששני הדברים נכונים בו-זמנית — התור הזה **עדיין שלה**,
+        והבקשה עדיין לא אושרה.
+      */}
+      {openRequest && (
+        <div className="mt-3 bg-brand-gold/10 border border-brand-gold/40 rounded-xl p-3">
+          <p className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-gold-text">
+            <CalendarClock className="w-3.5 h-3.5" aria-hidden="true" />
+            נשלחה בקשת שינוי מועד
+          </p>
+          <p className="mt-1 text-[11px] text-brand-medium leading-relaxed">
+            המועד המבוקש: {formatDateTimeIL(openRequest.starts_at).date} בשעה{' '}
+            {formatDateTimeIL(openRequest.starts_at).time}.
+            <br />
+            <strong className="font-bold text-brand-dark">התור הנוכחי שלך נשאר שמור</strong> עד
+            ששובל תאשר. אם הבקשה לא תאושר, התור יישאר כפי שהוא.
+          </p>
+        </div>
+      )}
+
       {appt.status === 'pending' && <CancelPendingButton appointmentId={appt.id} />}
 
       {capabilities && policy && (
         <AppointmentActions
           appointmentId={appt.id}
-          currentStartsAt={appt.starts_at}
           whenLabel={`${date} בשעה ${time}`}
           treatment={treatmentLabel(appt)}
           durationMin={appt.duration_min}
-          ownBusy={{
-            isoDate: israelDateStr(new Date(appt.starts_at)),
-            start: fmtIsrael(new Date(appt.starts_at)),
-            end: fmtIsrael(new Date(appt.ends_at)),
-          }}
           reschedule={{ allowed: capabilities.reschedule.allowed, message: capabilities.reschedule.message }}
           cancel={{ allowed: capabilities.cancel.allowed, message: capabilities.cancel.message }}
           cancelPolicyNote={`לפי המדיניות ניתן לבטל עד ${policy.cancelCutoffHours} שעות לפני מועד התור.`}
@@ -175,7 +196,35 @@ export default async function AccountPage() {
   // כפתור שנשען על מדיניות שלא באמת נקראה (ראה lib/db/businessSettings.ts).
   const policy = policyResult.ok ? policyResult.policy : null
 
-  const upcoming = appointments.filter(a => ACTIVE_STATUSES.has(a.status))
+  /*
+   * 🔒 15E — שורת בקשת שינוי מועד היא שורת appointments לכל דבר, אבל
+   * **אינה תור בפני עצמו**. אסור להציג אותה ככרטיס נפרד: הלקוחה הייתה
+   * רואה שני תורים ולא מבינה איזה מהם תקף. במקום זה היא מוצמדת לתור
+   * המקורי כהודעה, וה-map כאן הוא מה שמחבר ביניהם.
+   *
+   * ⚠️ רק בקשה **פתוחה** (pending) נחשבת. בקשה שנדחתה או פגה אינה משנה
+   * דבר בתור המקורי, ומקומה בהיסטוריה בלבד.
+   */
+  const openRequestByOriginal = new Map<string, CustomerAppointmentRow>()
+  for (const a of appointments) {
+    if (a.reschedule_of_appointment_id && a.status === 'pending') {
+      openRequestByOriginal.set(a.reschedule_of_appointment_id, a)
+    }
+  }
+
+  /*
+   * ⚠️ התנאי הוא `status === 'pending'` ולא רק "יש reschedule_of":
+   * בקשה **שאושרה** הופכת ל-confirmed אבל **שומרת** את
+   * reschedule_of_appointment_id לתמיד. סינון לפי הקישור בלבד היה מעלים
+   * מהאזור האישי בדיוק את התור הפעיל של הלקוחה — כלומר "לאבד" אותו
+   * מבחינתה — וזה ההפך הגמור ממה ש-15E בא להבטיח.
+   */
+  const upcoming = appointments.filter(
+    a => ACTIVE_STATUSES.has(a.status) &&
+      !(a.reschedule_of_appointment_id && a.status === 'pending'),
+  )
+  // בהיסטוריה מוצגות גם שורות בקשה שהוכרעו (rejected/expired) — תיעוד
+  // אמיתי של מה שקרה, ולכן אין סיבה להסתיר אותן.
   const history = appointments.filter(a => !ACTIVE_STATUSES.has(a.status))
 
   return (
@@ -191,7 +240,14 @@ export default async function AccountPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {upcoming.map(a => <AppointmentCard key={a.id} appt={a} policy={policy} />)}
+                {upcoming.map(a => (
+                  <AppointmentCard
+                    key={a.id}
+                    appt={a}
+                    policy={policy}
+                    openRequest={openRequestByOriginal.get(a.id)}
+                  />
+                ))}
               </div>
             )}
           </div>

@@ -196,6 +196,23 @@ const ASSERTION_MIGRATIONS = {
    * ההיסטורי שלה — ראה ההסבר שם.
    */
   '0021_drop_legacy_create_pending.sql': [],
+  /**
+   * שלב 15E — בקשת שינוי מועד.
+   *
+   * ⚠️ שלוש הפונקציות רגישות באותה מידה, ומסיבות שונות:
+   *
+   *   create_reschedule_request  — מקבלת customer_id כפרמטר. חשיפה ל-anon
+   *     הייתה מאפשרת לפתוח בקשת שינוי **בשם כל לקוחה**, ובכך גם לחסום
+   *     שעות ביומן בלי שום אימות.
+   *   approve_reschedule_request — מקבלת admin_id, ומזיזה תור אמיתי:
+   *     משחררת שעה אחת ותופסת אחרת. חשיפה כאן שקולה למתן הרשאת ניהול.
+   *   reject_reschedule_request  — מקבלת admin_id, וסוגרת בקשה של לקוחה.
+   */
+  '0022_reschedule_requests.sql': [
+    'create_reschedule_request(uuid,uuid,timestamptz,timestamptz)',
+    'approve_reschedule_request(uuid,uuid)',
+    'reject_reschedule_request(uuid,uuid)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

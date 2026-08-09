@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
-import { rescheduleForCustomer } from '@/lib/appointmentSelfService'
+import { requestRescheduleForCustomer } from '@/lib/appointmentSelfService'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,15 +9,19 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^\d{2}:\d{2}$/
 
 /**
- * שינוי מועד של תור confirmed ע"י הלקוחה.
+ * 🔒 שלב 15E — פתיחת **בקשת** שינוי מועד לתור confirmed.
  *
- * מהדפדפן מתקבלים אך ורק שלושה ערכים: התאריך המבוקש, השעה המבוקשת,
- * והמועד שהוצג על המסך (expectedStartsAt — משמש רק כדי להבחין בין
- * "לא נבחר מועד חדש" לבין התאוששות מבקשה שכבר הצליחה).
+ * ⚠️ הכתובת נשארה זהה אבל **הסמנטיקה השתנתה**: עד 15E הקריאה הזו הזיזה
+ * את התור מיד; מ-15E היא יוצרת בקשה שממתינה לשובל, והתור המקורי נשאר
+ * confirmed וחוסם את שעתו עד ההכרעה. תשובת ההצלחה מחזירה
+ * outcome:'requested' ולא 'applied'.
  *
- * כל השאר — מי הלקוחה, איזה תור, מה משך הטיפול, מה המחיר, מה הסטטוס
- * ומה המדיניות — נטען בשרת. אין שום שדה מגוף הבקשה שיכול לשנות טיפול,
- * מחיר, משך או בעלות.
+ * מהדפדפן מתקבלים שני ערכים בלבד: התאריך והשעה המבוקשים. expectedStartsAt
+ * הוסר — הוא שירת את מסלול ההתאוששות של ההזזה המיידית, ובמודל הבקשה
+ * מפתח ה-idempotency הוא האינדקס appointments_one_open_reschedule_per_appt.
+ *
+ * כל השאר — מי הלקוחה, איזה תור, משך הטיפול, המחיר, הסטטוס והמדיניות —
+ * נטען בשרת.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const customerId = await getCurrentCustomerId()
@@ -30,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'not_found', message: 'התור לא נמצא.' }, { status: 404 })
   }
 
-  let body: { isoDate?: unknown; time?: unknown; expectedStartsAt?: unknown }
+  let body: { isoDate?: unknown; time?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -46,17 +50,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     )
   }
 
-  // ערך לא תקין כאן אינו שגיאה — הוא רק מוותר על ההבחנה בנוסח ההודעה
-  const expectedRaw = typeof body.expectedStartsAt === 'string' ? body.expectedStartsAt : null
-  const expectedStartsAt =
-    expectedRaw && !Number.isNaN(Date.parse(expectedRaw)) ? expectedRaw : null
-
-  const result = await rescheduleForCustomer({
+  const result = await requestRescheduleForCustomer({
     appointmentId: id,
     customerId,
     isoDate,
     time,
-    expectedStartsAt,
   })
 
   if (!result.ok) {

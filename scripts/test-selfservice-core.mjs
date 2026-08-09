@@ -386,6 +386,62 @@ section('מקור אמת יחיד — אין עותק שני של האלגורי
     !bookingForm.includes('function buildTimeSlots') && !dialog.includes('function buildTimeSlots'))
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+section('שלב 15E — בקשת שינוי מועד (בדיקות מבנה קוד)')
+
+{
+  const approval = readFileSync(new URL('../lib/appointmentApproval.ts', import.meta.url), 'utf8')
+  const dbLayer = readFileSync(new URL('../lib/db/appointments.ts', import.meta.url), 'utf8')
+  const selfService = readFileSync(new URL('../lib/appointmentSelfService.ts', import.meta.url), 'utf8')
+  const dialog = readFileSync(new URL('../components/account/RescheduleDialog.tsx', import.meta.url), 'utf8')
+
+  /*
+   * 🔒 הבאג שנתפס ב-review של 15E: approve_reschedule_request מחזיר
+   * to_jsonb(appointments_row) — בלי ה-join ל-customers. שימוש ישיר בשורה
+   * הזו לבניית אירוע היומן היה יוצר אירוע עם שם וטלפון undefined, כלומר
+   * כשל שקט שנראה כהצלחה. הריפוי: הקורא טוען מחדש דרך getAppointmentForAdmin.
+   */
+  chk('🔒 approveRescheduleRequest מחזיר מזהים בלבד, לא שורות מלאות',
+    /requestId: string; originalId: string/.test(dbLayer))
+  chk('🔒 approveRescheduleAndSync טוען מחדש דרך getAppointmentForAdmin',
+    /getAppointmentForAdmin\(approved\.requestId\)/.test(approval) &&
+    /getAppointmentForAdmin\(approved\.originalId\)/.test(approval))
+
+  /*
+   * 🔒 (rescheduled, delete) חייב להיות מוכר בשלושה מקומות. חוסר באחד
+   * מהם משאיר את האירוע הישן ביומן — חוסם שעה שהתפנתה, בלי שגיאה.
+   */
+  chk('🔒 retryCalendarSync מכיר (rescheduled, delete)',
+    /'rescheduled'\s*&&\s*row\.calendar_sync_operation === 'delete'/.test(approval))
+  chk('🔒 רשימת "דורש טיפול" כוללת status.eq.rescheduled',
+    /status\.eq\.rescheduled/.test(dbLayer))
+
+  // 🔒 אין הודעת WhatsApp לשינוי מועד — הנוסח שייך ל-15F ולא הומצא כאן.
+  chk('🔒 approveRescheduleAndSync אינו מחזיר whatsappUrl',
+    !/RescheduleApprovalResult[\s\S]{0,400}whatsappUrl/.test(approval))
+  chk('🔒 אין שימוש ב-buildApprovalMessage במסלול שינוי המועד',
+    !/approveRescheduleAndSync[\s\S]{0,1200}approvalWhatsAppUrl/.test(approval))
+
+  /*
+   * 🔒 התור של הלקוחה עצמה **אינו** מסונן מרשימת התפוסים. הסינון הישן
+   * הציג שעות שחופפות לתור הקיים כפנויות — ובמודל הבקשה הן אינן ניתנות
+   * לשמירה כלל (SELF_OVERLAP / EXCLUDE constraint).
+   */
+  chk('🔒 RescheduleDialog אינו מסנן את התור עצמו מהתפוסים',
+    !/ownBusy/.test(dialog))
+  chk('🔒 חפיפה עצמית נבדקת בשרת לפני הכתיבה',
+    /self_overlap/.test(selfService))
+
+  // 🔒 הבקשה אינה נוגעת ביומן — רק האישור עושה זאת.
+  chk('🔒 requestRescheduleForCustomer אינו קורא ל-syncQuietly',
+    !/requestRescheduleForCustomer[\s\S]*?\n}/.test(selfService) ||
+    !/requestRescheduleForCustomer[\s\S]{0,4000}syncQuietly/.test(selfService))
+
+  // 🔒 התפוגה מגיעה מכלל 15B ולא מחישוב מקומי
+  chk('🔒 תפוגת הבקשה מגיעה מ-computePendingExpiresAt',
+    /computePendingExpiresAt\(\)/.test(selfService))
+}
+
 // ── סיכום ───────────────────────────────────────────────────────────────────
 const failed = results.filter(r => !r).length
 console.log('\n' + '═'.repeat(60))

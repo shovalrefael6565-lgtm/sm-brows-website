@@ -29,16 +29,18 @@ export type PolicyLoadResult =
   | { ok: true; policy: AppointmentPolicy }
   | { ok: false; error: 'settings_unavailable' }
 
-/** ה-keys ב-business_settings שמרכיבים את AppointmentPolicy */
+/**
+ * ה-keys ב-business_settings שמרכיבים את AppointmentPolicy.
+ *
+ * ⚠️ 15E הסיר מכאן את deposit_reschedule_cutoff_hours,
+ * allow_cancel_with_deposit ו-allow_reschedule_with_deposit. השורות
+ * עצמן **נשארות בטבלה** (0022 תוספתית), אבל שום קוד אינו קורא אותן —
+ * כלל אחד של 6 שעות חל על כל לקוחה, עם מקדמה או בלי.
+ */
 type NumericKey =
   | 'cancel_cutoff_hours'
   | 'reschedule_cutoff_hours'
   | 'max_reschedules'
-  | 'deposit_reschedule_cutoff_hours'
-
-type BooleanKey =
-  | 'allow_cancel_with_deposit'
-  | 'allow_reschedule_with_deposit'
 
 /**
  * הערכים ב-business_settings.value הם jsonb — 24, false וכו'. supabase-js
@@ -51,13 +53,6 @@ function toNumber(raw: unknown): number | null {
     const n = Number(raw.trim())
     if (Number.isFinite(n)) return n
   }
-  return null
-}
-
-function toBoolean(raw: unknown): boolean | null {
-  if (typeof raw === 'boolean') return raw
-  if (raw === 'true') return true
-  if (raw === 'false') return false
   return null
 }
 
@@ -91,25 +86,9 @@ export async function loadAppointmentPolicy(): Promise<PolicyLoadResult> {
     return parsed
   }
 
-  const bool = (key: BooleanKey, fallback: boolean): boolean => {
-    if (!byKey.has(key)) return fallback
-    const parsed = toBoolean(byKey.get(key))
-    if (parsed === null) {
-      console.warn(`[businessSettings] ערך לא תקין ל-${key} — נעשה שימוש בברירת המחדל`)
-      return fallback
-    }
-    return parsed
-  }
-
   policy.cancelCutoffHours = num('cancel_cutoff_hours', DEFAULT_POLICY.cancelCutoffHours)
   policy.rescheduleCutoffHours = num('reschedule_cutoff_hours', DEFAULT_POLICY.rescheduleCutoffHours)
   policy.maxReschedules = num('max_reschedules', DEFAULT_POLICY.maxReschedules)
-  policy.depositRescheduleCutoffHours =
-    num('deposit_reschedule_cutoff_hours', DEFAULT_POLICY.depositRescheduleCutoffHours)
-  policy.allowCancelWithDeposit =
-    bool('allow_cancel_with_deposit', DEFAULT_POLICY.allowCancelWithDeposit)
-  policy.allowRescheduleWithDeposit =
-    bool('allow_reschedule_with_deposit', DEFAULT_POLICY.allowRescheduleWithDeposit)
 
   return { ok: true, policy }
 }

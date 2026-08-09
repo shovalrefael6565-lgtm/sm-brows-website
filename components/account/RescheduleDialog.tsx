@@ -7,15 +7,21 @@ import { isBookableDate } from '@/lib/bookingWindow'
 import { selectDisplaySlots, getIsraelToday, type BusyRange } from '@/lib/slotSelection'
 
 /**
- * בחירת מועד חדש לתור קיים.
+ * 🔒 שלב 15E — בחירת מועד חדש כ**בקשה**.
+ *
+ * ⚠️ הדיאלוג הזה לא מזיז את התור. הוא פותח בקשה שממתינה לשובל, והתור
+ * הקיים נשאר שמור וחוסם את שעתו עד ההכרעה. כל הנוסחים כאן חייבים לשקף
+ * את זה — לקוחה שתקרא "המועד עודכן" ותגיע לשעה החדשה בלי אישור זו
+ * התקלה שהשלב הזה נועד למנוע.
  *
  * ⚠️ הזמינות המוצגת כאן מגיעה מ-lib/slotSelection.ts — בדיוק אותו
- * אלגוריתם שמפעיל את עמוד קביעת התור. אין כאן עותק שני של הכללים ואין
- * "כל השעות הפנויות": לקוחה שכבר מחזיקה תור רואה את אותה זמינות מצומצמת
- * שרואה לקוחה שקובעת תור חדש.
+ * אלגוריתם שמפעיל את עמוד קביעת התור. אין כאן עותק שני של הכללים.
  *
- * מקור התפוסה זהה גם הוא — /api/bookings/slots, שממזג Google Calendar
- * עם התורים ב-Supabase.
+ * 🔒 **התור של הלקוחה עצמה נחשב תפוס, ואינו מסונן החוצה.** עד 15E הוא
+ * סונן מרשימת התפוסה, כי הזזה מיידית שחררה את השעה הישנה באותו רגע.
+ * במודל הבקשה זה הפוך: התור המקורי **נשאר מוחזק**, ולכן שעה שחופפת לו
+ * לא ניתנת לשמירה — ה-EXCLUDE constraint ידחה אותה. הצגתה כפנויה הייתה
+ * מבטיחה ללקוחה מועד שאי אפשר לקבל.
  */
 
 const MONTHS = [
@@ -60,20 +66,16 @@ function buildDayOptions(now: Date): DayOption[] {
 
 export interface RescheduleDialogProps {
   appointmentId: string
-  /** starts_at הנוכחי (ISO) — נשלח חזרה לשרת לזיהוי התאוששות */
-  currentStartsAt: string
   currentLabel: string
   treatment: string
   durationMin: number
-  /** הטווח שהתור עצמו תופס — לא אמור לחסום את עצמו */
-  ownBusy: { isoDate: string; start: string; end: string }
   onClose: () => void
   onDone: (message: string) => void
 }
 
 export default function RescheduleDialog({
-  appointmentId, currentStartsAt, currentLabel, treatment, durationMin,
-  ownBusy, onClose, onDone,
+  appointmentId, currentLabel, treatment, durationMin,
+  onClose, onDone,
 }: RescheduleDialogProps) {
   const [days] = useState<DayOption[]>(() => buildDayOptions(new Date()))
   const [selected, setSelected] = useState<DayOption | null>(null)
@@ -102,15 +104,10 @@ export default function RescheduleDialog({
         return
       }
       const data = await res.json()
-      const ranges: BusyRange[] = data.busy ?? []
-      // התור של הלקוחה עצמה אינו חוסם את עצמו — בלי הסינון הזה אי אפשר
-      // היה להזיז תור בעשרים דקות קדימה או אחורה. בשרת מתקיים אותו
-      // עיקרון: findConflictingCalendarEvent מדלג על האירוע של אותו תור.
-      setBusy(
-        isoDate === ownBusy.isoDate
-          ? ranges.filter(r => !(r.start === ownBusy.start && r.end === ownBusy.end))
-          : ranges,
-      )
+      // 🔒 15E — **בלי סינון של התור עצמו.** התור הקיים נשאר מוחזק עד
+      // לאישור, ולכן השעה שלו תפוסה גם עבור הבקשה הזו. סינונה החוצה היה
+      // מציג ללקוחה מועד שה-EXCLUDE constraint ידחה (SELF_OVERLAP).
+      setBusy((data.busy ?? []) as BusyRange[])
       setSlotsUnavailable(false)
     } catch {
       setBusy([])
@@ -118,7 +115,7 @@ export default function RescheduleDialog({
     } finally {
       setLoadingSlots(false)
     }
-  }, [ownBusy])
+  }, [])
 
   useEffect(() => {
     if (!selected) return
@@ -153,23 +150,22 @@ export default function RescheduleDialog({
         body: JSON.stringify({
           isoDate: selected.isoDate,
           time,
-          expectedStartsAt: currentStartsAt,
         }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.message ?? 'שינוי המועד נכשל. נסי שוב.')
+        setError(data.message ?? 'שליחת בקשת שינוי המועד נכשלה. נסי שוב.')
         setShowWhatsApp(Boolean(data.offerWhatsApp))
         setSaving(false)
         // המועד אולי נתפס בינתיים — לרענן את הסלוטים כדי שהבחירה תהיה עדכנית
-        if (data.error === 'slot_taken') {
+        if (data.error === 'slot_taken' || data.error === 'self_overlap') {
           setTime(null)
           setStep('pick')
           fetchBusy(selected.isoDate)
         }
         return
       }
-      onDone(data.message ?? 'מועד התור עודכן.')
+      onDone(data.message ?? 'בקשת שינוי המועד נשלחה לשובל.')
     } catch {
       setError('אין חיבור לאינטרנט. נסי שוב.')
       setSaving(false)
@@ -189,7 +185,7 @@ export default function RescheduleDialog({
       <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-soft max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-brand-linen-dark px-5 py-4 flex items-center justify-between gap-3">
           <h2 id="reschedule-title" className="font-serif text-lg font-bold text-brand-dark">
-            שינוי מועד
+            בקשת שינוי מועד
           </h2>
           <button
             type="button"
@@ -293,14 +289,23 @@ export default function RescheduleDialog({
           ) : (
             <>
               <div className="space-y-3">
+                {/*
+                  ⚠️ בלי קו חוצה על המועד הנוכחי. הוא **לא** מבוטל — הוא
+                  נשאר שמור עד ששובל מאשרת, וקו חוצה היה משדר את ההפך.
+                */}
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-brand-muted">המועד הנוכחי</span>
-                  <span className="text-brand-dark line-through decoration-brand-rose/60">{currentLabel}</span>
+                  <span className="text-brand-dark">{currentLabel}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-brand-muted">המועד החדש</span>
+                  <span className="text-brand-muted">המועד המבוקש</span>
                   <span className="font-bold text-brand-dark">{newLabel}</span>
                 </div>
+                <p className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 leading-relaxed">
+                  <strong className="font-bold">התור הקיים שלך נשאר שמור.</strong>{' '}
+                  זו בקשה בלבד — המועד הנוכחי לא מתבטל, והשעה נשמרת עבורך עד ששובל
+                  תאשר את המועד החדש. אם הבקשה לא תאושר, התור שלך יישאר כפי שהוא.
+                </p>
                 <p className="bg-brand-rose-bg border border-brand-rose-light rounded-xl p-3 text-xs text-brand-medium leading-relaxed">
                   הטיפול והמחיר אינם משתנים — רק התאריך והשעה. לשינוי סוג הטיפול יש לפנות לשובל.
                 </p>
@@ -325,7 +330,7 @@ export default function RescheduleDialog({
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-dark text-white font-semibold text-sm py-3 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
-                  אישור המועד החדש
+                  שליחת הבקשה
                 </button>
               </div>
             </>

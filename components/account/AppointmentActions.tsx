@@ -27,11 +27,9 @@ export interface ActionAvailability {
 
 export interface AppointmentActionsProps {
   appointmentId: string
-  currentStartsAt: string
   whenLabel: string
   treatment: string
   durationMin: number
-  ownBusy: { isoDate: string; start: string; end: string }
   reschedule: ActionAvailability
   cancel: ActionAvailability
   cancelPolicyNote: string
@@ -40,7 +38,7 @@ export interface AppointmentActionsProps {
 }
 
 export default function AppointmentActions({
-  appointmentId, currentStartsAt, whenLabel, treatment, durationMin, ownBusy,
+  appointmentId, whenLabel, treatment, durationMin,
   reschedule, cancel, cancelPolicyNote, rescheduleCount, maxReschedules,
 }: AppointmentActionsProps) {
   const router = useRouter()
@@ -80,7 +78,7 @@ export default function AppointmentActions({
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-dark border border-brand-linen-dark hover:border-brand-rose disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-brand-linen-dark px-3.5 py-1.5 rounded-full cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
         >
           <CalendarClock className="w-3.5 h-3.5" aria-hidden="true" />
-          שינוי מועד
+          בקשת שינוי מועד
         </button>
 
         <button
@@ -120,11 +118,9 @@ export default function AppointmentActions({
       {dialog === 'reschedule' && (
         <RescheduleDialog
           appointmentId={appointmentId}
-          currentStartsAt={currentStartsAt}
           currentLabel={whenLabel}
           treatment={treatment}
           durationMin={durationMin}
-          ownBusy={ownBusy}
           onClose={() => setDialog(null)}
           onDone={finish}
         />

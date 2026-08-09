@@ -8,6 +8,8 @@ import {
   completeCalendarDelete,
   failCalendarSync,
   getAppointmentForAdmin,
+  approveRescheduleRequest,
+  rejectRescheduleRequest,
 } from '@/lib/db/appointments'
 import {
   updateAppointmentEventTime,
@@ -368,9 +370,13 @@ export async function retryCalendarSync(appointmentId: string): Promise<Approval
     return { ok: false, status: 404, error: 'not_found', message: 'התור לא נמצא.' }
   }
 
+  // 🔒 15E — (rescheduled, delete) הוא צירוף חוקי: התור המקורי שהוזז,
+  // שהאירוע הישן שלו עדיין ממתין למחיקה. בלעדיו retry ידני על אירוע
+  // כזה היה מוחזר כ-not_syncable והאירוע היה נשאר ביומן לנצח.
   const syncable =
     (row.status === 'confirmed' && row.calendar_sync_operation === 'upsert') ||
-    (row.status === 'cancelled_by_customer' && row.calendar_sync_operation === 'delete')
+    (row.status === 'cancelled_by_customer' && row.calendar_sync_operation === 'delete') ||
+    (row.status === 'rescheduled' && row.calendar_sync_operation === 'delete')
 
   if (!syncable) {
     return {
@@ -382,6 +388,136 @@ export async function retryCalendarSync(appointmentId: string): Promise<Approval
   }
 
   return fromSyncOutcome(await ensureCalendarSynced(row))
+}
+
+/**
+ * 🔒 שלב 15E — אישור בקשת שינוי מועד, כולל סנכרון **שתי** השורות.
+ *
+ * הסדר כאן אינו שרירותי:
+ *
+ *   1. ה-RPC (approve_reschedule_request) עושה את ההחלפה ב-DB בטרנזקציה
+ *      אחת. אחרי ה-COMMIT הזה **התור העסקי כבר קיים במועד החדש** והשעה
+ *      החדשה תפוסה. כל מה שקורה אחריו נוגע ל-Google בלבד.
+ *   2. upsert לאירוע החדש.
+ *   3. delete לאירוע הישן.
+ *
+ * ⚠️ **המחיקה אחרונה במכוון.** אילו מחקנו קודם ונפלנו לפני היצירה, היה
+ * נוצר חלון שבו אין ליומן שום אירוע לתור הזה — בדיוק המצב ששובל אמורה
+ * לא לפגוש. בסדר הזה, כשל אחרי שלב 2 משאיר אירוע כפול (ישן + חדש), וזה
+ * מצב **גלוי ובר-תיקון**: שתי השורות מופיעות במסך "דורש טיפול" עם כפתור
+ * retry. עודף גלוי עדיף על חוסר שקט.
+ *
+ * ⚠️ כשל סנכרון **אינו** הופך את האישור לכישלון. ה-DB הוא מקור האמת והוא
+ * כבר עודכן — בדיוק העיקרון של הדגל `approved` ב-15C.
+ *
+ * ⚠️ **אין כאן whatsappUrl.** נוסח הודעת "שינוי המועד אושר" טרם אושר
+ * (שייך ל-15F), ואסור להשתמש בנוסח אישור התור הרגיל כתחליף — הוא מדבר
+ * על תור חדש ולא על שינוי. ensureCalendarSynced מחזירה whatsappUrl
+ * כחלק מהחוזה שלה; הוא **נזרק כאן בכוונה**.
+ */
+export interface RescheduleApprovalResult {
+  ok: true
+  /** האם האירוע החדש נוצר/עודכן ביומן */
+  newEventSynced: boolean
+  /** האם האירוע הישן נמחק מהיומן */
+  oldEventRemoved: boolean
+  message: string
+}
+
+export async function approveRescheduleAndSync(
+  requestId: string,
+  adminId: string,
+): Promise<RescheduleApprovalResult | ApprovalFail> {
+  const approved = await approveRescheduleRequest(requestId, adminId)
+
+  if (!approved.ok) {
+    const map: Record<string, { status: number; message: string }> = {
+      not_a_request: { status: 400, message: 'הפעולה הזו מיועדת לבקשת שינוי מועד בלבד.' },
+      not_pending: { status: 409, message: 'הבקשה כבר טופלה או שתוקפה פג.' },
+      original_not_confirmed: {
+        status: 409,
+        message: 'התור המקורי כבר אינו מאושר, ולכן אין מה להעביר. יש לבדוק את התור מול הלקוחה.',
+      },
+      in_past: {
+        status: 422,
+        message: 'אחד המועדים כבר עבר, ולכן לא ניתן לאשר את הבקשה. התור המקורי נשאר כפי שהוא.',
+      },
+      sync_in_progress: { status: 409, message: 'סנכרון היומן מתבצע כרגע. נסי שוב בעוד רגע.' },
+      not_found: { status: 404, message: 'הבקשה לא נמצאה.' },
+      slot_taken: { status: 409, message: 'המועד החדש נתפס בינתיים. לא ניתן לאשר.' },
+      db_error: { status: 500, message: 'האישור נכשל. נסי שוב.' },
+    }
+    const spec = map[approved.error] ?? map.db_error
+    return { ok: false, status: spec.status, error: approved.error, message: spec.message }
+  }
+
+  // ⚠️ מכאן ואילך ה-DB כבר עשה COMMIT. שום כשל אינו מחזיר את השעון.
+
+  /*
+   * 🔒 טעינה מחדש דרך getAppointmentForAdmin, ולא שימוש בשורות שה-RPC
+   * החזיר.
+   *
+   * ⚠️ הסיבה קונקרטית: ה-RPC מחזיר to_jsonb(appointments_row) — כלומר את
+   * שורת הטבלה **בלבד**, בלי ה-join ל-customers. runCalendarUpsert בונה
+   * את אירוע היומן מ-customer_full_name ומ-customer_phone_e164, ששניהם
+   * מגיעים אך ורק מה-join (ADMIN_APPOINTMENT_COLUMNS). שימוש ישיר בשורת
+   * ה-RPC היה יוצר ביומן אירוע עם שם וטלפון undefined — תקלה שקטה שנראית
+   * כהצלחה מלאה.
+   */
+  const [freshRequest, freshOriginal] = await Promise.all([
+    getAppointmentForAdmin(approved.requestId),
+    getAppointmentForAdmin(approved.originalId),
+  ])
+
+  if (!freshRequest || !freshOriginal) {
+    // ⚠️ ההחלפה עצמה הצליחה ועשתה COMMIT. רק הקריאה החוזרת נכשלה, ולכן
+    // זו אינה שגיאה — שתי השורות ממתינות לסנכרון ויופיעו ב"דורש טיפול".
+    console.error('[approval] reschedule approved but reload failed')
+    return {
+      ok: true,
+      newEventSynced: false,
+      oldEventRemoved: false,
+      message: 'מועד התור עודכן במערכת. סנכרון היומן נמצא בטיפול ומופיע ברשימת הדורשים טיפול.',
+    }
+  }
+
+  const newSync = await ensureCalendarSynced(freshRequest)
+  const oldSync = await ensureCalendarSynced(freshOriginal)
+
+  const newEventSynced = newSync.calendarSynced
+  const oldEventRemoved = oldSync.calendarSynced
+
+  let message: string
+  if (newEventSynced && oldEventRemoved) {
+    message = 'מועד התור עודכן והיומן סונכרן.'
+  } else if (!newEventSynced && !oldEventRemoved) {
+    message = 'מועד התור עודכן במערכת. סנכרון היומן נמצא בטיפול ומופיע ברשימת הדורשים טיפול.'
+  } else if (!newEventSynced) {
+    message = 'מועד התור עודכן במערכת. יצירת האירוע החדש ביומן נמצאת בטיפול.'
+  } else {
+    message = 'מועד התור עודכן והאירוע החדש נוצר. הסרת האירוע הישן מהיומן נמצאת בטיפול.'
+  }
+
+  return { ok: true, newEventSynced, oldEventRemoved, message }
+}
+
+/** דחיית בקשת שינוי מועד. אין כאן שום אינטראקציה עם Google Calendar —
+ *  לבקשה שממתינה לאישור מעולם לא נוצר אירוע. */
+export async function rejectReschedule(
+  requestId: string,
+  adminId: string,
+): Promise<{ ok: true } | ApprovalFail> {
+  const rejected = await rejectRescheduleRequest(requestId, adminId)
+  if (!rejected.ok) {
+    if (rejected.error === 'not_pending') {
+      return { ok: false, status: 409, error: 'already_handled', message: 'הבקשה כבר טופלה או שתוקפה פג.' }
+    }
+    if (rejected.error === 'not_a_request') {
+      return { ok: false, status: 400, error: 'not_a_request', message: 'הפעולה הזו מיועדת לבקשת שינוי מועד בלבד.' }
+    }
+    return { ok: false, status: 500, error: 'server_error', message: 'הדחייה נכשלה. נסי שוב.' }
+  }
+  return { ok: true }
 }
 
 /** דחיית בקשת pending. אין כאן שום אינטראקציה עם Google Calendar. */

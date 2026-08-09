@@ -12,36 +12,43 @@
 export interface AppointmentPolicy {
   /** עד כמה שעות לפני התור מותר לבטל */
   cancelCutoffHours: number
-  /** עד כמה שעות לפני התור מותר להזיז */
+  /** עד כמה שעות לפני התור מותר לבקש שינוי מועד */
   rescheduleCutoffHours: number
-  /** מספר הזזות מקסימלי לתור */
+  /** מספר הזזות מקסימלי לשרשרת התור */
   maxReschedules: number
-  /** האם מותר לבטל תור ששולמה עליו מקדמה */
-  allowCancelWithDeposit: boolean
-  /** האם מותר להזיז תור ששולמה עליו מקדמה */
-  allowRescheduleWithDeposit: boolean
-  /** עד כמה שעות לפני התור מותר להזיז תור עם מקדמה (מיקרובליידינג) */
-  depositRescheduleCutoffHours: number
 }
 
 /**
- * ברירות המחדל תואמות למדיניות המפורסמת בעמוד /booking-policy:
- * שינוי או ביטול מעל 24 שעות · תור עם מקדמה — מעל 48 שעות.
- * שינוי כאן מחייב עדכון גם בנוסח המדיניות באתר.
+ * ⚠️ **15E — כלל אחד, 6 שעות, לכל לקוחה.**
+ *
+ * עד 15E היה כאן מסלול מקביל למקדמה: 48 שעות להזזה, וחסימה מוחלטת
+ * לביטול (allow_cancel_with_deposit=false). המסלול הזה **בוטל במפורש**
+ * — has_deposit אינו משפיע יותר על ניהול עצמי. שלוש התכונות שהחזיקו
+ * אותו (allowCancelWithDeposit, allowRescheduleWithDeposit,
+ * depositRescheduleCutoffHours) הוסרו כאן ולא נקראות יותר ב-RPCs.
+ *
+ * ה-keys deposit_reschedule_cutoff_hours ו-allow_cancel_with_deposit
+ * נשארים בטבלת business_settings (0022 היא מיגרציה תוספתית ואינה מוחקת
+ * שורות), אבל שום קוד אינו קורא אותם.
+ *
+ * ⚠️ הערכים כאן הם **ברירות מחדל בלבד**, ומשמשים רק כש-key בודד חסר
+ * מהטבלה. בפרודקשן cancel_cutoff_hours ו-reschedule_cutoff_hours כבר
+ * שווים 6, ולכן ברירת המחדל אינה נכנסת לפעולה בפועל — היא קיימת כדי
+ * שמחיקה בטעות לא תחזיר בשקט את הכלל הישן של 24 שעות.
+ *
+ * 🔒 שינוי הערכים כאן מחייב עדכון גם בנוסח המדיניות באתר:
+ * components/booking-policy/BookingPolicyContent.tsx ו-
+ * components/faq/FaqContent.tsx.
  */
 export const DEFAULT_POLICY: AppointmentPolicy = {
-  cancelCutoffHours: 24,
-  rescheduleCutoffHours: 24,
+  cancelCutoffHours: 6,
+  rescheduleCutoffHours: 6,
   maxReschedules: 2,
-  allowCancelWithDeposit: false,
-  allowRescheduleWithDeposit: true,
-  depositRescheduleCutoffHours: 48,
 }
 
 export type PolicyDenialReason =
   | 'too_late'            // עברנו את חלון הזמן
   | 'max_reschedules'     // מיצתה את מספר ההזזות
-  | 'deposit_locked'      // תור עם מקדמה שלא ניתן לשנות/לבטל
   | 'not_active'          // התור כבר בוטל / הושלם
   | 'in_past'             // התור כבר עבר
 
@@ -56,7 +63,11 @@ export interface AppointmentForPolicy {
   startsAt: Date
   status: string
   rescheduleCount: number
-  hasDeposit: boolean
+  /**
+   * ⚠️ נשמר בטיפוס כי הוא עדיין נתון אמיתי על התור ומוצג בניהול, אבל
+   * **אינו משפיע יותר** על canCancel/canRequestReschedule (החלטת 15E).
+   */
+  hasDeposit?: boolean
 }
 
 const ACTIVE_STATUSES = ['pending', 'confirmed']
@@ -86,13 +97,7 @@ export function canCancel(
     return deny('in_past', 'מועד התור כבר עבר.')
   }
 
-  if (appt.hasDeposit && !policy.allowCancelWithDeposit) {
-    return deny(
-      'deposit_locked',
-      'לתור זה שולמה מקדמה, ולכן הביטול מתבצע מול שובל ישירות.',
-    )
-  }
-
+  // ⚠️ 15E — אין כאן ענף has_deposit. כלל אחד לכל לקוחה.
   if (hours < policy.cancelCutoffHours) {
     return deny(
       'too_late',
@@ -103,14 +108,23 @@ export function canCancel(
   return ALLOWED
 }
 
-/** האם הלקוחה רשאית להזיז את התור בעצמה */
-export function canReschedule(
+/**
+ * האם הלקוחה רשאית **לבקש** שינוי מועד.
+ *
+ * ⚠️ שם הפונקציה השתנה מ-canReschedule בכוונה. עד 15E לחיצה על "שינוי
+ * מועד" *הזיזה את התור*; מ-15E היא פותחת **בקשה** שממתינה לשובל, והתור
+ * המקורי נשאר confirmed וחוסם את שעתו עד ההכרעה. שם הפונקציה חייב
+ * לשקף את ההבדל הזה כדי שקורא עתידי לא יניח את הסמנטיקה הישנה.
+ */
+export function canRequestReschedule(
   appt: AppointmentForPolicy,
   policy: AppointmentPolicy = DEFAULT_POLICY,
   now: Date = new Date(),
 ): PolicyDecision {
-  if (!ACTIVE_STATUSES.includes(appt.status)) {
-    return deny('not_active', 'לא ניתן לשנות תור שאינו פעיל.')
+  // ⚠️ רק תור **מאושר** ניתן להזזה: בקשה שממתינה לאישור עדיין לא תפסה
+  // מקום עסקי, ו-15E אינו מגדיר "הזזה של בקשה".
+  if (appt.status !== 'confirmed') {
+    return deny('not_active', 'ניתן לבקש שינוי מועד רק לתור מאושר.')
   }
 
   const hours = hoursUntil(appt.startsAt, now)
@@ -125,27 +139,11 @@ export function canReschedule(
     )
   }
 
-  if (appt.hasDeposit) {
-    if (!policy.allowRescheduleWithDeposit) {
-      return deny(
-        'deposit_locked',
-        'לתור זה שולמה מקדמה, ולכן שינוי המועד מתבצע מול שובל ישירות.',
-      )
-    }
-    // תור עם מקדמה — חלון זמן מחמיר יותר
-    if (hours < policy.depositRescheduleCutoffHours) {
-      return deny(
-        'too_late',
-        `תור ששולמה עליו מקדמה ניתן להזזה עד ${policy.depositRescheduleCutoffHours} שעות מראש. יש ליצור קשר בוואטסאפ.`,
-      )
-    }
-    return ALLOWED
-  }
-
+  // ⚠️ 15E — אין כאן ענף has_deposit.
   if (hours < policy.rescheduleCutoffHours) {
     return deny(
       'too_late',
-      `ניתן לשנות מועד עד ${policy.rescheduleCutoffHours} שעות לפני התור. לשינוי במועד קרוב יותר יש ליצור קשר בוואטסאפ.`,
+      `ניתן לבקש שינוי מועד עד ${policy.rescheduleCutoffHours} שעות לפני התור. לשינוי במועד קרוב יותר יש ליצור קשר בוואטסאפ.`,
     )
   }
 

@@ -66,8 +66,26 @@ chk('חמישי 17:00 → ראשון 11:00',
   const publicRoute = codeOf(read('app/api/bookings/request/route.ts'))
   chk('🔒 גם המסלול הציבורי משתמש באותה פונקציה — מקור אמת אחד',
     /computePendingExpiresAt\(/.test(publicRoute))
-  chk('🔒 שכבת ה-DB שולחת p_expires_at בשני המסלולים',
-    (DBLAYER_CODE.match(/p_expires_at:/g) ?? []).length === 2)
+  /*
+   * 🔒 האינווריאנטה: **כל** מסלול שיוצר שורת pending מעביר את התפוגה
+   * מהשרת, ואף אחד לא נותן ל-DB לחשב אותה בעצמו (כלל 15B — 3 שעות עם
+   * גלגול ל-11:00 — אינו ניתן לביטוי ב-SQL).
+   *
+   * ⚠️ נבדק לפי שמות ה-RPC ולא לפי ספירה. הספירה הייתה 2 עד 15E, ואז
+   * נוספה create_reschedule_request — מספר קשיח היה נשבר בכל מסלול חדש
+   * ומסתיר את השאלה האמיתית, שהיא אילו מסלולים קיימים ומה כל אחד שולח.
+   */
+  const PENDING_CREATORS = [
+    'create_public_booking_request',
+    'create_personal_area_booking_request',
+    'create_reschedule_request',
+  ]
+  for (const rpc of PENDING_CREATORS) {
+    const call = DBLAYER_CODE.slice(DBLAYER_CODE.indexOf(`'${rpc}'`))
+    const body = call.slice(0, call.indexOf('})'))
+    chk(`🔒 ${rpc} מקבל p_expires_at מהשרת`,
+      DBLAYER_CODE.includes(`'${rpc}'`) && /p_expires_at:/.test(body))
+  }
 }
 
 

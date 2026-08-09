@@ -1,10 +1,15 @@
-import { listAppointmentsNeedingAdminAction, type AdminAppointmentRow } from '@/lib/db/appointments'
+import {
+  listAppointmentsNeedingAdminAction,
+  listAppointmentsForAdminByIds,
+  type AdminAppointmentRow,
+} from '@/lib/db/appointments'
 import { formatPhoneForDisplay } from '@/lib/phone'
 import {
   formatDateTimeIL, formatTimeRemaining, formatAbsoluteExpiry, treatmentLabel, variantLabels,
   STATUS_LABELS, BOOKING_SOURCE_LABELS,
 } from '@/lib/admin/format'
 import ApproveRejectButtons from '@/components/admin/ApproveRejectButtons'
+import RescheduleRequestButtons from '@/components/admin/RescheduleRequestButtons'
 import RetrySyncButton from '@/components/admin/RetrySyncButton'
 import CalendarSyncPanel from '@/components/admin/CalendarSyncPanel'
 import { Calendar, Clock, Timer, Send, MessageSquare, AlertTriangle } from 'lucide-react'
@@ -26,12 +31,61 @@ import { Calendar, Clock, Timer, Send, MessageSquare, AlertTriangle } from 'luci
 export default async function AdminPendingPage() {
   const result = await listAppointmentsNeedingAdminAction()
 
-  const pendingRows = result.ok ? result.rows.filter(r => r.status === 'pending') : []
-  // גם confirmed שממתין ליצירת/עדכון אירוע וגם תור שבוטל וממתין למחיקתו
-  const syncIssueRows = result.ok ? result.rows.filter(r => r.status !== 'pending') : []
+  const allRows = result.ok ? result.rows : []
+
+  /*
+   * 🔒 15E — בקשת שינוי מועד היא שורת pending, ולכן היא מגיעה באותה
+   * שאילתה כמו בקשת תור רגילה. **חובה להפריד ביניהן:** אישור בקשת שינוי
+   * דרך המסלול הרגיל היה מאשר את המועד החדש בלי לשחרר את הישן ובלי
+   * למחוק את האירוע שלו — ושובל הייתה נשארת עם שתי שעות תפוסות לאותה
+   * לקוחה. ההפרדה כאן היא מה שמבטיח שכל בקשה מגיעה לכפתורים הנכונים.
+   */
+  const pendingRows = allRows.filter(
+    r => r.status === 'pending' && !r.reschedule_of_appointment_id,
+  )
+  const rescheduleRows = allRows.filter(
+    r => r.status === 'pending' && r.reschedule_of_appointment_id,
+  )
+  // confirmed שממתין ליצירת/עדכון אירוע, תור שבוטל וממתין למחיקתו,
+  // ותור מקורי שהוזז וממתין למחיקת האירוע הישן ('rescheduled').
+  const syncIssueRows = allRows.filter(r => r.status !== 'pending')
+
+  /*
+   * ⚠️ התור המקורי **אינו** ברשימת "דורש טיפול": הוא confirmed ומסונכרן
+   * לגמרי, ולכן השאילתה למעלה לא מחזירה אותו. בלי הטעינה הנפרדת הזו
+   * הכרטיס היה מציג "מ-—" ושובל לא הייתה יודעת איזו שעה היא משחררת.
+   * שאילתה אחת לכל הבקשות, לא אחת לכל שורה.
+   */
+  const originalsById = await listAppointmentsForAdminByIds(
+    rescheduleRows
+      .map(r => r.reschedule_of_appointment_id)
+      .filter((id): id is string => Boolean(id)),
+  )
 
   return (
     <div className="space-y-10">
+      {/*
+        בקשות שינוי מועד ראשונות במכוון: הן החלטה על תור **קיים** של
+        לקוחה, ולכן דחופות יותר מבקשת תור חדשה.
+      */}
+      {rescheduleRows.length > 0 && (
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-brand-dark mb-1">בקשות שינוי מועד</h1>
+          <p className="text-sm text-brand-muted mb-4">
+            {rescheduleRows.length} בקשות. עד להכרעה — התור המקורי נשאר שמור, ושתי השעות תפוסות.
+          </p>
+          <div className="space-y-3">
+            {rescheduleRows.map(req => (
+              <RescheduleRequestCard
+                key={req.id}
+                req={req}
+                original={originalsById.get(req.reschedule_of_appointment_id!)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="font-serif text-2xl font-bold text-brand-dark mb-1">בקשות ממתינות</h1>
         <p className="text-sm text-brand-muted mb-6">
@@ -100,6 +154,80 @@ function LoadFailure() {
           שאין בקשות. אם הבעיה חוזרת גם אחרי רענון — יש לבדוק את המערכת.
         </p>
       </div>
+    </div>
+  )
+}
+
+/**
+ * 🔒 שלב 15E — כרטיס בקשת שינוי מועד.
+ *
+ * הכרטיס חייב לענות על שלוש שאלות בבת אחת, אחרת שובל מכריעה בעיוורון:
+ * **מאיזו שעה**, **לאיזו שעה**, ו**מה קורה אם לא מאשרים**.
+ */
+function RescheduleRequestCard({
+  req, original,
+}: { req: AdminAppointmentRow; original?: AdminAppointmentRow }) {
+  const to = formatDateTimeIL(req.starts_at)
+  const from = original ? formatDateTimeIL(original.starts_at) : null
+  const submitted = formatDateTimeIL(req.created_at)
+  const remaining = formatTimeRemaining(req.pending_expires_at)
+  const expiresAt = formatAbsoluteExpiry(req.pending_expires_at)
+
+  return (
+    <div className="bg-white border-2 border-brand-gold/50 rounded-2xl p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div>
+          <h3 className="font-bold text-brand-dark text-sm">{req.customer_full_name || 'ללא שם'}</h3>
+          <p className="text-xs text-brand-muted" dir="ltr">
+            {formatPhoneForDisplay(req.customer_phone_e164)}
+          </p>
+        </div>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-brand-gold/15 text-brand-gold-text border-brand-gold/40 flex-shrink-0">
+          בקשת שינוי מועד
+        </span>
+      </div>
+
+      <p className="text-sm text-brand-dark font-medium mb-2.5">
+        {treatmentLabel(req)} · {req.duration_min} דק׳
+      </p>
+
+      <div className="space-y-1.5 bg-brand-cream/50 border border-brand-cream-dark rounded-xl p-3">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-brand-muted w-24 flex-shrink-0">המועד הקיים</span>
+          <span className="font-semibold text-brand-dark">
+            {from ? `${from.date}, ${from.time}` : '— לא נטען'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-brand-muted w-24 flex-shrink-0">המועד המבוקש</span>
+          <span className="font-bold text-emerald-700">{to.date}, {to.time}</span>
+        </div>
+      </div>
+
+      {/*
+        ⚠️ המשפט הזה הוא ההגנה מפני הטעות היקרה: שובל שתחשוב שהתור כבר
+        זז תתייחס לשעה הישנה כפנויה בזמן שהיא עדיין תפוסה.
+      */}
+      <p className="mt-2 text-[11px] text-brand-medium leading-relaxed">
+        שתי השעות תפוסות כרגע. באישור — המועד הקיים משוחרר והאירוע שלו נמחק מהיומן.
+        בדחייה או בפקיעה — התור נשאר בדיוק במועד הקיים.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-muted mt-2">
+        <span className="inline-flex items-center gap-1.5">
+          <Send className="w-3.5 h-3.5" aria-hidden="true" />
+          נשלחה {submitted.date}, {submitted.time}
+        </span>
+        {expiresAt && (
+          <span className="inline-flex items-center gap-1.5 text-brand-gold-text">
+            <Timer className="w-3.5 h-3.5" aria-hidden="true" />
+            פגה ב-{expiresAt}
+            {remaining && <span className="text-brand-muted">({remaining})</span>}
+          </span>
+        )}
+      </div>
+
+      <RescheduleRequestButtons requestId={req.id} />
     </div>
   )
 }

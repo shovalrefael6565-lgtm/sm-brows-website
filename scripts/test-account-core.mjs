@@ -59,25 +59,43 @@ chk('תצוגה ומיסוך', formatPhoneForDisplay('+972541234567') === '054-1
 
 // ─── מדיניות שינוי וביטול ──────────────────────────────────────────────────
 section('מדיניות שינוי וביטול (lib/appointmentPolicy.ts)')
-const { canCancel, canReschedule, DEFAULT_POLICY } = await import('../lib/appointmentPolicy.ts')
+const { canCancel, canRequestReschedule, DEFAULT_POLICY } = await import('../lib/appointmentPolicy.ts')
 
 const now = new Date('2026-08-04T10:00:00Z')
 const at = h => new Date(now.getTime() + h * 3_600_000)
-const appt = (o = {}) => ({ startsAt: at(48), status: 'confirmed', rescheduleCount: 0, hasDeposit: false, ...o })
+const appt = (o = {}) => ({ startsAt: at(48), status: 'confirmed', rescheduleCount: 0, ...o })
 const p = DEFAULT_POLICY
 
+// 🔒 15E — ברירת המחדל היא 6 שעות, ותואמת ל-business_settings בפרודקשן.
+chk('ברירת המחדל לביטול היא 6 שעות', p.cancelCutoffHours === 6, `=${p.cancelCutoffHours}`)
+chk('ברירת המחדל לשינוי מועד היא 6 שעות', p.rescheduleCutoffHours === 6, `=${p.rescheduleCutoffHours}`)
+
 chk('ביטול 48 ש\' מראש — מותר', canCancel(appt(), p, now).allowed)
-chk('ביטול 25 ש\' מראש — מותר', canCancel(appt({ startsAt: at(25) }), p, now).allowed)
-chk('ביטול 23 ש\' מראש — חסום', canCancel(appt({ startsAt: at(23) }), p, now).reason === 'too_late')
+chk('ביטול 7 ש\' מראש — מותר', canCancel(appt({ startsAt: at(7) }), p, now).allowed)
+chk('ביטול 5 ש\' מראש — חסום', canCancel(appt({ startsAt: at(5) }), p, now).reason === 'too_late')
 chk('ביטול תור שעבר — חסום', canCancel(appt({ startsAt: at(-1) }), p, now).reason === 'in_past')
 chk('ביטול תור מבוטל — חסום', canCancel(appt({ status: 'cancelled_by_customer' }), p, now).reason === 'not_active')
-chk('ביטול תור עם מקדמה — חסום', canCancel(appt({ hasDeposit: true }), p, now).reason === 'deposit_locked')
-chk('הזזה 48 ש\' מראש — מותר', canReschedule(appt(), p, now).allowed)
-chk('הזזה 23 ש\' מראש — חסום', canReschedule(appt({ startsAt: at(23) }), p, now).reason === 'too_late')
-chk('הזזה אחרי 2 הזזות — חסום', canReschedule(appt({ rescheduleCount: 2 }), p, now).reason === 'max_reschedules')
-chk('הזזת תור עם מקדמה 72 ש\' — מותר', canReschedule(appt({ hasDeposit: true, startsAt: at(72) }), p, now).allowed)
-chk('הזזת תור עם מקדמה 30 ש\' — חסום', canReschedule(appt({ hasDeposit: true, startsAt: at(30) }), p, now).reason === 'too_late')
-chk('הזזת תור "לא הגיעה" — חסום', canReschedule(appt({ status: 'no_show' }), p, now).reason === 'not_active')
+
+// 🔒 15E — מקדמה **אינה** יוצרת מסלול נפרד יותר. תור עם מקדמה נשפט
+// בדיוק באותם 6 שעות, וההעברה של hasDeposit אינה משנה דבר.
+chk('ביטול תור עם מקדמה 7 ש\' — מותר (אין deposit_locked)',
+  canCancel(appt({ hasDeposit: true, startsAt: at(7) }), p, now).allowed)
+chk('שינוי מועד לתור עם מקדמה 7 ש\' — מותר',
+  canRequestReschedule(appt({ hasDeposit: true, startsAt: at(7) }), p, now).allowed)
+chk('שינוי מועד לתור עם מקדמה 30 ש\' — מותר (48 בוטל)',
+  canRequestReschedule(appt({ hasDeposit: true, startsAt: at(30) }), p, now).allowed)
+
+chk('בקשת שינוי 48 ש\' מראש — מותר', canRequestReschedule(appt(), p, now).allowed)
+chk('בקשת שינוי 7 ש\' מראש — מותר', canRequestReschedule(appt({ startsAt: at(7) }), p, now).allowed)
+chk('בקשת שינוי 5 ש\' מראש — חסום',
+  canRequestReschedule(appt({ startsAt: at(5) }), p, now).reason === 'too_late')
+chk('בקשת שינוי אחרי 2 הזזות — חסום',
+  canRequestReschedule(appt({ rescheduleCount: 2 }), p, now).reason === 'max_reschedules')
+chk('בקשת שינוי לתור "לא הגיעה" — חסום',
+  canRequestReschedule(appt({ status: 'no_show' }), p, now).reason === 'not_active')
+// ⚠️ 15E: רק תור confirmed ניתן להזזה — בקשה שממתינה לאישור אינה "תור".
+chk('בקשת שינוי לתור pending — חסום',
+  canRequestReschedule(appt({ status: 'pending' }), p, now).reason === 'not_active')
 
 // ─── OTP והגבלת קצב ────────────────────────────────────────────────────────
 section('קודי אימות והגבלת קצב (lib/otp.ts)')

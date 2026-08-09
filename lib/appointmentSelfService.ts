@@ -3,11 +3,12 @@ import {
   type CustomerAppointmentRow,
   type SelfServiceError,
   getAppointmentForCustomer,
-  rescheduleAppointmentByCustomer,
+  createRescheduleRequest,
   cancelConfirmedAppointmentByCustomer,
 } from '@/lib/db/appointments'
 import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
-import { canCancel, canReschedule, type AppointmentPolicy, type PolicyDecision } from '@/lib/appointmentPolicy'
+import { canCancel, canRequestReschedule, type AppointmentPolicy, type PolicyDecision } from '@/lib/appointmentPolicy'
+import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { findConflictingCalendarEvent } from '@/lib/googleCalendar'
 import { retryCalendarSync } from '@/lib/appointmentApproval'
 import { israelDateStr, israelWallTimeToUtc } from '@/lib/israelTime'
@@ -50,8 +51,13 @@ export interface SelfServiceFail {
 
 export interface RescheduleOk {
   ok: true
-  outcome: 'applied' | 'no_change' | 'already_applied'
-  /** false = ה-DB עודכן אך האירוע ביומן עדיין לא — ראה ההודעה למטה */
+  /**
+   * 🔒 15E — 'requested' בלבד. הערכים הישנים ('applied'/'already_applied')
+   * שיקפו הזזה מיידית של התור, וזו בדיוק הסמנטיקה שהוחלפה: הלקוחה
+   * **מבקשת**, ושובל מכריעה.
+   */
+  outcome: 'requested'
+  /** נשמר בחוזה לתאימות; בקשה אינה נוגעת ביומן ולכן תמיד true */
   calendarSynced: boolean
   message: string
 }
@@ -73,9 +79,23 @@ const ERROR_MESSAGES: Record<SelfServiceError, { status: number; message: string
   sync_in_progress: { status: 409, message: 'התור מתעדכן ביומן ברגע זה. נסי שוב בעוד רגע.', whatsApp: false },
   in_past: { status: 422, message: 'מועד התור כבר עבר.', whatsApp: true },
   max_reschedules: { status: 422, message: '', whatsApp: true }, // מנוסח דינמית לפי המדיניות
+  // ⚠️ 15E הסיר את ענף המקדמה; הערך נשאר בטיפוס אך אינו מיוצר יותר.
   deposit_locked: { status: 422, message: 'לתור זה שולמה מקדמה, ולכן השינוי מתבצע מול שובל ישירות.', whatsApp: true },
   too_late: { status: 422, message: '', whatsApp: true }, // מנוסח דינמית לפי המדיניות
   slot_taken: { status: 409, message: 'המועד נתפס כרגע. בחרי מועד אחר.', whatsApp: false },
+  // ── 15E ──
+  no_change: { status: 400, message: 'זהו המועד הנוכחי של התור. יש לבחור מועד אחר.', whatsApp: false },
+  self_overlap: {
+    status: 422,
+    message: 'המועד המבוקש חופף לתור הקיים שלך, שנשאר שמור עד לאישור. יש לבחור מועד שאינו חופף.',
+    whatsApp: false,
+  },
+  request_exists: {
+    status: 409,
+    message: 'כבר קיימת בקשת שינוי מועד פתוחה לתור הזה. יש להמתין לתשובת שובל או לבטל אותה.',
+    whatsApp: false,
+  },
+  customer_blocked: { status: 403, message: 'לא ניתן לבצע את הפעולה. יש לפנות לשובל.', whatsApp: true },
   db_error: { status: 500, message: 'הפעולה נכשלה. נסי שוב.', whatsApp: false },
 }
 
@@ -145,15 +165,24 @@ export function capabilitiesFor(
   appt: CustomerAppointmentRow,
   policy: AppointmentPolicy,
   now: Date = new Date(),
+  /** 🔒 15E — כבר קיימת בקשת שינוי פתוחה לתור הזה */
+  hasOpenRescheduleRequest = false,
 ): AppointmentCapabilities {
   const forPolicy = {
     startsAt: new Date(appt.starts_at),
     status: appt.status,
     rescheduleCount: appt.reschedule_count,
-    hasDeposit: appt.has_deposit,
   }
+  const reschedule = hasOpenRescheduleRequest
+    ? {
+        allowed: false,
+        reason: 'not_active' as const,
+        message: 'כבר נשלחה בקשת שינוי מועד לתור הזה והיא ממתינה לתשובת שובל.',
+      }
+    : canRequestReschedule(forPolicy, policy, now)
+
   return {
-    reschedule: canReschedule(forPolicy, policy, now),
+    reschedule,
     cancel: canCancel(forPolicy, policy, now),
     rescheduleCount: appt.reschedule_count,
     maxReschedules: policy.maxReschedules,
@@ -188,11 +217,25 @@ export interface RescheduleParams {
   customerId: string
   isoDate: string
   time: string
-  /** המועד שהוצג ללקוחה כשפתחה את הדיאלוג (ISO). לזיהוי התאוששות בלבד. */
-  expectedStartsAt: string | null
 }
 
-export async function rescheduleForCustomer(params: RescheduleParams): Promise<RescheduleResult> {
+/**
+ * 🔒 שלב 15E — פתיחת **בקשת** שינוי מועד.
+ *
+ * ⚠️ הפונקציה הזו החליפה את rescheduleForCustomer, ששינתה את starts_at
+ * של התור עצמו והשתחררה מיידית מהשעה הישנה. כאן שום דבר לא זז:
+ *
+ *   • התור המקורי נשאר confirmed, ושעתו נשארת חסומה
+ *   • נוצרת שורת appointments **שנייה** ב-pending שחוסמת את שעת היעד
+ *   • שובל מכריעה. עד אז ללקוחה יש תור אחד ודאי ובקשה אחת פתוחה.
+ *
+ * ⚠️ **אין כאן קריאה ל-Google ואין syncQuietly.** בקשה שממתינה לאישור
+ * אינה מקבלת אירוע ביומן — בדיוק כמו כל pending אחר במערכת. היומן נכנס
+ * לתמונה רק כששובל מאשרת (approveRescheduleAndSync).
+ */
+export async function requestRescheduleForCustomer(
+  params: RescheduleParams,
+): Promise<RescheduleResult> {
   if (!isNewBookingSystemEnabled()) return FEATURE_DISABLED
 
   const lookup = await getAppointmentForCustomer(params.appointmentId, params.customerId)
@@ -205,69 +248,78 @@ export async function rescheduleForCustomer(params: RescheduleParams): Promise<R
 
   const newStartsAt = israelWallTimeToUtc(params.isoDate, params.time)
   const currentStartsAt = new Date(appt.starts_at)
-  const expectedStartsAt = params.expectedStartsAt ? new Date(params.expectedStartsAt) : null
+  const currentEndsAt = new Date(appt.ends_at)
 
-  // בחירת המועד הקיים — שום כתיבה, שום קריאה ל-Google. ה-RPC מבחין בין
-  // "לא נבחר מועד חדש" לבין התאוששות מבקשה קודמת שכבר הצליחה, ולכן
-  // הבדיקה הזו לא נעשית כאן אלא נשלחת אליו.
-  const isSameSlot = newStartsAt.getTime() === currentStartsAt.getTime()
-
-  if (!isSameSlot) {
-    // המדיניות נבדקת לפני הכול כדי להחזיר נוסח מדויק. ה-RPC בודק שוב.
-    const decision = canReschedule(
-      {
-        startsAt: currentStartsAt,
-        status: appt.status,
-        rescheduleCount: appt.reschedule_count,
-        hasDeposit: appt.has_deposit,
-      },
-      policy,
-    )
-    if (!decision.allowed) {
-      return {
-        ok: false,
-        status: decision.reason === 'not_active' ? 409 : 422,
-        error: decision.reason === 'max_reschedules' ? 'max_reschedules'
-          : decision.reason === 'deposit_locked' ? 'deposit_locked'
-          : decision.reason === 'in_past' ? 'in_past'
-          : decision.reason === 'not_active' ? 'not_allowed_status'
-          : 'too_late',
-        message: decision.message ?? 'לא ניתן לשנות את מועד התור.',
-        offerWhatsApp: true,
-      }
-    }
-
-    if (!isSlotStructurallyValid(params.isoDate, params.time, appt.duration_min)) {
-      return {
-        ok: false,
-        status: 400,
-        error: 'invalid_slot',
-        message: 'המועד שנבחר אינו זמין לקביעה. יש לבחור מועד אחר.',
-      }
-    }
-
-    // בדיקת התנגשות ראשונה — לפני שה-DB משתנה בכלל. האירוע של אותו
-    // appointment אינו נחשב התנגשות (findConflictingCalendarEvent מדלג
-    // עליו לפי extendedProperties). בדיקה שנייה תרוץ שוב מיד לפני
-    // הכתיבה ל-Google, כי אירוע ידני יכול להיווצר בין השתיים.
-    try {
-      const endsAt = new Date(newStartsAt.getTime() + appt.duration_min * 60 * 1000)
-      const conflict = await findConflictingCalendarEvent(
-        israelDateStr(newStartsAt), newStartsAt, endsAt, appt.id,
-      )
-      if (conflict) return fail('slot_taken')
-    } catch (err) {
-      // תקלת Google לא חוסמת — ה-EXCLUDE constraint עדיין מגן, והבדיקה
-      // השנייה (אחרי ה-claim) תרוץ בכל מקרה לפני שנוגעים ביומן.
-      console.error('[selfService] calendar pre-check failed', err)
+  if (newStartsAt.getTime() === currentStartsAt.getTime()) {
+    return {
+      ok: false, status: 400, error: 'no_change',
+      message: 'זהו המועד הנוכחי של התור. יש לבחור מועד אחר.',
     }
   }
 
-  const result = await rescheduleAppointmentByCustomer({
+  // המדיניות נבדקת כאן כדי להחזיר נוסח מדויק. ה-RPC בודק שוב את הכול.
+  const decision = canRequestReschedule(
+    {
+      startsAt: currentStartsAt,
+      status: appt.status,
+      rescheduleCount: appt.reschedule_count,
+    },
+    policy,
+  )
+  if (!decision.allowed) {
+    return {
+      ok: false,
+      status: decision.reason === 'not_active' ? 409 : 422,
+      error: decision.reason === 'max_reschedules' ? 'max_reschedules'
+        : decision.reason === 'in_past' ? 'in_past'
+        : decision.reason === 'not_active' ? 'not_allowed_status'
+        : 'too_late',
+      message: decision.message ?? 'לא ניתן לבקש שינוי מועד לתור הזה.',
+      offerWhatsApp: true,
+    }
+  }
+
+  if (!isSlotStructurallyValid(params.isoDate, params.time, appt.duration_min)) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'invalid_slot',
+      message: 'המועד שנבחר אינו זמין לקביעה. יש לבחור מועד אחר.',
+    }
+  }
+
+  // 🔒 חפיפה עצמית — נבדק גם כאן וגם ב-RPC. התור המקורי נשאר מוחזק,
+  // ולכן יעד שחופף לו אינו ניתן לשמירה בשום מצב; עדיף לומר זאת מפורשות
+  // מאשר להיכשל על ה-EXCLUDE constraint עם "המועד נתפס".
+  const newEndsAt = new Date(newStartsAt.getTime() + appt.duration_min * 60 * 1000)
+  if (newStartsAt < currentEndsAt && currentStartsAt < newEndsAt) {
+    return {
+      ok: false,
+      status: 422,
+      error: 'self_overlap',
+      message: 'המועד המבוקש חופף לתור הקיים שלך, שנשאר שמור עד לאישור. יש לבחור מועד שאינו חופף.',
+    }
+  }
+
+  // בדיקת התנגשות מול היומן לפני הכתיבה. האירוע של אותו appointment
+  // אינו נחשב התנגשות. זו בדיקת נוחות בלבד — ההגנה היא ה-EXCLUDE
+  // constraint, שירוץ בכל מקרה ב-INSERT.
+  try {
+    const conflict = await findConflictingCalendarEvent(
+      israelDateStr(newStartsAt), newStartsAt, newEndsAt, appt.id,
+    )
+    if (conflict) return fail('slot_taken')
+  } catch (err) {
+    console.error('[selfService] calendar pre-check failed', err)
+  }
+
+  // אותו כלל תפוגה בדיוק כמו כל בקשת pending אחרת (15B): 3 שעות עם
+  // גלגול ל-11:00. ה-RPC אוכף שהערך סביר (עד 72 שעות).
+  const result = await createRescheduleRequest({
     appointmentId: appt.id,
     customerId: params.customerId,
     newStartsAt,
-    expectedStartsAt,
+    expiresAt: computePendingExpiresAt(),
   })
 
   if (!result.ok) {
@@ -278,31 +330,19 @@ export async function rescheduleForCustomer(params: RescheduleParams): Promise<R
       }
     }
     if (result.error === 'too_late') {
-      const hours = appt.has_deposit ? policy.depositRescheduleCutoffHours : policy.rescheduleCutoffHours
       return {
         ok: false, status: 422, error: 'too_late', offerWhatsApp: true,
-        message: `ניתן לשנות מועד עד ${hours} שעות לפני התור. לשינוי במועד קרוב יותר יש ליצור קשר בוואטסאפ.`,
+        message: `ניתן לבקש שינוי מועד עד ${policy.rescheduleCutoffHours} שעות לפני התור. לשינוי במועד קרוב יותר יש ליצור קשר בוואטסאפ.`,
       }
     }
     return fail(result.error)
   }
 
-  if (result.outcome === 'no_change') {
-    return { ok: true, outcome: 'no_change', calendarSynced: true, message: 'לא נבחר מועד חדש.' }
-  }
-
-  // גם ב-applied וגם ב-already_applied ממשיכים לסנכרון: ב-already_applied
-  // ייתכן שהבקשה הקודמת עדכנה את ה-DB אך נפלה לפני היומן, וזה בדיוק
-  // מסלול ההתאוששות. הסנכרון עצמו idempotent (claim + lease + ID קבוע).
-  const synced = await syncQuietly(appt.id)
-
   return {
     ok: true,
-    outcome: result.outcome,
-    calendarSynced: synced,
-    message: synced
-      ? 'מועד התור עודכן.'
-      : 'המועד עודכן במערכת. הסנכרון ליומן נמצא בטיפול.',
+    outcome: 'requested',
+    calendarSynced: true,
+    message: 'בקשת שינוי המועד נשלחה לשובל. התור הקיים שלך נשאר שמור עד לאישור.',
   }
 }
 
@@ -328,7 +368,6 @@ export async function cancelConfirmedForCustomer(
         startsAt: new Date(appt.starts_at),
         status: appt.status,
         rescheduleCount: appt.reschedule_count,
-        hasDeposit: appt.has_deposit,
       },
       policy,
     )
@@ -336,8 +375,7 @@ export async function cancelConfirmedForCustomer(
       return {
         ok: false,
         status: decision.reason === 'not_active' ? 409 : 422,
-        error: decision.reason === 'deposit_locked' ? 'deposit_locked'
-          : decision.reason === 'in_past' ? 'in_past'
+        error: decision.reason === 'in_past' ? 'in_past'
           : decision.reason === 'not_active' ? 'not_allowed_status'
           : 'too_late',
         message: decision.message ?? 'לא ניתן לבטל את התור.',

@@ -269,7 +269,8 @@ const ADMIN_APPOINTMENT_COLUMNS =
   'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
   'notes, pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_operation, ' +
   'calendar_sync_error, calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
-  'booking_source, customer_id, customers(full_name, phone_e164)'
+  'booking_source, reschedule_of_appointment_id, reschedule_count, customer_id, ' +
+  'customers(full_name, phone_e164)'
 
 export type CalendarSyncOperation = 'upsert' | 'delete'
 
@@ -292,6 +293,12 @@ export interface AdminAppointmentRow extends AppointmentRow {
   booking_source: BookingSource | null
   /** הערה חופשית שהלקוחה הקלידה בטופס. null = לא הוזנה. */
   notes: string | null
+  /**
+   * 🔒 15E — לא null ⟹ **זו שורת בקשת שינוי מועד**, והערך הוא מזהה התור
+   * המקורי שנשאר confirmed וחוסם את שעתו עד ההכרעה.
+   */
+  reschedule_of_appointment_id: string | null
+  reschedule_count: number
 }
 
 type JoinedAdminRow = AppointmentRow & {
@@ -306,6 +313,8 @@ type JoinedAdminRow = AppointmentRow & {
   calendar_synced_at: string | null
   calendar_sync_attempt_count: number
   booking_source: BookingSource | null
+  reschedule_of_appointment_id: string | null
+  reschedule_count: number
   customer_id: string
   customers: { full_name: string; phone_e164: string } | null
 }
@@ -331,6 +340,8 @@ function toAdminRow(r: JoinedAdminRow): AdminAppointmentRow {
     calendar_sync_attempt_count: r.calendar_sync_attempt_count,
     booking_source: r.booking_source ?? null,
     notes: r.notes ?? null,
+    reschedule_of_appointment_id: r.reschedule_of_appointment_id ?? null,
+    reschedule_count: r.reschedule_count ?? 0,
     customer_id: r.customer_id,
     customer_full_name: r.customers?.full_name ?? '',
     customer_phone_e164: r.customers?.phone_e164 ?? '',
@@ -415,10 +426,14 @@ export async function listAppointmentsNeedingAdminAction(): Promise<NeedsActionR
     const { data, error } = await db
       .from('appointments')
       .select(ADMIN_APPOINTMENT_COLUMNS)
+      // 🔒 15E — 'rescheduled' חייב להיות כאן. תור מקורי שהוזז ממתין
+      // למחיקת האירוע ביומן; בלי השורה הזו כשל מחיקה היה נעלם מהמסך
+      // ושובל לא הייתה יודעת שאירוע ישן ממשיך לחסום שעה שהתפנתה.
       .or(
         'status.eq.pending,' +
           'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing)),' +
-          'and(status.eq.cancelled_by_customer,calendar_sync_status.in.(pending,failed,syncing))',
+          'and(status.eq.cancelled_by_customer,calendar_sync_status.in.(pending,failed,syncing)),' +
+          'and(status.eq.rescheduled,calendar_sync_status.in.(pending,failed,syncing))',
       )
       .order('starts_at', { ascending: true })
 
@@ -635,12 +650,17 @@ export interface CustomerAppointmentRow extends AppointmentRow {
   google_event_id: string | null
   calendar_sync_status: string
   calendar_sync_operation: CalendarSyncOperation
+  /**
+   * 🔒 15E — לא null ⟹ זו שורת **בקשת שינוי מועד** ולא תור בפני עצמו.
+   * האזור האישי אינו מציג אותה ככרטיס נפרד אלא כהודעה על התור המקורי.
+   */
+  reschedule_of_appointment_id: string | null
 }
 
 const CUSTOMER_APPOINTMENT_COLUMNS =
   'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
   'reschedule_count, original_starts_at, has_deposit, google_event_id, ' +
-  'calendar_sync_status, calendar_sync_operation'
+  'calendar_sync_status, calendar_sync_operation, reschedule_of_appointment_id'
 
 /** כל התורים של לקוחה, מהחדש לישן — לשימוש באזור האישי */
 export async function listAppointmentsForCustomer(
@@ -711,22 +731,39 @@ export type SelfServiceError =
   | 'sync_in_progress'   // פעולת סנכרון פעילה על אותו תור
   | 'in_past'            // התור (או המועד המבוקש) כבר עבר
   | 'max_reschedules'    // מיצתה את מספר ההזזות
-  | 'deposit_locked'     // תור עם מקדמה
+  | 'deposit_locked'     // תור עם מקדמה — 🔒 לא נוצר יותר; ראה למטה
   | 'too_late'           // מחוץ לחלון המדיניות
   | 'slot_taken'         // ה-EXCLUDE constraint חסם — מישהי אחרת תפסה
+  // ── 15E ──
+  | 'no_change'          // נבחר בדיוק המועד הקיים
+  | 'self_overlap'       // היעד חופף לתור המקורי, שנשאר מוחזק
+  | 'request_exists'     // כבר יש בקשת שינוי פתוחה לתור הזה
+  | 'customer_blocked'
   | 'db_error'
 
+/**
+ * ⚠️ 'deposit_locked' נשאר בטיפוס אך **אינו מיוצר יותר**: 0022 הסירה את
+ * ענף המקדמה מ-cancel_confirmed_appointment_by_customer, ו-
+ * create_reschedule_request מעולם לא כלל אותו. הוא נשמר כדי שקוד ישן
+ * שממפה הודעות לא יישבר, ומפני שה-RPC הישן (0005) עדיין חי עד 0023.
+ */
 function mapSelfServiceError(err: { code?: string; message?: string }): SelfServiceError {
   // 23P01 = exclusion_violation — הסלוט נתפס בין הבדיקה המוקדמת לכתיבה
   if (err.code === '23P01') return 'slot_taken'
+  // 23505 = unique_violation — האינדקס appointments_one_open_reschedule_per_appt
+  if (err.code === '23505') return 'request_exists'
   const m = err.message ?? ''
-  if (m.includes('NOT_FOUND')) return 'not_found'
+  if (m.includes('NOT_FOUND') || m.includes('CUSTOMER_NOT_FOUND')) return 'not_found'
   if (m.includes('NOT_RESCHEDULABLE') || m.includes('NOT_CANCELLABLE')) return 'not_allowed_status'
   if (m.includes('SYNC_IN_PROGRESS')) return 'sync_in_progress'
   if (m.includes('NEW_IN_PAST') || m.includes('IN_PAST')) return 'in_past'
   if (m.includes('MAX_RESCHEDULES')) return 'max_reschedules'
   if (m.includes('DEPOSIT_LOCKED')) return 'deposit_locked'
   if (m.includes('TOO_LATE')) return 'too_late'
+  if (m.includes('SELF_OVERLAP')) return 'self_overlap'
+  if (m.includes('NO_CHANGE')) return 'no_change'
+  if (m.includes('REQUEST_EXISTS')) return 'request_exists'
+  if (m.includes('CUSTOMER_BLOCKED')) return 'customer_blocked'
   return 'db_error'
 }
 
@@ -775,6 +812,124 @@ export async function rescheduleAppointmentByCustomer(params: {
 
   const envelope = data as unknown as RpcEnvelope<RescheduleOutcome>
   return { ok: true, outcome: envelope.outcome, appointment: toCustomerRow(envelope.appointment) }
+}
+
+/**
+ * 🔒 שלב 15E — יצירת **בקשת** שינוי מועד.
+ *
+ * ⚠️ ההבדל המהותי מ-rescheduleAppointmentByCustomer שמעליה: כאן לא זז
+ * שום דבר. נוצרת שורת appointments **שנייה** בסטטוס pending שמצביעה על
+ * התור המקורי, והמקורי נשאר confirmed וחוסם את שעתו עד ששובל מכריעה.
+ * ה-EXCLUDE constraint חוסם את שעת היעד בזכות עצם היות השורה pending.
+ *
+ * כל האכיפה — בעלות, סטטוס, חפיפה עצמית, כלל 6 השעות, מונה ההזזות
+ * ובקשה-פתוחה-אחת — נמצאת בתוך create_reschedule_request (0022),
+ * בטרנזקציה אחת עם ה-INSERT.
+ */
+export async function createRescheduleRequest(params: {
+  appointmentId: string
+  customerId: string
+  newStartsAt: Date
+  expiresAt: Date
+}): Promise<
+  | { ok: true; request: CustomerAppointmentRow }
+  | { ok: false; error: SelfServiceError }
+> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('create_reschedule_request', {
+    p_appointment_id: params.appointmentId,
+    p_customer_id: params.customerId,
+    p_new_starts_at: params.newStartsAt.toISOString(),
+    p_expires_at: params.expiresAt.toISOString(),
+  })
+
+  if (error) {
+    const mapped = mapSelfServiceError(error)
+    if (mapped === 'db_error') {
+      console.error('[appointments] create reschedule request failed', error.message)
+    }
+    return { ok: false, error: mapped }
+  }
+
+  return { ok: true, request: toCustomerRow(data as unknown as Record<string, unknown>) }
+}
+
+export type RescheduleAdminError = 'not_a_request' | 'not_pending' | 'original_not_confirmed'
+  | 'sync_in_progress' | 'not_found' | 'slot_taken' | 'in_past' | 'db_error'
+
+function mapRescheduleAdminError(err: { code?: string; message?: string }): RescheduleAdminError {
+  if (err.code === '23P01') return 'slot_taken'
+  const m = err.message ?? ''
+  if (m.includes('NOT_A_REQUEST')) return 'not_a_request'
+  if (m.includes('NOT_PENDING')) return 'not_pending'
+  if (m.includes('ORIGINAL_NOT_CONFIRMED')) return 'original_not_confirmed'
+  // 🔒 15E — אחד משני המועדים כבר חלף. ראה הגוארדים ב-0022.
+  if (m.includes('ORIGINAL_IN_PAST') || m.includes('TARGET_IN_PAST')) return 'in_past'
+  if (m.includes('SYNC_IN_PROGRESS')) return 'sync_in_progress'
+  if (m.includes('NOT_FOUND')) return 'not_found'
+  return 'db_error'
+}
+
+/**
+ * 🔒 אישור בקשת שינוי מועד — הפעולה הקריטית של 15E.
+ *
+ * מחזירה את **מזהי** שתי השורות, כי לשתיהן יש עבודת סנכרון פתוחה:
+ * החדשה צריכה upsert ליומן, והישנה צריכה delete.
+ *
+ * ⚠️ **מזהים בלבד, לא שורות מלאות — וזה מכוון.** ה-RPC מחזיר
+ * to_jsonb(appointments_row), כלומר את שורת הטבלה בלי ה-join ל-customers.
+ * החזרת האובייקט הזה כ-AdminAppointmentRow הייתה שקר טיפוסי:
+ * customer_full_name ו-customer_phone_e164 היו undefined, ו-
+ * runCalendarUpsert היה יוצר ביומן אירוע בלי שם ובלי טלפון — כשל שקט
+ * שנראה כהצלחה. הקורא חייב לטעון מחדש דרך getAppointmentForAdmin.
+ */
+export async function approveRescheduleRequest(
+  requestId: string,
+  adminId: string,
+): Promise<
+  | { ok: true; requestId: string; originalId: string }
+  | { ok: false; error: RescheduleAdminError }
+> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('approve_reschedule_request', {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+  })
+
+  if (error) {
+    const mapped = mapRescheduleAdminError(error)
+    if (mapped === 'db_error') {
+      console.error('[appointments] approve reschedule failed', error.message)
+    }
+    return { ok: false, error: mapped }
+  }
+
+  const payload = data as unknown as {
+    request: { id: string }
+    original: { id: string }
+  }
+  return { ok: true, requestId: payload.request.id, originalId: payload.original.id }
+}
+
+/** דחיית בקשת שינוי מועד. 🔒 התור המקורי אינו נגוע — ראה 0022. */
+export async function rejectRescheduleRequest(
+  requestId: string,
+  adminId: string,
+): Promise<{ ok: true } | { ok: false; error: RescheduleAdminError }> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('reject_reschedule_request', {
+    p_request_id: requestId,
+    p_admin_id: adminId,
+  })
+
+  if (error) {
+    const mapped = mapRescheduleAdminError(error)
+    if (mapped === 'db_error') {
+      console.error('[appointments] reject reschedule failed', error.message)
+    }
+    return { ok: false, error: mapped }
+  }
+  return { ok: true }
 }
 
 /** ביטול תור confirmed ע"י הלקוחה. אותו עיקרון: הכול נאכף ב-RPC. */
