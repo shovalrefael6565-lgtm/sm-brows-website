@@ -8,6 +8,11 @@
  * מה *לא* נבדק כאן: Google Calendar עצמו (אין רשת) — זה נבדק ב-
  * test-reschedule-cancel-live.mjs מול היומן האמיתי.
  *
+ * ⚠️ הבדיקה טוענת **רק** את 0001–0005, ולכן create_pending_appointment
+ * עדיין קיימת בתוכה כדי לייצר בקשות pending — למרות ש-0020 מחקה אותה.
+ * זה מכוון: הקובץ מאמת את 0005 בנקודת הזמן שלה. המצב אחרי 0020 נבדק
+ * ב-test-personal-area-db.mjs.
+ *
  * הרצה:  npm run test:reschedule-cancel
  */
 

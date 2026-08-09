@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Search, ShoppingCart, Calendar, ChevronDown, ShoppingBag } from 'lucide-react'
+import { Menu, X, Search, ShoppingCart, Calendar, ChevronDown, ShoppingBag, UserRound } from 'lucide-react'
 import { cn, WHATSAPP_URL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
 import GoogleIcon from '@/components/ui/GoogleIcon'
 import { useCart } from '@/lib/cart'
@@ -38,7 +38,22 @@ const SECTIONS = [
   { id: 'booking', label: 'קביעת תור' },
 ]
 
-export default function Navbar() {
+export interface NavbarProps {
+  /**
+   * 🔒 שלב 15D — האם להציג את הקישור לאזור האישי.
+   *
+   * ⚠️ הדגל מגיע כ-prop מ-app/layout.tsx ולא נקרא כאן: lib/featureFlags.ts
+   * מסומן 'server-only', ואין להביא אותו לקוד לקוח. ברירת המחדל false —
+   * קומפוננטה שתשכח להעביר אותו תסתיר את הקישור ולא תחשוף אותו.
+   *
+   * ⚠️ כשהדגל כבוי `/login` מחזיר 404, ולכן קישור גלוי היה שולח כל גולשת
+   * לעמוד שגיאה. זו הסיבה היחידה להסתרה — **לא** מצב ההתחברות: הקישור
+   * גלוי לכל גולשת, ו-/login עצמו מפנה לקוחה מחוברת ל-/account.
+   */
+  newBookingSystemEnabled?: boolean
+}
+
+export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -415,7 +430,10 @@ export default function Navbar() {
                         href="/booking"
                         role="menuitem"
                         onClick={() => setBookingOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group"
+                        className={cn(
+                          'flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group',
+                          newBookingSystemEnabled && 'border-b border-brand-cream-dark/40',
+                        )}
                       >
                         <span className="w-8 h-8 rounded-xl bg-brand-rose/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-rose/20 transition-colors">
                           <Calendar className="w-4 h-4 text-brand-rose" />
@@ -425,6 +443,23 @@ export default function Navbar() {
                           <p className="text-xs text-brand-muted">בחרי תאריך ושעה</p>
                         </div>
                       </Link>
+                      {/* 🔒 שלב 15D — גלוי לכל גולשת. /login מפנה מחוברת ל-/account. */}
+                      {newBookingSystemEnabled && (
+                        <Link
+                          href="/login"
+                          role="menuitem"
+                          onClick={() => setBookingOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group"
+                        >
+                          <span className="w-8 h-8 rounded-xl bg-brand-gold/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-gold/20 transition-colors">
+                            <UserRound className="w-4 h-4 text-brand-gold-text" />
+                          </span>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-brand-dark">אזור אישי</p>
+                            <p className="text-xs text-brand-muted">התורים שלך</p>
+                          </div>
+                        </Link>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -628,6 +663,17 @@ export default function Navbar() {
                   <Calendar className="w-4 h-4 text-brand-rose" />
                   קביעת תור ביומן
                 </Link>
+                {/* 🔒 שלב 15D — גלוי לכל גולשת. /login מפנה מחוברת ל-/account. */}
+                {newBookingSystemEnabled && (
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full border border-brand-cream-dark text-brand-dark font-medium py-2.5 rounded-xl hover:bg-brand-cream transition-colors cursor-pointer"
+                  >
+                    <UserRound className="w-4 h-4 text-brand-gold-text" />
+                    אזור אישי
+                  </Link>
+                )}
 
                 {/* רשתות חברתיות */}
                 <div className="flex items-center justify-center pt-3 mt-1 border-t border-brand-rose-light/70">

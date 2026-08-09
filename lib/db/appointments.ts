@@ -16,15 +16,34 @@ import { PUBLIC_BOOKING_MAX_PER_IP_PER_HOUR } from '@/lib/bookingRateLimit'
  * בטיחות — יש חלון זמן (race) בין הבדיקה לכתיבה שבו שתי בקשות יכולות
  * לעבור אותה יחד.
  *
- * היצירה עצמה עוברת דרך create_pending_appointment (0002_pending_expiration),
- * לא INSERT ישיר: הפונקציה מטפלת קודם בתפוגת בקשות pending ישנות ורק
- * אח"כ מנסה את ה-INSERT, הכול בטרנזקציה אחת — כך שבקשה שפג תוקפה לא
- * יכולה לחסום בקשה חדשה, וההגנה מפני חפיפה (EXCLUDE) עדיין נבדקת כרגיל.
+ * היצירה עצמה עוברת תמיד דרך RPC ולא דרך INSERT ישיר: הפונקציה מטפלת קודם
+ * בתפוגת בקשות pending ישנות ורק אח"כ מנסה את ה-INSERT, הכול בטרנזקציה אחת —
+ * כך שבקשה שפג תוקפה לא יכולה לחסום בקשה חדשה, וההגנה מפני חפיפה (EXCLUDE)
+ * עדיין נבדקת כרגיל.
+ *
+ * שלושה מסלולי יצירה, שלוש פונקציות, כל אחת עם ה-booking_source שלה:
+ *   • create_public_booking_request        (0018) — /booking הציבורי
+ *   • create_personal_area_booking_request (0020) — האזור האישי
+ *   • create_manual_appointment            (0018) — יצירה ידנית ע"י מנהלת
+ *
+ * ⚠️ create_pending_appointment (0003) **מוסרת ב-0021**. היא חישבה תפוגה
+ * לפי business_settings.pending_expiration_hours (=12), כלל שהוחלף ב-15B
+ * ב-lib/pendingExpiry.ts. אין להחזיר אותה: מועד התפוגה מחושב בשרת ומגיע
+ * כפרמטר, כי הכלל נשען על ימי העבודה שמוגדרים ב-lib/bookingWindow.ts
+ * ואינו ניתן לביטוי ב-SQL.
  */
 
-export type AppointmentCreateError = 'slot_taken' | 'pending_limit_reached' | 'db_error'
+export type AppointmentCreateError =
+  | 'slot_taken'
+  | 'pending_limit_reached'
+  | 'blocked'
+  | 'db_error'
 
 export interface CreateAppointmentInput {
+  /**
+   * ⚠️ **אך ורק מ-getCurrentCustomerId.** אין לקבל אותו מגוף הבקשה בשום
+   * מסלול: ה-RPC סומך על כך שהבעלות כבר הוכחה מול customers.auth_user_id.
+   */
   customerId: string
   serviceKey: string
   variants: string[]
@@ -34,6 +53,8 @@ export interface CreateAppointmentInput {
   durationMin: number
   notes: string | null
   policyVersion: string
+  /** מחושב ב-lib/pendingExpiry.ts — אותו כלל בדיוק כמו במסלול הציבורי */
+  expiresAt: Date
 }
 
 export interface AppointmentSummary {
@@ -47,13 +68,26 @@ export interface CreateAppointmentResult {
   error?: AppointmentCreateError
 }
 
-export async function createPendingAppointment(
+/**
+ * בקשת תור מהאזור האישי — **קריאה אחת, טרנזקציה אחת** (שלב 15D).
+ *
+ * ⚠️ מחליפה את createPendingAppointment, שקראה ל-RPC שמוסר ב-0021. שלושה
+ * הבדלים מהותיים, וכולם מכוונים:
+ *   • התפוגה מחושבת בשרת (computePendingExpiresAt) ומגיעה כפרמטר, במקום
+ *     12 השעות שה-RPC הישן חישב בעצמו
+ *   • booking_source נכתב כ-'personal_area'
+ *   • הספירה מול max_active_pending_per_customer מוגנת בנעילת namespace 5,
+ *     אותה נעילה שהמסלול הציבורי אוחז בה
+ *
+ * 🔒 ההגנה מפני חפיפה נשארת ה-EXCLUDE constraint, כמו בכל מסלול אחר.
+ */
+export async function createPersonalAreaBookingRequest(
   input: CreateAppointmentInput,
 ): Promise<CreateAppointmentResult> {
   const db = createSupabaseAdminClient()
   const startsAt = israelWallTimeToUtc(input.isoDate, input.time)
 
-  const { data, error } = await db.rpc('create_pending_appointment', {
+  const { data, error } = await db.rpc('create_personal_area_booking_request', {
     p_customer_id: input.customerId,
     p_service_key: input.serviceKey,
     p_variants: input.variants,
@@ -62,13 +96,34 @@ export async function createPendingAppointment(
     p_duration_min: input.durationMin,
     p_notes: input.notes,
     p_policy_version: input.policyVersion,
+    p_expires_at: input.expiresAt.toISOString(),
   })
 
   if (error) {
     // 23P01 = exclusion_violation — התנגשות עם תור פעיל אחר על אותו טווח זמן
     if (error.code === '23P01') return { error: 'slot_taken' }
     if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
-    console.error('[appointments] create_pending_appointment failed', error.message)
+    /*
+     * הלקוחה נחסמה בין אימות ה-session לכתיבה. ה-route בודק חסימה גם
+     * בעצמו — הבדיקה כאן היא זו שרצה בתוך הטרנזקציה, ולכן היא הקובעת.
+     */
+    if (error.message?.includes('CUSTOMER_BLOCKED')) return { error: 'blocked' }
+    /*
+     * ⚠️ קלט שה-RPC דחה (לקוחה שלא נמצאה, תפוגה לא סבירה, מועד בעבר) הוא
+     * באג אצלנו ולא טעות של הלקוחה — ה-route כבר ולידט את המועד, ואת
+     * הלקוחה הוא קיבל מ-getCurrentCustomerId. נרשם במפורש כדי שלא ייבלע
+     * בתוך 'db_error' גנרי.
+     */
+    if (
+      error.message?.includes('MISSING_CUSTOMER') ||
+      error.message?.includes('CUSTOMER_NOT_FOUND') ||
+      error.message?.includes('BAD_EXPIRY') ||
+      error.message?.includes('START_IN_PAST')
+    ) {
+      console.error('[appointments] personal area booking rejected input', error.message)
+      return { error: 'db_error' }
+    }
+    console.error('[appointments] create_personal_area_booking_request failed', error.message)
     return { error: 'db_error' }
   }
 

@@ -4,6 +4,7 @@ import PageHero from '@/components/ui/PageHero'
 import LogoutButton from '@/components/account/LogoutButton'
 import CancelPendingButton from '@/components/account/CancelPendingButton'
 import AppointmentActions from '@/components/account/AppointmentActions'
+import AccountBookingForm from '@/components/account/AccountBookingForm'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { getCustomerById } from '@/lib/db/customers'
 import { listAppointmentsForCustomer, type CustomerAppointmentRow } from '@/lib/db/appointments'
@@ -186,7 +187,7 @@ export default async function AccountPage() {
             <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">התורים הקרובים שלך</h2>
             {upcoming.length === 0 ? (
               <div className="bg-brand-rose-bg border border-brand-rose-light rounded-2xl p-5 text-sm text-brand-medium leading-relaxed">
-                אין לך כרגע תורים ממתינים או מאושרים. ניתן לקבוע תור חדש דרך עמוד קביעת התור.
+                אין לך כרגע תורים ממתינים או מאושרים.
               </div>
             ) : (
               <div className="space-y-3">
@@ -194,6 +195,14 @@ export default async function AccountPage() {
               </div>
             )}
           </div>
+
+          {/*
+            🔒 שלב 15D — קביעת תור מתוך האזור האישי.
+            הזהות נקבעת בשרת מ-getCurrentCustomerId; הטופס אינו שולח טלפון
+            ואינו יכול לקבוע תור עבור לקוחה אחרת. הזמינות מגיעה מאותו
+            /api/bookings/slots ומאותו lib/slotSelection.ts כמו /booking.
+          */}
+          <AccountBookingForm />
 
           {history.length > 0 && (
             <div>

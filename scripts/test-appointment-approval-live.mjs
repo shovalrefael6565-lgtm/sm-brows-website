@@ -82,8 +82,10 @@ async function createTestCustomer(phone) {
   return customer.id
 }
 
+// ⚠️ שלב 15D: create_pending_appointment מוסרת ב-0021 — ראה ההסבר ב-
+// scripts/test-pending-expiration-live.mjs. תפוגה קבועה של 3 שעות.
 const createPending = (customerId, startsAtIso) =>
-  db.rpc('create_pending_appointment', {
+  db.rpc('create_personal_area_booking_request', {
     p_customer_id: customerId,
     p_service_key: 'natural',
     p_variants: [],
@@ -92,6 +94,7 @@ const createPending = (customerId, startsAtIso) =>
     p_duration_min: DURATION_MIN,
     p_notes: null,
     p_policy_version: 'live-test',
+    p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
   })
 
 let customerId = null

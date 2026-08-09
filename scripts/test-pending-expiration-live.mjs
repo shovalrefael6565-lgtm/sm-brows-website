@@ -51,8 +51,17 @@ const createTestCustomer = async (phone) => {
   return customer.id
 }
 
+/**
+ * ⚠️ שלב 15D: create_pending_appointment מוסרת ב-0021. הבדיקה עברה ל-
+ * create_personal_area_booking_request, שמקבלת את מועד התפוגה מבחוץ
+ * (הכלל חי ב-lib/pendingExpiry.ts ואינו ניתן לביטוי ב-SQL).
+ *
+ * ⚠️ התפוגה כאן קבועה ל-3 שעות ולא עוברת דרך computePendingExpiresAt:
+ * הסקריפט הזה בודק את *מנגנון* התפוגה ב-DB, לא את חישוב המועד — וערך
+ * קבוע הופך את הבדיקה לבלתי תלויה בשעה שבה היא רצה.
+ */
 const createPending = (customerId, startsAt, notes = null) =>
-  db.rpc('create_pending_appointment', {
+  db.rpc('create_personal_area_booking_request', {
     p_customer_id: customerId,
     p_service_key: 'natural',
     p_variants: [],
@@ -61,6 +70,7 @@ const createPending = (customerId, startsAt, notes = null) =>
     p_duration_min: 20,
     p_notes: notes,
     p_policy_version: 'live-test',
+    p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
   })
 
 let customerAId = null

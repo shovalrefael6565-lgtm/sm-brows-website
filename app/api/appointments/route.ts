@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { getCustomerById } from '@/lib/db/customers'
-import { createPendingAppointment } from '@/lib/db/appointments'
+import { createPersonalAreaBookingRequest } from '@/lib/db/appointments'
+import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { getBusyRanges } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
@@ -15,12 +16,15 @@ import { POLICY_VERSION } from '@/lib/bookingPolicy'
 export const dynamic = 'force-dynamic'
 
 /**
- * שמירת בקשת תור כ-pending.
+ * שמירת בקשת תור כ-pending — המסלול **המאומת**, של האזור האישי.
  *
  * מקור האמת לזהות הלקוחה הוא אך ורק ה-session (cookie חתום) — אף שדה
  * טלפון מגוף הבקשה לא נקרא כאן. זו האכיפה בפועל של "אין לאפשר שמירת
  * בקשה תחת מספר אחר ללא אימות חדש": מבנית, אין דרך לספק customer_id
  * שלא עברה דרך OTP מוצלח (ראה app/api/auth/otp/verify).
+ *
+ * `POST /api/bookings/request` הוא המסלול **הציבורי** (בלי session, זהות
+ * לפי טלפון שהוקלד). אין ערבוב: שני מסלולים, שתי נקודות כניסה.
  *
  * שכבות הבדיקה, בסדר:
  *   1. session תקף (401 אם לא) — מונע יצירת בקשה בלי אימות טלפון.
@@ -28,6 +32,23 @@ export const dynamic = 'force-dynamic'
  *   3. חלון הזמינות (יום פתוח, שעה ברשת, חלון ההכנה) — 400/'date_unavailable'.
  *   4. Google Calendar — בדיקה מוקדמת וזולה, לא חזות הכל (ראה למטה).
  *   5. ה-EXCLUDE constraint ב-DB — ההגנה האמיתית מפני התנגשות, כולל race.
+ *
+ * ═══ 🔒 שלב 15D — מה השתנה כאן ═══
+ *
+ * ⚠️ הוולידציה, חלון הזמינות ובדיקת היומן נשארו **מילה במילה**. מה שהוחלף
+ * הוא שכבת הכתיבה בלבד: במקום `create_pending_appointment` (0003) נקראת
+ * `create_personal_area_booking_request` (0020).
+ *
+ * ⚠️ ה-RPC הישן עדיין קיים במסד בזמן הפריסה, ומוסר רק ב-0021 — אחרי
+ * שה-deployment הזה באוויר ו-QA-D עבר. זו פריסה דו-שלבית מכוונת: כל עוד
+ * שתי הפונקציות חיות, גם deployment ישן וגם חדש עובדים, ואין חלון שבירה.
+ *
+ * ⚠️ הסיבה אינה סגנון. ה-RPC הישן חישב `pending_expires_at = now() + 12h`
+ * מתוך business_settings, בעוד המסלול הציבורי כבר עבר בשלב 15B לכלל
+ * שאושר — 3 שעות, עם גלגול ל-11:00 ביום העבודה הבא. שני מסלולים של אותו
+ * עסק החזיקו סלוט למשך זמן שונה לחלוטין, וזה היה הופך גלוי ברגע שהאזור
+ * האישי יקבל מסך קביעת תור. מאז 15D שניהם קוראים לאותה
+ * `computePendingExpiresAt`, וה-booking_source מבדיל ביניהם ב-Admin.
  */
 export async function POST(req: NextRequest) {
   if (!isNewBookingSystemEnabled()) {
@@ -160,7 +181,7 @@ export async function POST(req: NextRequest) {
   const notes =
     typeof body.notes === 'string' ? body.notes.trim().slice(0, 1000) || null : null
 
-  const result = await createPendingAppointment({
+  const result = await createPersonalAreaBookingRequest({
     customerId: customer.id,
     serviceKey,
     variants,
@@ -170,8 +191,20 @@ export async function POST(req: NextRequest) {
     durationMin,
     notes,
     policyVersion: POLICY_VERSION,
+    // 🔒 אותה פונקציה בדיוק שהמסלול הציבורי משתמש בה. אין כאן כלל שני.
+    expiresAt: computePendingExpiresAt(),
   })
 
+  /*
+   * ⚠️ הלקוחה נחסמה בין הבדיקה למעלה לבין הכתיבה. נוסח זהה לבדיקה
+   * המוקדמת — מבחינת הלקוחה זו אותה תשובה, וה-RPC הוא זה שהכריע.
+   */
+  if (result.error === 'blocked') {
+    return NextResponse.json(
+      { error: 'blocked', message: 'לא ניתן לקבוע תור דרך האתר. יש ליצור קשר בוואטסאפ.' },
+      { status: 403 },
+    )
+  }
   if (result.error === 'slot_taken') {
     return NextResponse.json(
       { error: 'slot_taken', message: 'השעה שנבחרה נתפסה הרגע. יש לבחור שעה אחרת.' },

@@ -8,6 +8,7 @@ import Providers from '@/components/layout/Providers'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
+import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 // Non-critical UI — loaded after hydration, not part of initial JS bundle
 const WhatsAppButton      = dynamic(() => import('@/components/ui/WhatsAppButton'),      { ssr: false })
@@ -172,7 +173,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           דלגי לתוכן הראשי
         </a>
         <Providers>
-        <Navbar />
+        {/*
+          🔒 שלב 15D — הדגל נקרא כאן, בשרת, ומועבר כ-prop. lib/featureFlags
+          מסומן 'server-only' ואינו יכול להגיע לקוד לקוח. כשהוא כבוי,
+          /login מחזיר 404 ולכן הקישור אינו מוצג כלל.
+        */}
+        <Navbar newBookingSystemEnabled={isNewBookingSystemEnabled()} />
         <main id="main-content" tabIndex={-1}>
           {children}
         </main>

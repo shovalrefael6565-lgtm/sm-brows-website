@@ -117,10 +117,12 @@ try {
     // ── כל ה-RPCs הרגישים, עם ארגומנטים אמיתיים ────────────────────────────
     const SENSITIVE = {
       expire_stale_pending_appointments: {},
-      create_pending_appointment: {
+      // ⚠️ שלב 15D: create_pending_appointment מוסרת ב-0021 והוחלפה בזו.
+      create_personal_area_booking_request: {
         p_customer_id: owner.uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
         p_price_total: 70, p_starts_at: new Date('2027-10-06T08:00:00.000Z').toISOString(),
         p_duration_min: 20, p_notes: null, p_policy_version: 'probe',
+        p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
       },
       cancel_pending_appointment: { p_appointment_id: appt.id, p_customer_id: owner.uid },
       approve_pending_appointment: { p_appointment_id: appt.id, p_admin_id: ZERO },
@@ -194,10 +196,11 @@ try {
     // ── service_role עדיין מבצע הכול ───────────────────────────────────────
     section('service_role עדיין מבצע את כל הפעולות התקינות')
 
-    const { data: pend, error: pendErr } = await svc.rpc('create_pending_appointment', {
+    const { data: pend, error: pendErr } = await svc.rpc('create_personal_area_booking_request', {
       p_customer_id: owner.uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
       p_price_total: 70, p_starts_at: new Date('2027-10-08T08:00:00.000Z').toISOString(),
       p_duration_min: 20, p_notes: null, p_policy_version: 'probe',
+      p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
     })
     chk('יצירת בקשת pending', !pendErr && pend?.status === 'pending', pendErr?.message ?? '')
     if (pend) createdAppointments.push(pend.id)
@@ -207,10 +210,11 @@ try {
     })
     chk('ביטול בקשת pending', !cancelPendErr, cancelPendErr?.message ?? '')
 
-    const { data: pend2 } = await svc.rpc('create_pending_appointment', {
+    const { data: pend2 } = await svc.rpc('create_personal_area_booking_request', {
       p_customer_id: owner.uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
       p_price_total: 70, p_starts_at: new Date('2027-10-09T08:00:00.000Z').toISOString(),
       p_duration_min: 20, p_notes: null, p_policy_version: 'probe',
+      p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
     })
     createdAppointments.push(pend2.id)
     const { data: adminRow } = await svc.from('admins').select('user_id').limit(1).single()
@@ -219,10 +223,11 @@ try {
     })
     chk('אישור ניהולי', !approveErr, approveErr?.message ?? '')
 
-    const { data: pend3 } = await svc.rpc('create_pending_appointment', {
+    const { data: pend3 } = await svc.rpc('create_personal_area_booking_request', {
       p_customer_id: owner.uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
       p_price_total: 70, p_starts_at: new Date('2027-10-10T08:00:00.000Z').toISOString(),
       p_duration_min: 20, p_notes: null, p_policy_version: 'probe',
+      p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
     })
     createdAppointments.push(pend3.id)
     const { error: rejectErr } = await svc.rpc('reject_pending_appointment', {

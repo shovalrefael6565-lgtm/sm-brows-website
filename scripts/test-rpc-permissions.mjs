@@ -48,6 +48,22 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'supa
 const ASSERTION_MIGRATIONS = {
   '0007_reapply_rpc_permissions.sql': [
     'expire_stale_pending_appointments()',
+    /**
+     * ⚠️ create_pending_appointment **מוסרת מהמסד ב-0021** (DROP FUNCTION),
+     * ובכל זאת היא נשארת ברשימה — וזה נכון, לא שכחה.
+     *
+     * הבדיקה הזו קוראת את *קבצי המיגרציה* ולא את בסיס הנתונים. פקודת
+     * ה-CREATE שלה עדיין יושבת ב-0003, קובץ היסטורי שאין לגעת בו, ולכן
+     * הפרסר ימשיך למצוא אותה כפונקציה "מוגדרת" לנצח. הסרתה מכאן הייתה
+     * מפילה את "אין פונקציה רגישה שאינה ברשימת ההגנה".
+     *
+     * ⚠️ הדרישה להרשאות תקינות נשארת רלוונטית גם בזמן הפריסה הדו-שלבית:
+     * בין 0020 ל-0021 הפונקציה **חיה** בפרודקשן, ולכן חייבת להישאר סגורה
+     * ל-anon ול-authenticated בדיוק כמו קודם.
+     *
+     * מה שמוכיח שהיא בסוף באמת מתה הוא בלוק ה-DO ב-0021 (נכשל אם היא
+     * קיימת) ו-scripts/test-personal-area-db.mjs, שבודק את pg_proc בפועל.
+     */
     'create_pending_appointment(uuid,text,text[],integer,timestamptz,integer,text,text)',
     'cancel_pending_appointment(uuid,uuid)',
     'approve_pending_appointment(uuid,uuid)',
@@ -156,6 +172,30 @@ const ASSERTION_MIGRATIONS = {
     'link_or_create_customer_by_phone(text,text)',
     'create_public_booking_request(text,text,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer)',
   ],
+  /**
+   * שלב 15D — קביעת תור מהאזור האישי.
+   *
+   * ⚠️ הפונקציה מקבלת customer_id כפרמטר וסומכת על כך שהקורא כבר הוכיח
+   * בעלות מול customers.auth_user_id. חשיפה ל-anon הייתה מאפשרת לכל מי
+   * שמחזיק את מפתח ה-anon לקבוע תור **בשם כל לקוחה במערכת**, בלי session
+   * ובלי OTP — ולעקוף את חלון הזמינות כולו.
+   */
+  '0020_personal_area_booking.sql': [
+    'create_personal_area_booking_request(uuid,text,text[],integer,timestamptz,integer,text,text,timestamptz)',
+  ],
+  /**
+   * שלב 15D, חלק שני — הסרת create_pending_appointment.
+   *
+   * ⚠️ הרשימה **ריקה בכוונה**: 0021 אינה יוצרת שום פונקציה, היא רק מוחקת
+   * אחת. הכניסה כאן אינה מיותרת — היא מה שמכריח את 0021 לשאת בלוק DO
+   * אמיתי עם has_function_privilege לשלושת התפקידים, כולל הבדיקה ההפוכה
+   * ש-service_role לא איבד הרשאה. בלי הכניסה הזו, מיגרציית DROP הייתה
+   * יכולה להיכתב בלי שום אימות הרשאות ולעבור בשקט.
+   *
+   * החתימה שנמחקת עצמה נשארת ממופה ל-0007, שם יושב בלוק ה-assertion
+   * ההיסטורי שלה — ראה ההסבר שם.
+   */
+  '0021_drop_legacy_create_pending.sql': [],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

@@ -637,10 +637,12 @@ try {
 
     {
       const base = new Date(`${ISO_DATE}T01:00:00.000Z`)
-      const { data: pend, error: pendErr } = await db.rpc('create_pending_appointment', {
+      // ⚠️ שלב 15D: create_pending_appointment מוסרת ב-0021.
+      const { data: pend, error: pendErr } = await db.rpc('create_personal_area_booking_request', {
         p_customer_id: uid, p_service_key: 'עיצוב גבות טבעיות', p_variants: [],
         p_price_total: 70, p_starts_at: base.toISOString(), p_duration_min: 20,
         p_notes: null, p_policy_version: 'test',
+        p_expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
       })
       chk('בקשת pending נוצרה', !pendErr && pend?.status === 'pending', pendErr?.message ?? '')
       if (pend) createdAppointmentIds.add(pend.id)
