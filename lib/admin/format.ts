@@ -1,24 +1,27 @@
 import type { AppointmentRow } from '@/lib/db/appointments'
 import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
 
-/** תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB (0001_customer_accounts.sql) */
+/**
+ * תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB
+ * (0001_customer_accounts.sql, + 'expired' ב-0002, + 'rejected' ב-0016).
+ *
+ * ⚠️ 'rejected' ו-'cancelled_by_business' הם **שתי עובדות שונות** ולכן שתי
+ * תוויות שונות: הראשונה = בקשה שמעולם לא אושרה ונדחתה; השנייה = תור שכבר
+ * היה מאושר ובוטל. מיזוגן לתווית אחת היה מבטל את כל מטרת 0019.
+ */
 export const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   pending:                { label: 'ממתינה לאישור',      className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
   confirmed:              { label: 'מאושר',               className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   completed:              { label: 'הושלם',                className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
   cancelled_by_customer:  { label: 'בוטל על ידי הלקוחה',   className: 'bg-red-50 text-red-600 border-red-200' },
   cancelled_by_business:  { label: 'בוטל על ידי העסק',     className: 'bg-red-50 text-red-600 border-red-200' },
+  rejected:               { label: 'הבקשה נדחתה',          className: 'bg-red-50 text-red-600 border-red-200' },
   rescheduled:            { label: 'הוזז',                 className: 'bg-blue-50 text-blue-700 border-blue-200' },
   no_show:                { label: 'לא הגיעה',             className: 'bg-red-50 text-red-600 border-red-200' },
   expired:                { label: 'תוקף הבקשה פג',        className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
 }
 
-/**
- * מקור הבקשה, לתצוגה בכרטיס הבקשה הממתינה.
- *
- * ⚠️ 'rejected' אינו כאן ולא ב-STATUS_LABELS — הערך נוסף ל-enum ב-0016
- * אך אינו בשימוש בשלב 15B. הוא ייכנס לתצוגה יחד עם מסלול הדחייה ב-15C.
- */
+/** מקור הבקשה, לתצוגה בכרטיס הבקשה הממתינה. */
 export const BOOKING_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
   public_booking: { label: 'טופס באתר',   className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
   personal_area:  { label: 'אזור אישי',   className: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -34,6 +37,22 @@ export function treatmentLabel(appt: Pick<AppointmentRow, 'service_key' | 'varia
   return appt.service_key
 }
 
+/**
+ * התוספות שנבחרו, כרשימה נפרדת לתצוגה (שלב 15C).
+ *
+ * ⚠️ הפונקציה הזו קיימת דווקא כי treatmentLabel **מאבדת מידע**: היא מסננת
+ * מול NATURAL_VARIANTS, וערך שאינו בקטלוג נעלם ממנה בשקט — ואם יום אחד
+ * ישתנה מזהה בקטלוג, שובל תראה "עיצוב גבות טבעיות" בלי לדעת שהלקוחה
+ * ביקשה משהו אחר. כאן ערך שאינו מוכר מוצג כמות שהוא, בדיוק כמו
+ * REMINDER_ERROR_CODE_LABELS: slug לא מוכר עדיף על השמטה שקטה.
+ *
+ * 🔒 הרמת גבות מחזירה מערך ריק ולא "חסר" — היא טיפול יחיד ללא תוספות
+ * מעצם הגדרתה (lib/adminBooking.ts דוחה variants עבורה במפורש).
+ */
+export function variantLabels(appt: Pick<AppointmentRow, 'variants'>): string[] {
+  return appt.variants.map(id => NATURAL_VARIANTS.find(v => v.id === id)?.label ?? id)
+}
+
 /** "כמה זמן נשאר עד תפוגת בקשת pending" — null אם אין תפוגה או שכבר עברה */
 export function formatTimeRemaining(pendingExpiresAt: string | null): string | null {
   if (!pendingExpiresAt) return null
@@ -43,6 +62,20 @@ export function formatTimeRemaining(pendingExpiresAt: string | null): string | n
   const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))
   if (hours > 0) return `נותרו ${hours} שע' ו-${minutes} דק' לתפוגה`
   return `נותרו ${minutes} דק' לתפוגה`
+}
+
+/**
+ * מועד התפוגה כתאריך ושעה מוחלטים בשעון ישראל (שלב 15C).
+ *
+ * ⚠️ נדרש **בנוסף** ל-formatTimeRemaining ולא במקומו. מאז כלל הלילה של
+ * 15B (lib/pendingExpiry.ts), בקשה שנשלחה בחמישי אחה"צ פגה ב-11:00 ביום
+ * ראשון — "נותרו 66 שע' ו-12 דק' לתפוגה" הוא מספר שאי אפשר לתכנן לפיו.
+ * שובל צריכה לדעת *מתי*, לא רק *כמה*.
+ */
+export function formatAbsoluteExpiry(pendingExpiresAt: string | null): string | null {
+  if (!pendingExpiresAt) return null
+  const { date, time } = formatDateTimeIL(pendingExpiresAt)
+  return `${date}, ${time}`
 }
 
 export function formatDateTimeIL(iso: string): { date: string; time: string } {

@@ -5,6 +5,11 @@ import { formatDateTimeIL, treatmentLabel, STATUS_LABELS } from '@/lib/admin/for
 import Pagination from '@/components/admin/Pagination'
 import { cn } from '@/lib/utils'
 
+/**
+ * ⚠️ 'rejected' הוא פילטר **נפרד** מ-'cancelled_by_business' ולא מיזוג
+ * שלו: דחיית בקשה שלא אושרה וביטול תור מאושר הן שתי עובדות עסקיות שונות
+ * (0019). מיזוגן לפילטר אחד היה מבטל את מטרת ההפרדה.
+ */
 const STATUS_FILTERS = [
   { value: undefined, label: 'הכול' },
   { value: 'pending', label: 'ממתין' },
@@ -12,6 +17,7 @@ const STATUS_FILTERS = [
   { value: 'completed', label: 'הושלם' },
   { value: 'cancelled_by_customer', label: 'בוטל ע"י לקוחה' },
   { value: 'cancelled_by_business', label: 'בוטל ע"י העסק' },
+  { value: 'rejected', label: 'נדחתה' },
   { value: 'no_show', label: 'לא הגיעה' },
   { value: 'expired', label: 'פג תוקף' },
 ] as const

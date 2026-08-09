@@ -22,7 +22,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const result = await approveAndSyncAppointment(id, guard.userId)
   if (!result.ok) {
-    return NextResponse.json({ error: result.error, message: result.message }, { status: result.status })
+    // ⚠️ approved=true נשלח גם בתשובת השגיאה: התור אושר ב-DB והשעה תפוסה,
+    // ורק סנכרון היומן נכשל. בלי זה ה-UI היה מציג "האישור נכשל" על תור
+    // קיים ומאבד את הודעת האישור ללקוחה. ראה ApprovalFail.
+    return NextResponse.json(
+      {
+        error: result.error,
+        message: result.message,
+        approved: result.approved,
+        whatsappUrl: result.whatsappUrl,
+      },
+      { status: result.status },
+    )
   }
 
   return NextResponse.json({ ok: true, whatsappUrl: result.whatsappUrl })

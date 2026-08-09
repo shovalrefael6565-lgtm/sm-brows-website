@@ -212,7 +212,7 @@ export interface AppointmentRow {
 
 const ADMIN_APPOINTMENT_COLUMNS =
   'id, service_key, variants, price_total, starts_at, ends_at, duration_min, status, created_at, ' +
-  'pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_operation, ' +
+  'notes, pending_expires_at, google_event_id, calendar_sync_status, calendar_sync_operation, ' +
   'calendar_sync_error, calendar_sync_started_at, calendar_synced_at, calendar_sync_attempt_count, ' +
   'booking_source, customer_id, customers(full_name, phone_e164)'
 
@@ -235,10 +235,13 @@ export interface AdminAppointmentRow extends AppointmentRow {
   calendar_sync_attempt_count: number
   /** null = נוצר לפני 0017 ולא נרשם. אין backfill. */
   booking_source: BookingSource | null
+  /** הערה חופשית שהלקוחה הקלידה בטופס. null = לא הוזנה. */
+  notes: string | null
 }
 
 type JoinedAdminRow = AppointmentRow & {
   ends_at: string
+  notes: string | null
   pending_expires_at: string | null
   google_event_id: string | null
   calendar_sync_status: string
@@ -272,6 +275,7 @@ function toAdminRow(r: JoinedAdminRow): AdminAppointmentRow {
     calendar_synced_at: r.calendar_synced_at,
     calendar_sync_attempt_count: r.calendar_sync_attempt_count,
     booking_source: r.booking_source ?? null,
+    notes: r.notes ?? null,
     customer_id: r.customer_id,
     customer_full_name: r.customers?.full_name ?? '',
     customer_phone_e164: r.customers?.phone_e164 ?? '',
@@ -335,27 +339,47 @@ export async function listAppointmentsAdmin(opts: {
  * שנשאר ביומן אחרי ביטול ממשיך לחסום שעה שכבר התפנתה.
  *
  * ללא דפדוף — במינוח מספרי הסטודיו כמות כזו קטנה מאוד תמיד.
+ *
+ * ⚠️ **מחזירה תוצאה מובחנת ולא מערך.** עד 15C כשל בשאילתה החזיר `[]`,
+ * כלומר שובל ראתה "אין כרגע בקשות ממתינות" בזמן שהיו בקשות אמיתיות. זה
+ * קרה בפועל ב-15B (`column appointments.booking_source does not exist`).
+ * זהו בדיוק הכשל מסוג "היום פנוי" של resolveAvailability: במסך שכל
+ * תכליתו לומר *מה דורש טיפול*, רשימה ריקה היא טענה — ואסור לטעון אותה
+ * כשלא ידוע. הקורא חייב להבדיל בין "אין" לבין "לא הצלחנו לדעת".
  */
-export async function listAppointmentsNeedingAdminAction(): Promise<AdminAppointmentRow[]> {
+export type NeedsActionResult =
+  | { ok: true; rows: AdminAppointmentRow[] }
+  | { ok: false }
+
+export async function listAppointmentsNeedingAdminAction(): Promise<NeedsActionResult> {
   await expireStalePendingAppointments()
-  const db = createSupabaseAdminClient()
 
-  const { data, error } = await db
-    .from('appointments')
-    .select(ADMIN_APPOINTMENT_COLUMNS)
-    .or(
-      'status.eq.pending,' +
-        'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing)),' +
-        'and(status.eq.cancelled_by_customer,calendar_sync_status.in.(pending,failed,syncing))',
-    )
-    .order('starts_at', { ascending: true })
+  try {
+    const db = createSupabaseAdminClient()
 
-  if (error) {
-    console.error('[appointments] needs-action list failed', error.message)
-    return []
+    const { data, error } = await db
+      .from('appointments')
+      .select(ADMIN_APPOINTMENT_COLUMNS)
+      .or(
+        'status.eq.pending,' +
+          'and(status.eq.confirmed,calendar_sync_status.in.(pending,failed,syncing)),' +
+          'and(status.eq.cancelled_by_customer,calendar_sync_status.in.(pending,failed,syncing))',
+      )
+      .order('starts_at', { ascending: true })
+
+    if (error) {
+      console.error('[appointments] needs-action list failed', error.message)
+      return { ok: false }
+    }
+
+    return { ok: true, rows: ((data ?? []) as unknown as JoinedAdminRow[]).map(toAdminRow) }
+  } catch (err) {
+    // createSupabaseAdminClient זורק על משתנה סביבה חסר. בלי ה-catch הזה
+    // העמוד כולו היה קורס, ושובל לא הייתה מקבלת שום מסך שימושי.
+    console.error('[appointments] needs-action list threw',
+      err instanceof Error ? err.message : String(err))
+    return { ok: false }
   }
-
-  return ((data ?? []) as unknown as JoinedAdminRow[]).map(toAdminRow)
 }
 
 /** תור בודד לתצוגת/פעולת ניהול, עם פרטי הלקוחה */
@@ -458,7 +482,13 @@ export async function approvePendingAppointment(
   return { ok: true }
 }
 
-/** דוחה בקשת pending → cancelled_by_business. אין כאן אינטראקציה עם Calendar. */
+/**
+ * דוחה בקשת pending → rejected (0019). אין כאן אינטראקציה עם Calendar —
+ * בקשה שלא אושרה מעולם לא קיבלה אירוע ביומן.
+ *
+ * ⚠️ 'rejected' ולא 'cancelled_by_business': השני נשאר לביטול תור שכבר
+ * היה מאושר. ראה 0019.
+ */
 export async function rejectPendingAppointment(
   appointmentId: string,
   adminId: string,

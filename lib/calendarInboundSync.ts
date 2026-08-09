@@ -464,7 +464,13 @@ async function handleLiveEvent(
   // ── אירוע ששוחזר אחרי ביטול ───────────────────────────────────────────
   // DB הוא מקור האמת: שחזור מהאשפה אינו מחייה תור. הפעולה הנכונה היא
   // להחזיר את היומן להסכים עם ה-DB — כלומר למחוק שוב.
-  if (['cancelled_by_customer', 'cancelled_by_business', 'expired'].includes(appt.status)) {
+  //
+  // ⚠️ 'rejected' (0019) נוסף לעקביות בלבד ולא כדי לסגור חור: בקשה שנדחתה
+  // מעולם לא אושרה, ולכן מעולם לא נוצר לה אירוע ביומן ואי אפשר להגיע
+  // אליה מכאן. גם אילו הגיעו — apply_google_reschedule חוסמת ב-
+  // `status <> 'confirmed'` (0008). הרשימה כאן קובעת רק *איזו* תקלה
+  // נרשמת, ועדיף שתקרא לזה בשמו.
+  if (['cancelled_by_customer', 'cancelled_by_business', 'rejected', 'expired'].includes(appt.status)) {
     await recordIssue({
       queueId: item.id, kind: 'restored_after_cancel', status: 'open',
       googleEventId: item.google_event_id, appointmentId: appt.id,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Check, X } from 'lucide-react'
+import { Loader2, Check, X, AlertTriangle } from 'lucide-react'
 import { useWhatsAppWindow } from './useWhatsAppWindow'
 
 interface Props {
@@ -14,12 +14,18 @@ interface Props {
  * app/admin/(protected)/page.tsx). הפעולה עצמה — כולל בדיקת התנגשות
  * מול היומן, ה-RPC האטומי, וסנכרון היומן — מתבצעת כולה בשרת
  * (lib/appointmentApproval.ts). הכפתורים כאן רק שולחים בקשה, מונעים
- * לחיצה כפולה, ופותחים WhatsApp רק אחרי הצלחה מלאה.
+ * לחיצה כפולה, ופותחים WhatsApp רק אחרי שידוע שהתור קיים במערכת.
  */
 export default function ApproveRejectButtons({ appointmentId }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * 🔒 מצב שלישי, לא שני: "אושר אבל היומן לא סונכרן". התור **קיים**,
+   * השעה תפוסה, ואסור להציג אותו כשגיאה אדומה שמשמעה "לא קרה כלום" —
+   * זה היה גורם לשובל לאשר שוב או להתייחס לתור כאילו אינו קיים.
+   */
+  const [syncWarning, setSyncWarning] = useState<string | null>(null)
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
   const whatsapp = useWhatsAppWindow()
 
@@ -30,6 +36,7 @@ export default function ApproveRejectButtons({ appointmentId }: Props) {
     whatsapp.openBlank() // סינכרוני, לפני כל await
     setLoading(action)
     setError(null)
+    setSyncWarning(null)
     setFallbackUrl(null)
 
     try {
@@ -37,6 +44,17 @@ export default function ApproveRejectButtons({ appointmentId }: Props) {
       const data = await res.json()
 
       if (!res.ok || !data.ok) {
+        // ⚠️ approved=true פירושו שהתור אושר ב-DB ורק סנכרון היומן נכשל.
+        // סגירת חלון ה-WhatsApp כאן הייתה מאבדת את הודעת האישור ללקוחה
+        // על תור שקיים בפועל — הבאג שתוקן ב-15C.
+        if (data.approved && data.whatsappUrl) {
+          if (!whatsapp.navigate(data.whatsappUrl)) setFallbackUrl(data.whatsappUrl)
+          setSyncWarning(data.message ?? 'הסנכרון ליומן נכשל.')
+          setLoading(null)
+          router.refresh()
+          return
+        }
+
         whatsapp.close()
         setError(data.message ?? (action === 'approve' ? 'האישור נכשל. נסי שוב.' : 'הדחייה נכשלה. נסי שוב.'))
         setLoading(null)
@@ -85,6 +103,24 @@ export default function ApproveRejectButtons({ appointmentId }: Props) {
         </button>
       </div>
       {error && <p role="alert" className="text-red-500 text-xs mt-2">{error}</p>}
+      {syncWarning && (
+        <div
+          role="status"
+          className="mt-2 flex items-start gap-2 bg-brand-gold/10 border border-brand-gold/40 rounded-xl p-2.5"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-brand-gold-text flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="text-xs">
+            <p className="font-bold text-brand-gold-text">
+              התור אושר והשעה שמורה — אבל הסנכרון ליומן נכשל.
+            </p>
+            <p className="text-brand-muted mt-0.5">{syncWarning}</p>
+            <p className="text-brand-muted mt-0.5">
+              התור יופיע למטה תחת ״דורש טיפול: סנכרון יומן״ עם כפתור לניסיון חוזר.
+              אין לאשר אותו שוב.
+            </p>
+          </div>
+        </div>
+      )}
       {fallbackUrl && (
         <a
           href={fallbackUrl}

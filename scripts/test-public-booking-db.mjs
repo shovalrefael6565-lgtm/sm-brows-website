@@ -48,7 +48,7 @@ for (const f of readdirSync(MIG_DIR).filter(f => f.endsWith('.sql')).sort()) {
     process.exit(1)
   }
 }
-chk('כל 18 המיגרציות רצו לפי הסדר')
+chk(`כל ${readdirSync(MIG_DIR).filter(f => f.endsWith('.sql')).length} המיגרציות רצו לפי הסדר`)
 
 const one = async (sql, params) => (await db.query(sql, params)).rows[0]
 const all = async (sql, params) => (await db.query(sql, params)).rows

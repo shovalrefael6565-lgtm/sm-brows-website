@@ -23,7 +23,8 @@ export const metadata: Metadata = {
 
 /**
  * תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB
- * (supabase/migrations/0001_customer_accounts.sql).
+ * (supabase/migrations/0001_customer_accounts.sql, + 'expired' ב-0002,
+ * + 'rejected' ב-0016 שנכנס לשימוש ב-0019).
  */
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   pending:                { label: 'ממתינה לאישור',      className: 'bg-brand-gold/15 text-brand-gold-text border-brand-gold/40' },
@@ -31,6 +32,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   completed:              { label: 'הושלם',                className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },
   cancelled_by_customer:  { label: 'בוטל על ידך',          className: 'bg-red-50 text-red-600 border-red-200' },
   cancelled_by_business:  { label: 'בוטל על ידי העסק',     className: 'bg-red-50 text-red-600 border-red-200' },
+  rejected:               { label: 'הבקשה נדחתה',          className: 'bg-red-50 text-red-600 border-red-200' },
   rescheduled:            { label: 'הוזז',                 className: 'bg-blue-50 text-blue-700 border-blue-200' },
   no_show:                { label: 'לא הגעת',              className: 'bg-red-50 text-red-600 border-red-200' },
   expired:                { label: 'תוקף הבקשה פג',        className: 'bg-brand-cream text-brand-muted border-brand-cream-dark' },

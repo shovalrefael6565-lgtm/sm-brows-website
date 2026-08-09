@@ -94,8 +94,23 @@ function refSeededShuffle(arr, seed) {
   return result
 }
 
-/** visibleSlots כפי שהיה ב-BookingForm — מילה במילה, עם now מוזרק */
+/**
+ * visibleSlots כפי שהיה ב-BookingForm — מילה במילה, עם now מוזרק.
+ *
+ * ⚠️ **חלון ההכנה כאן הוא ליטרל בכוונה ולא import של MIN_LEAD_MINUTES.**
+ * כל תפקידה של הפונקציה הזו הוא להיות עותק *עצמאי* של האלגוריתם, כדי
+ * שסטייה בקוד האמיתי תיתפס. import מהקוד הנבדק היה הופך את ההשוואה
+ * לריקה. פינון הערך עצמו נעשה במקום אחר, ובמפורש:
+ * scripts/test-public-booking-core.mjs — `MIN_LEAD_MINUTES = 40`.
+ *
+ * ⚠️ ולכן: **שינוי MIN_LEAD_MINUTES מחייב עדכון גם כאן.** הליטרל היה 90
+ * ונשאר 90 אחרי ש-15B קיצר את החלון ל-40. הכשל היה סמוי — הוא צף רק
+ * כשאחד מתאריכי הבדיקה (09.08.2026) הוא "היום" בשעון ישראל, כי רק אז
+ * minStartMin שונה מאפס. זהו בדיוק הסיכון "90→40 בקובץ אחד בלבד"
+ * שתועד ב-Risks של 15A.
+ */
 function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
+  const REF_MIN_LEAD_MINUTES = 40
   const SLOT_DURATION = 20
   const EVENING_FROM = 15 * 60
   const timeSlots = refBuildTimeSlots()
@@ -120,7 +135,7 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
   const nowHour = parseInt(nowParts.find(p => p.type === 'hour').value)
   const nowMin = parseInt(nowParts.find(p => p.type === 'minute').value)
   const isViewingToday = selectedDay === nowDay && viewMonth === nowMonth && viewYear === nowYear
-  const minStartMin = isViewingToday ? nowHour * 60 + nowMin + 90 : 0
+  const minStartMin = isViewingToday ? nowHour * 60 + nowMin + REF_MIN_LEAD_MINUTES : 0
 
   const specialFree = specialSlotsFor(viewYear, viewMonth, selectedDay)
     .filter(slot => toMin(slot) >= minStartMin)

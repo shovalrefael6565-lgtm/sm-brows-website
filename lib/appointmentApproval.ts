@@ -45,6 +45,23 @@ export interface ApprovalFail {
   status: number
   error: string
   message: string
+  /**
+   * 🔒 שלב 15C. `true` = **התור אושר בפועל** (status='confirmed', השעה
+   * תפוסה, שורת ההיסטוריה נכתבה), והכשל הוא בסנכרון היומן בלבד.
+   *
+   * ⚠️ ההבחנה הזו אינה קוסמטית. approve_pending_appointment היא טרנזקציה
+   * נפרדת שכבר עשתה COMMIT לפני שנגעו ב-Google, ואף אחת משלוש נקודות
+   * הכשל שאחריה אינה יכולה לכתוב ל-status — הן קוראות רק ל-
+   * fail_calendar_sync. בלי הדגל הזה ה-UI הציג "האישור נכשל" על תור
+   * שאושר, וסגר את הודעת האישור ללקוחה. Google הוא integration state,
+   * לא business state.
+   */
+  approved?: true
+  /**
+   * הודעת האישור המוכנה ללקוחה, כשהתור אושר אך הסנכרון נכשל. הלקוחה
+   * צריכה לקבל אישור — התור שלה קיים והשעה שמורה, ללא קשר ליומן.
+   */
+  whatsappUrl?: string
 }
 
 export type ApprovalResult = ApprovalOk | ApprovalFail
@@ -63,7 +80,14 @@ interface SyncFailure {
 
 type SyncOutcome = SyncSuccess | SyncFailure
 
-function buildSyncSuccess(row: AdminAppointmentRow): SyncSuccess {
+/**
+ * קישור WhatsApp עם הודעת האישור ללקוחה.
+ *
+ * ⚠️ נגזר מ-starts_at ומפרטי הלקוחה בלבד — כלומר תקף גם כשסנכרון היומן
+ * נכשל, כי מועד התור ב-DB אינו תלוי ב-Google. אין כאן שום נוסח חדש: אותה
+ * buildApprovalMessage הקיימת, מילה במילה (נוסחים סופיים = 15F).
+ */
+function approvalWhatsAppUrl(row: AdminAppointmentRow): string {
   const { date, time } = formatDateTimeIL(row.starts_at)
   const message = buildApprovalMessage({
     customerName: row.customer_full_name,
@@ -71,7 +95,11 @@ function buildSyncSuccess(row: AdminAppointmentRow): SyncSuccess {
     time,
     treatment: treatmentLabel(row),
   })
-  return { calendarSynced: true, whatsappUrl: buildWhatsAppLinkToCustomer(row.customer_phone_e164, message) }
+  return buildWhatsAppLinkToCustomer(row.customer_phone_e164, message)
+}
+
+function buildSyncSuccess(row: AdminAppointmentRow): SyncSuccess {
+  return { calendarSynced: true, whatsappUrl: approvalWhatsAppUrl(row) }
 }
 
 /**
@@ -247,6 +275,29 @@ function fromSyncOutcome(sync: SyncOutcome): ApprovalResult {
 }
 
 /**
+ * כמו fromSyncOutcome, אבל למסלול שבו התור **כבר confirmed ב-DB**.
+ *
+ * ⚠️ לא מאוחדת עם fromSyncOutcome בכוונה: retryCalendarSync משתמשת בזו
+ * הראשונה ואסור שתדווח "התור אושר" — היא רצה על תור שאושר מזמן, ולעיתים
+ * דווקא על תור **שבוטל** וממתין למחיקת האירוע. הדגל approved שייך למסלול
+ * האישור בלבד.
+ *
+ * ה-message של הסנכרון נשמר כפי שהוא ומשמש כפירוט הטכני; המסגור ("התור
+ * אושר, היומן לא סונכרן") נעשה ב-UI, כדי שלא יהיו שני ניסוחים לאותו כשל.
+ */
+function fromApprovalOutcome(sync: SyncOutcome, row: AdminAppointmentRow): ApprovalResult {
+  if (sync.calendarSynced) return { ok: true, whatsappUrl: sync.whatsappUrl }
+  return {
+    ok: false,
+    status: sync.status,
+    error: sync.error,
+    message: sync.message,
+    approved: true,
+    whatsappUrl: approvalWhatsAppUrl(row),
+  }
+}
+
+/**
  * אישור בקשת pending, כולל בדיקת התנגשות מוקדמת מול היומן (לפני שהתור
  * הופך ל-confirmed בכלל) וסנכרון יומן. גם קריאה על תור confirmed קיים
  * (לחיצה כפולה על "אישור") מטופלת — נכנסת ישירות ל-ensureCalendarSynced
@@ -283,13 +334,23 @@ export async function approveAndSyncAppointment(appointmentId: string, adminId: 
 
     const fresh = await getAppointmentForAdmin(appointmentId)
     if (!fresh) {
-      return { ok: false, status: 500, error: 'server_error', message: 'התור אושר אך טעינתו מחדש נכשלה. רעננ/י את העמוד.' }
+      // ⚠️ ה-RPC כבר עשה COMMIT — התור אושר. הכשל הוא בקריאה החוזרת בלבד.
+      // row הוא השורה שלפני האישור, אבל starts_at והלקוחה אינם משתנים
+      // באישור, ולכן הודעת האישור שנבנית ממנו נכונה.
+      return {
+        ok: false, status: 500, error: 'server_error',
+        message: 'התור אושר אך טעינתו מחדש נכשלה. רעננ/י את העמוד.',
+        approved: true,
+        whatsappUrl: approvalWhatsAppUrl(row),
+      }
     }
-    return fromSyncOutcome(await ensureCalendarSynced(fresh))
+    return fromApprovalOutcome(await ensureCalendarSynced(fresh), fresh)
   }
 
   if (row.status === 'confirmed') {
-    return fromSyncOutcome(await ensureCalendarSynced(row))
+    // לחיצה כפולה: התור כבר אושר בלחיצה הראשונה. כשל סנכרון כאן הוא
+    // בדיוק אותו מצב — אושר, היומן לא.
+    return fromApprovalOutcome(await ensureCalendarSynced(row), row)
   }
 
   return { ok: false, status: 409, error: 'not_pending', message: 'הבקשה כבר אינה ממתינה לאישור.' }
