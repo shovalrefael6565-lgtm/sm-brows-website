@@ -159,13 +159,23 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             aria-label="ניווט ראשי"
             className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4"
           >
-            {/* Logo + social circles */}
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+            {/*
+              Logo + social circles.
+
+              ⚠️ הקבוצה הזו **חייבת** להיות ניתנת לכיווץ (min-w-0, בלי
+              flex-shrink-0). כשהיא הייתה flex-shrink-0 יחד עם הקבוצה
+              הימנית, `justify-between` לא יכול היה לדחוס דבר: התוכן דרש
+              416px קבועים, וב-RTL העודף נדחף מעבר לקצה השמאלי — לאזור
+              שהדפדפן אינו מרחיב אליו את המסמך. כפתור התפריט פשוט יצא
+              מהמסך (ב-375px ומטה: 0 פיקסלים ממנו נראו), ואיתו גם הכניסה
+              היחידה ל"אזור אישי" במובייל, שקיימת רק בתוך המגירה.
+            */}
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             {/* Logo */}
             <Link
               href="/"
               aria-label="S.M BROWS – דף הבית"
-              className="flex items-center gap-2 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl"
+              className="flex items-center gap-2 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl"
             >
               <Image
                 src="/logo.png"
@@ -173,20 +183,28 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 width={64}
                 height={64}
                 priority
-                className="w-11 h-11 sm:w-16 sm:h-16"
+                className="w-11 h-11 sm:w-16 sm:h-16 flex-shrink-0"
               />
-              <div className="flex flex-col items-start gap-0.5">
-                <span className="font-serif text-lg sm:text-2xl font-bold tracking-widest text-brand-dark leading-none">
+              <div className="flex flex-col items-start gap-0.5 min-w-0">
+                {/* truncate = רשת ביטחון בלבד. אחרי הסתרת ה-tagline ועיגולי
+                    הרשתות השם נכנס בשלמותו גם ב-320px; אם גופן יתרחב
+                    בעתיד, עדיף שלוש נקודות על השם מאשר כפתור מחוץ למסך. */}
+                <span className="font-serif text-lg sm:text-2xl font-bold tracking-widest text-brand-dark leading-none truncate max-w-full">
                   S.M BROWS
                 </span>
-                <span className="font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold-text font-medium uppercase leading-none">
+                {/* מוסתר במובייל: 182px — התורם הגדול ביותר לרוחב השורה */}
+                <span className="hidden sm:block font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold-text font-medium uppercase leading-none">
                   IT&apos;S ALL ABOUT YOUR EYEBROWS
                 </span>
               </div>
             </Link>
 
-            {/* Social circles — mobile only, beside the business name */}
-            <div className="flex lg:hidden items-center gap-1" aria-label="רשתות חברתיות">
+            {/*
+              Social circles — טאבלט בלבד (sm עד lg).
+              מוסתרים מתחת ל-sm ומשחררים 102px: הם ממילא מופיעים בתחתית
+              המגירה (<SocialIcons>), ולכן שום דבר לא הולך לאיבוד במובייל.
+            */}
+            <div className="hidden sm:flex lg:hidden items-center gap-1 flex-shrink-0" aria-label="רשתות חברתיות">
               <a
                 href={TIKTOK_URL}
                 target="_blank"
@@ -465,14 +483,20 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 </AnimatePresence>
               </div>
 
-              {/* Mobile toggle */}
+              {/*
+                Mobile toggle.
+
+                🔒 flex-shrink-0 מפורש: זה הכפתור שלעולם אסור לו להתכווץ או
+                להידחף החוצה. הכיווץ, כשצריך, נעשה בקבוצת המותג משמאל.
+                ms-2 → ms-1 במובייל כדי לא לגזול רוחב ברוחבים הצרים.
+              */}
               <button
                 type="button"
                 aria-label={menuOpen ? 'סגירת תפריט' : 'פתיחת תפריט'}
                 aria-expanded={menuOpen}
                 aria-controls="mobile-menu"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="lg:hidden p-2 ms-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className="lg:hidden flex-shrink-0 p-2 ms-1 sm:ms-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
                 {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
@@ -518,6 +542,17 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
             />
+            {/*
+              z-[60] ולא z-50: הודעת העוגיות (components/ui/CookieNotice.tsx)
+              היא fixed bottom-0 z-50, ובאותו z-index היא מנצחת לפי סדר
+              ה-DOM ומכסה את הבלוק התחתון של המגירה — כלומר בדיוק את
+              "אזור אישי", הפריט האחרון בו. אומת ב-hit-test: מרכז הקישור
+              החזיר את פסקת הודעת העוגיות במקום את הקישור.
+
+              ⚠️ ה-overlay למעלה נשאר z-40 במכוון. העלאתו הייתה מכהה גם את
+              ה-header (z-50) והופכת את כפתור הסגירה שבו לבלתי לחיץ.
+              הסדר הנכון: מגירה 60 > header 50 > overlay 40.
+            */}
             <motion.div
               key="menu-panel"
               id="mobile-menu"
@@ -528,7 +563,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               initial="hidden"
               animate="visible"
               exit="hidden"
-              className="fixed top-0 left-0 bottom-0 w-72 bg-white z-50 flex flex-col lg:hidden shadow-soft-lg"
+              className="fixed top-0 left-0 bottom-0 w-72 bg-white z-[60] flex flex-col lg:hidden shadow-soft-lg"
               role="dialog"
               aria-label="תפריט ניווט"
               aria-modal="true"
