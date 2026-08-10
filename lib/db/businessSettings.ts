@@ -92,3 +92,48 @@ export async function loadAppointmentPolicy(): Promise<PolicyLoadResult> {
 
   return { ok: true, policy }
 }
+
+/**
+ * שלב 15F — קוד הכניסה לבניין, להודעות ה-WhatsApp.
+ *
+ * 🔒 **מגיע מ-business_settings ואינו קבוע בקוד** (0024).
+ *
+ * ⚠️ הקוד נמסר לכל לקוחה בהודעת האישור ואינו סוד מבצעי, אבל מחרוזת
+ * שנכנסת ל-git נשארת שם **לתמיד** — גם אחרי שהקוד בבניין יוחלף, וגם בכל
+ * fork או גיבוי. החזקתו בהגדרות גם מאפשרת לשנות אותו בלי פריסה, וזה
+ * המצב הנפוץ יותר ממילא.
+ *
+ * ⚠️ מחזירה null גם על כשל קריאה וגם על ערך חסר. שני המצבים מובילים
+ * לאותה תוצאה — הודעת האישור לא נבנית — ולכן אין טעם להבחין ביניהם
+ * בממשק. הקורא הוא זה שאחראי לא לשלוח הודעה בלי הקוד.
+ *
+ * 🔒 **אין ברירת מחדל.** ניחוש קוד כניסה שולח לקוחה לבניין שאינה יכולה
+ * להיכנס אליו, ומצב כזה גרוע יותר מהודעה שלא נשלחה אוטומטית.
+ */
+export async function loadBuildingEntryCode(): Promise<string | null> {
+  const db = createSupabaseAdminClient()
+
+  try {
+    const { data, error } = await db
+      .from('business_settings')
+      .select('value')
+      .eq('key', 'building_entry_code')
+      .maybeSingle()
+
+    if (error) {
+      console.error('[businessSettings] building_entry_code load failed', error.message)
+      return null
+    }
+
+    const raw = (data as { value: unknown } | null)?.value
+    if (typeof raw !== 'string') return null
+    const trimmed = raw.trim()
+    return trimmed === '' ? null : trimmed
+  } catch (err) {
+    console.error(
+      '[businessSettings] building_entry_code load threw',
+      err instanceof Error ? err.message : String(err),
+    )
+    return null
+  }
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, AlertTriangle, X } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
+import { buildLateChangeMessage, buildWhatsAppLinkToBusiness } from '@/lib/whatsappTemplates'
 
 /**
  * אישור ביטול של תור מאושר.
@@ -116,9 +117,12 @@ export default function CancelConfirmedDialog({
             </button>
           </div>
 
+          {/* 🔒 15F — הקישור נושא טקסט מוכן. הדיאלוג הזה הוא ביטול, ולכן action קבוע. */}
           {showWhatsApp && (
             <a
-              href={WHATSAPP_BASE}
+              href={buildWhatsAppLinkToBusiness(WHATSAPP_BASE, buildLateChangeMessage({
+                action: 'cancel', treatment, whenLabel,
+              }))}
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-xs font-semibold text-[#25D366] hover:underline"

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { approveRescheduleAndSync } from '@/lib/appointmentApproval'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,8 +20,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *
  * ה-`id` הוא מזהה **שורת הבקשה**, לא התור המקורי.
  *
- * ⚠️ אין כאן whatsappUrl: נוסח הודעת "שינוי המועד אושר" טרם אושר והוא
- * שייך ל-15F. אסור להשתמש בנוסח אישור התור הרגיל כתחליף.
+ * 🔒 15F — הנוסח של "שינוי המועד אושר" אושר ומוחזר כאן כ-whatsappUrl.
+ * ⚠️ הוא נוסח **נפרד** מנוסח אישור התור הרגיל; אין להחליף ביניהם.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await requireAdminApi()
@@ -45,10 +47,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
    * גורמת לשובל לאשר שוב תור שכבר אושר — בדיוק הלקח של 15C.
    * מה שלא הסתנכרן מופיע ברשימת ״דורש טיפול״ עם כפתור retry.
    */
+  /*
+   * 🔒 15F — `id` הוא מזהה **שורת הבקשה**, וזו בדיוק השורה שעליה הטריגר
+   * רשם `reschedule_approved`. ראה ההערה המלאה ב-approve/route.ts.
+   */
+  waitUntil(dispatchNow(id))
+
   return NextResponse.json({
     ok: true,
     newEventSynced: result.newEventSynced,
     oldEventRemoved: result.oldEventRemoved,
     message: result.message,
+    // 🔒 15F — הנוסח המאושר. עד כאן הנתיב לא החזיר whatsappUrl כלל.
+    whatsappUrl: result.whatsappUrl,
   })
 }

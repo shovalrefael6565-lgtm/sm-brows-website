@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { rejectAppointment } from '@/lib/appointmentApproval'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +22,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!result.ok) {
     return NextResponse.json({ error: result.error, message: result.message }, { status: result.status })
   }
+
+  // 🔒 15F — אחרי ה-COMMIT. ראה ההערה המלאה ב-approve/route.ts.
+  waitUntil(dispatchNow(id))
 
   return NextResponse.json({ ok: true, whatsappUrl: result.whatsappUrl })
 }

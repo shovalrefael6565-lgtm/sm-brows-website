@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { requestRescheduleForCustomer } from '@/lib/appointmentSelfService'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,6 +65,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       { status: result.status },
     )
   }
+
+  /*
+   * 🔒 15F — ⚠️ `result.requestId` ולא `id`.
+   *
+   * `id` הוא התור **המקורי**, שלא זז ואין עליו התראה. הטריגר רשם
+   * `reschedule_requested` על שורת הבקשה החדשה (0022 — בקשה היא שורה
+   * שנייה בטבלה). ניקוז לפי `id` היה מוצא אפס שורות, וההתראה לשובל
+   * הייתה נשארת queued לנצח בלי שאיש ידע.
+   */
+  waitUntil(dispatchNow(result.requestId))
 
   return NextResponse.json({
     ok: true,

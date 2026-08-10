@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 import { normalizePhone } from '@/lib/phone'
 import { resolveClientIp } from '@/lib/clientIp'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
@@ -280,6 +282,14 @@ export async function POST(req: NextRequest) {
       fallback: true,
     })
   }
+
+  /*
+   * 🔒 15F — התראה לשובל על הבקשה החדשה.
+   *
+   * ⚠️ מזהה התור זמין כאן בשרת אבל **אינו נכלל בתשובה** — ראה ההערה
+   * למטה. `dispatchNow` מקבל אותו ישירות מ-`result.appointment`.
+   */
+  waitUntil(dispatchNow(result.appointment.id))
 
   /*
    * ⚠️ התשובה מכילה את המינימום ההכרחי. אין כאן customer id, אין שם, אין

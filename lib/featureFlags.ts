@@ -26,3 +26,20 @@ export function isNewBookingSystemEnabled(): boolean {
 export function areRemindersEnabled(): boolean {
   return process.env.REMINDERS_ENABLED === 'true'
 }
+
+/**
+ * ההתראות הטרנזקציוניות (15F). ברירת המחדל כבויה בכל סביבה.
+ *
+ * ⚠️ **דגל נפרד מ-`REMINDERS_ENABLED`, ובכוונה.** התזכורות והתראות הן שתי
+ * מערכות עם שני מסלולים, שני מודלים ושני קצבי הפעלה. דגל משותף היה אומר
+ * שהדלקת התראה על אישור תור מדליקה גם את מנוע התזכורות — שלא נבדק
+ * בפרודקשן ואינו חלק מ-15F.
+ *
+ * ⚠️ הדגל הזה חוסם **שליחה בלבד**. מה שחוסם את ה*רישום* הוא
+ * `notifications_enabled` ב-`business_settings` (0024), ושם הגייטינג הוא
+ * בכניסה ל-enqueue כדי שלא ייערם backlog. שניהם חייבים להיות דלוקים כדי
+ * שייצא SMS, וזה מכוון: הברז שב-DB משתנה בלי פריסה, וזה שכאן מחייב פריסה.
+ */
+export function areNotificationsEnabled(): boolean {
+  return process.env.NOTIFICATIONS_ENABLED === 'true'
+}

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { cancelPendingAppointment, getAppointmentForCustomer } from '@/lib/db/appointments'
 import { cancelConfirmedForCustomer } from '@/lib/appointmentSelfService'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +58,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         { status: result.status },
       )
     }
+    /*
+     * 🔒 15F — **רק הענף הזה.**
+     *
+     * ⚠️ ביטול תור **מאושר** הוא האירוע שיש עליו נוסח מאושר, והוא מייצר
+     * שתי שורות — ללקוחה ולשובל. הלולאה ב-`dispatchNow` מנקזת את שתיהן.
+     *
+     * ⚠️ הענף של הבקשה הממתינה (למטה) **אינו** מנוקז: ביטול בקשה שטרם
+     * אושרה אינו ביטול תור, אין לו נוסח מאושר, והטריגר ב-0025 אינו רושם
+     * עליו כלום. שובל רואה אותו ממילא במסך הניהול.
+     *
+     * ⚠️ גם `already_cancelled` מנוקז: ה-RPC יוצא מוקדם ולא כותב היסטוריה
+     * שנייה, ולכן אין שורה חדשה לתפוס — אבל אם ניסיון קודם נשאר `retrying`
+     * (למשל 019 החזיר 500), זו ההזדמנות לנקז אותו.
+     */
+    waitUntil(dispatchNow(id))
+
     return NextResponse.json({
       ok: true,
       outcome: result.outcome,

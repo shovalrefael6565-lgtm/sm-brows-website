@@ -225,6 +225,42 @@ const ASSERTION_MIGRATIONS = {
    * ההיסטורי שלה.
    */
   '0023_drop_legacy_reschedule.sql': [],
+  /**
+   * שלב 15F, חלק ראשון — יעד ההתראות של בעלת העסק.
+   *
+   * ⚠️ admin_notification_phone() נראית תמימה — היא קוראת שורה אחת
+   * מ-business_settings ומחזירה מחרוזת. היא סגורה בכל זאת: היא מחזירה
+   * **מספר טלפון פרטי של שובל**, ו-RPC פתוח שמחזיר אותו לכל מי שמחזיק
+   * את מפתח ה-anon הוא דליפה, לא נוחות.
+   */
+  '0024_admin_notification_phone.sql': [
+    'admin_notification_phone()',
+  ],
+  /**
+   * שלב 15F, חלק שני — ההתראות הטרנזקציוניות.
+   *
+   * ⚠️ חמש הפונקציות רגישות מסיבות שונות:
+   *
+   *   enqueue_appointment_notification — חשיפה ל-anon הייתה מאפשרת לתור
+   *     התראות בשם כל תור במערכת, כלומר לגרום למערכת לשלוח SMS אמיתיים
+   *     על אירועים שלא קרו — על חשבון העסק.
+   *   claim_appointment_notification / finish_notification_attempt /
+   *     skip_notification — מחזיקות את מכונת המצבים של השליחה. חשיפה כאן
+   *     מאפשרת לסמן התראה כ-sent בלי שנשלחה, או לשחרר lease של worker חי.
+   *   notification_recipient_phone — 🔒 **הרגישה מכולן.** היא מחזירה מספר
+   *     טלפון של לקוחה לפי מזהה תור. חשיפה ל-anon הופכת אותה לאורקל
+   *     טלפונים על כל מזהה תור שמישהו ינחש.
+   *
+   * ⚠️ enqueue_notifications_from_history() אינה כאן: היא `returns trigger`,
+   * אינה נגישה כ-RPC, והבדיקה מסננת טריגרים בעצמה.
+   */
+  '0025_appointment_notifications.sql': [
+    'enqueue_appointment_notification(bigint,uuid,notification_event,notification_recipient_role)',
+    'claim_appointment_notification(uuid,uuid,integer,integer,text)',
+    'finish_notification_attempt(uuid,uuid,notification_attempt_outcome,text,text,text,integer)',
+    'skip_notification(uuid,uuid,text)',
+    'notification_recipient_phone(uuid,notification_recipient_role)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, Calendar, Clock, ArrowLeft, X } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
+import { buildLateChangeMessage, buildWhatsAppLinkToBusiness } from '@/lib/whatsappTemplates'
 import { isBookableDate } from '@/lib/bookingWindow'
 import { selectDisplaySlots, getIsraelToday, type BusyRange } from '@/lib/slotSelection'
 
@@ -336,9 +337,16 @@ export default function RescheduleDialog({
             </>
           )}
 
+          {/*
+            🔒 15F — הקישור נושא טקסט מוכן. הדיאלוג הזה הוא בקשת שינוי מועד.
+            ⚠️ `currentLabel` הוא המועד **הקיים**, וזה הנכון: הלקוחה מזהה
+            מולו את התור, ולא מול המועד שביקשה ושלא אושר.
+          */}
           {showWhatsApp && (
             <a
-              href={WHATSAPP_BASE}
+              href={buildWhatsAppLinkToBusiness(WHATSAPP_BASE, buildLateChangeMessage({
+                action: 'reschedule', treatment, whenLabel: currentLabel,
+              }))}
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-xs font-semibold text-[#25D366] hover:underline"

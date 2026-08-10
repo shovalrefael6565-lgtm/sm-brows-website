@@ -887,9 +887,12 @@ export async function approveRescheduleRequest(
 export async function rejectRescheduleRequest(
   requestId: string,
   adminId: string,
-): Promise<{ ok: true } | { ok: false; error: RescheduleAdminError }> {
+): Promise<
+  | { ok: true; originalId: string | null }
+  | { ok: false; error: RescheduleAdminError }
+> {
   const db = createSupabaseAdminClient()
-  const { error } = await db.rpc('reject_reschedule_request', {
+  const { data, error } = await db.rpc('reject_reschedule_request', {
     p_request_id: requestId,
     p_admin_id: adminId,
   })
@@ -901,7 +904,16 @@ export async function rejectRescheduleRequest(
     }
     return { ok: false, error: mapped }
   }
-  return { ok: true }
+
+  /*
+   * 🔒 15F — מזהה **התור המקורי**, מתוך שורת הבקשה שה-RPC מחזירה.
+   *
+   * ⚠️ נחוץ להודעת הדחייה: הנוסח המאושר מציג את המועד שנשאר שמור, כלומר
+   * של התור המקורי — ולא את המועד שהתבקש ולא אושר. שאילתה נוספת הייתה
+   * מיותרת; ה-RPC כבר מחזיר את השורה.
+   */
+  const row = data as { reschedule_of_appointment_id?: string | null } | null
+  return { ok: true, originalId: row?.reschedule_of_appointment_id ?? null }
 }
 
 /** ביטול תור confirmed ע"י הלקוחה. אותו עיקרון: הכול נאכף ב-RPC. */

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarClock, XCircle, CheckCircle2 } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
+import { buildLateChangeMessage, buildWhatsAppLinkToBusiness } from '@/lib/whatsappTemplates'
 import RescheduleDialog from './RescheduleDialog'
 import CancelConfirmedDialog from './CancelConfirmedDialog'
 
@@ -97,8 +98,23 @@ export default function AppointmentActions({
       {blockedMessages.length > 0 && (
         <div className="text-[11px] text-brand-muted leading-relaxed">
           {blockedMessages.map(m => <p key={m}>{m}</p>)}
+          {/*
+            * 🔒 15F — הקישור נושא טקסט מוכן.
+            *
+            * ⚠️ עד כאן הוא הפנה ל-WHATSAPP_BASE חשוף: נפתח חלון ריק, והלקוחה
+            * נדרשה לנסח בעצמה ולציין על איזה תור מדובר. שובל קיבלה
+            * "היי, אני צריכה לבטל" בלי תאריך ובלי טיפול, ונאלצה לחפש.
+            *
+            * ⚠️ הפעולה נגזרת ממה שחסום: אם רק הביטול חסום — הכוונה היא
+            * ביטול. אם שניהם חסומים (המקרה הנפוץ, "מאוחר מדי") — נבחר
+            * ביטול, כי זו הפעולה הדחופה יותר. הלקוחה יכולה לערוך.
+            */}
           <a
-            href={WHATSAPP_BASE}
+            href={buildWhatsAppLinkToBusiness(WHATSAPP_BASE, buildLateChangeMessage({
+              action: !cancel.allowed ? 'cancel' : 'reschedule',
+              treatment,
+              whenLabel,
+            }))}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block mt-1 font-semibold text-[#25D366] hover:underline"

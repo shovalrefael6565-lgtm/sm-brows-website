@@ -60,6 +60,16 @@ export interface RescheduleOk {
   /** נשמר בחוזה לתאימות; בקשה אינה נוגעת ביומן ולכן תמיד true */
   calendarSynced: boolean
   message: string
+  /**
+   * 🔒 15F — מזהה **שורת הבקשה**, לא התור המקורי.
+   *
+   * ⚠️ ההבחנה קריטית ל-`dispatchNow`. בקשת שינוי מועד היא שורה **שנייה**
+   * בטבלת appointments (0022), והטריגר ב-0025 רושם את
+   * `reschedule_requested` על השורה החדשה. ניקוז לפי מזהה התור המקורי
+   * היה מוצא אפס שורות — כלומר ההתראה הייתה נשארת queued לנצח, בשקט,
+   * בזמן ששובל אינה יודעת שיש בקשה שממתינה לה.
+   */
+  requestId: string
 }
 
 export interface CancelOk {
@@ -343,6 +353,7 @@ export async function requestRescheduleForCustomer(
     outcome: 'requested',
     calendarSynced: true,
     message: 'בקשת שינוי המועד נשלחה לשובל. התור הקיים שלך נשאר שמור עד לאישור.',
+    requestId: result.request.id,
   }
 }
 

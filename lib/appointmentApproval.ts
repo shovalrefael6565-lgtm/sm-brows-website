@@ -17,9 +17,18 @@ import {
   findConflictingCalendarEvent,
   sanitizeGoogleError,
 } from '@/lib/googleCalendar'
+import { loadAppointmentPolicy, loadBuildingEntryCode } from '@/lib/db/businessSettings'
 import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
 import { treatmentLabel, formatDateTimeIL } from '@/lib/admin/format'
-import { buildApprovalMessage, buildRejectionMessage, buildWhatsAppLinkToCustomer } from '@/lib/whatsappTemplates'
+import {
+  buildApprovalMessage,
+  buildRejectionMessage,
+  buildRescheduleApprovedMessage,
+  buildRescheduleRejectedMessage,
+  buildWhatsAppLinkToCustomer,
+  cutoffPolicyLines,
+  rescheduleCutoffLines,
+} from '@/lib/whatsappTemplates'
 
 /**
  * אורקסטרציה של שלב 6 — אישור/דחייה + סנכרון יומן. מאחדת בקובץ אחד את
@@ -83,25 +92,86 @@ interface SyncFailure {
 type SyncOutcome = SyncSuccess | SyncFailure
 
 /**
- * קישור WhatsApp עם הודעת האישור ללקוחה.
+ * קישור WhatsApp עם **הנוסח המאושר** של הודעת האישור.
  *
- * ⚠️ נגזר מ-starts_at ומפרטי הלקוחה בלבד — כלומר תקף גם כשסנכרון היומן
- * נכשל, כי מועד התור ב-DB אינו תלוי ב-Google. אין כאן שום נוסח חדש: אותה
- * buildApprovalMessage הקיימת, מילה במילה (נוסחים סופיים = 15F).
+ * ⚠️ נגזר מ-starts_at ומפרטי הלקוחה — כלומר תקף גם כשסנכרון היומן נכשל,
+ * כי מועד התור ב-DB אינו תלוי ב-Google.
+ *
+ * 🔒 **מחזירה undefined כשלא ניתן לקרוא את המדיניות מ-business_settings.**
+ *
+ * ⚠️ זו אינה התחמקות — זו הנקודה הקריטית של 15F. הנוסח המאושר מצהיר
+ * ללקוחה תוך כמה שעות היא יכולה לבטל או לשנות. מספר שגוי שם הוא הבטחה
+ * שהאתר עצמו ישבור: הלקוחה תנסה לבטל, ה-RPC יאכוף את המספר האמיתי, והיא
+ * תיתקל בחומה אחרי שהובטח לה אחרת. ברירת מחדל שקטה כאן היא בדיוק דפוס
+ * "90 מול 40 דקות" מ-Risks של 15A.
+ *
+ * העדר קישור פירושו ששובל שולחת הודעה בעצמה — מצב גרוע פחות באופן מובהק
+ * מהודעה אוטומטית שמשקרת.
  */
-function approvalWhatsAppUrl(row: AdminAppointmentRow): string {
+async function approvalWhatsAppUrl(row: AdminAppointmentRow): Promise<string | undefined> {
+  const ctx = await loadMessageContext()
+  if (!ctx) return undefined
+
   const { date, time } = formatDateTimeIL(row.starts_at)
   const message = buildApprovalMessage({
-    customerName: row.customer_full_name,
     date,
     time,
     treatment: treatmentLabel(row),
+    priceLine: approvalPriceLine(row),
+    buildingCode: ctx.buildingCode,
+    cutoffLines: cutoffPolicyLines(ctx.policy),
   })
   return buildWhatsAppLinkToCustomer(row.customer_phone_e164, message)
 }
 
-function buildSyncSuccess(row: AdminAppointmentRow): SyncSuccess {
-  return { calendarSynced: true, whatsappUrl: approvalWhatsAppUrl(row) }
+/**
+ * ההגדרות שכל הודעת WhatsApp נשענת עליהן: המדיניות וקוד הכניסה.
+ *
+ * 🔒 מחזירה null אם **אחד** מהם חסר, וזה מכוון. שתי ההודעות שנבנות ממנה
+ * מכילות גם חלון ביטול וגם קוד כניסה, ושתיהן חסרות ערך אם אחד מהם שגוי
+ * או חסר: לקוחה עם חלון שגוי תיתקל בחומה, ולקוחה בלי קוד כניסה תעמוד
+ * מחוץ לבניין. ראה את הנימוק המלא ב-approvalWhatsAppUrl.
+ */
+async function loadMessageContext(): Promise<
+  { policy: { cancelCutoffHours: number; rescheduleCutoffHours: number }; buildingCode: string } | null
+> {
+  const [policyResult, buildingCode] = await Promise.all([
+    loadAppointmentPolicy(),
+    loadBuildingEntryCode(),
+  ])
+
+  if (!policyResult.ok) {
+    console.error('[approval] מדיניות אינה זמינה — הודעת ה-WhatsApp לא נבנתה')
+    return null
+  }
+  if (!buildingCode) {
+    // ⚠️ 0024 יוצרת את המפתח ריק; הערך נקבע ידנית בפרודקשן.
+    console.error('[approval] building_entry_code לא הוגדר — הודעת ה-WhatsApp לא נבנתה')
+    return null
+  }
+
+  return {
+    policy: {
+      cancelCutoffHours: policyResult.policy.cancelCutoffHours,
+      rescheduleCutoffHours: policyResult.policy.rescheduleCutoffHours,
+    },
+    buildingCode,
+  }
+}
+
+/**
+ * שורת "פרטי הטיפול והמחיר" בנוסח המאושר.
+ *
+ * ⚠️ מושמטת כשאין מחיר, ולא מוצגת כ-₪0. תור בלי מחיר הוא תור שהמחיר שלו
+ * נקבע מול שובל, ו-"₪0" היה נראה כמו טיפול חינם.
+ */
+function approvalPriceLine(row: AdminAppointmentRow): string | undefined {
+  if (!row.price_total) return undefined
+  return `₪${row.price_total}`
+}
+
+async function buildSyncSuccess(row: AdminAppointmentRow): Promise<SyncSuccess> {
+  return { calendarSynced: true, whatsappUrl: await approvalWhatsAppUrl(row) }
 }
 
 /**
@@ -122,7 +192,7 @@ async function ensureCalendarSynced(row: AdminAppointmentRow): Promise<SyncOutco
     // מחיקה שהושלמה אין לה google_event_id "תקף" להתנות בו — עצם ה-synced
     // הוא ההוכחה. ב-upsert עדיין דורשים מזהה, כמו קודם.
     if (isDelete) return { calendarSynced: true }
-    if (row.google_event_id) return buildSyncSuccess(row)
+    if (row.google_event_id) return await buildSyncSuccess(row)
   }
 
   const claim = await claimCalendarSync(row.id)
@@ -134,7 +204,7 @@ async function ensureCalendarSynced(row: AdminAppointmentRow): Promise<SyncOutco
       const fresh = await getAppointmentForAdmin(row.id)
       if (fresh?.calendar_sync_status === 'synced') {
         if (fresh.calendar_sync_operation === 'delete') return { calendarSynced: true }
-        if (fresh.google_event_id) return buildSyncSuccess(fresh)
+        if (fresh.google_event_id) return await buildSyncSuccess(fresh)
       }
       return {
         calendarSynced: false,
@@ -228,7 +298,7 @@ async function runCalendarUpsert(row: AdminAppointmentRow): Promise<SyncOutcome>
     }
   }
 
-  return buildSyncSuccess({ ...row, google_event_id: eventId, calendar_sync_status: 'synced' })
+  return await buildSyncSuccess({ ...row, google_event_id: eventId, calendar_sync_status: 'synced' })
 }
 
 /**
@@ -287,7 +357,7 @@ function fromSyncOutcome(sync: SyncOutcome): ApprovalResult {
  * ה-message של הסנכרון נשמר כפי שהוא ומשמש כפירוט הטכני; המסגור ("התור
  * אושר, היומן לא סונכרן") נעשה ב-UI, כדי שלא יהיו שני ניסוחים לאותו כשל.
  */
-function fromApprovalOutcome(sync: SyncOutcome, row: AdminAppointmentRow): ApprovalResult {
+async function fromApprovalOutcome(sync: SyncOutcome, row: AdminAppointmentRow): Promise<ApprovalResult> {
   if (sync.calendarSynced) return { ok: true, whatsappUrl: sync.whatsappUrl }
   return {
     ok: false,
@@ -295,7 +365,7 @@ function fromApprovalOutcome(sync: SyncOutcome, row: AdminAppointmentRow): Appro
     error: sync.error,
     message: sync.message,
     approved: true,
-    whatsappUrl: approvalWhatsAppUrl(row),
+    whatsappUrl: await approvalWhatsAppUrl(row),
   }
 }
 
@@ -343,10 +413,10 @@ export async function approveAndSyncAppointment(appointmentId: string, adminId: 
         ok: false, status: 500, error: 'server_error',
         message: 'התור אושר אך טעינתו מחדש נכשלה. רעננ/י את העמוד.',
         approved: true,
-        whatsappUrl: approvalWhatsAppUrl(row),
+        whatsappUrl: await approvalWhatsAppUrl(row),
       }
     }
-    return fromApprovalOutcome(await ensureCalendarSynced(fresh), fresh)
+    return await fromApprovalOutcome(await ensureCalendarSynced(fresh), fresh)
   }
 
   if (row.status === 'confirmed') {
@@ -422,6 +492,13 @@ export interface RescheduleApprovalResult {
   /** האם האירוע הישן נמחק מהיומן */
   oldEventRemoved: boolean
   message: string
+  /**
+   * 🔒 15F — הנוסח המאושר של "שינוי המועד אושר".
+   *
+   * ⚠️ אופציונלי: אינו נבנה כשהמדיניות או קוד הכניסה אינם זמינים. ראה
+   * loadMessageContext.
+   */
+  whatsappUrl?: string
 }
 
 export async function approveRescheduleAndSync(
@@ -498,7 +575,36 @@ export async function approveRescheduleAndSync(
     message = 'מועד התור עודכן והאירוע החדש נוצר. הסרת האירוע הישן מהיומן נמצאת בטיפול.'
   }
 
-  return { ok: true, newEventSynced, oldEventRemoved, message }
+  /*
+   * 🔒 15F — הנוסח המאושר של אישור שינוי מועד.
+   *
+   * ⚠️ עד כאן הנתיב הזה **לא החזיר whatsappUrl בכלל**, ושובל נאלצה לכתוב
+   * ללקוחה מאפס אחרי כל אישור שינוי.
+   *
+   * ⚠️ המועד נלקח מ-`freshRequest` — שורת הבקשה, שהיא זו שהפכה ל-confirmed
+   * ונושאת את המועד **החדש**. `freshOriginal` נושא את הישן, שכבר שוחרר.
+   */
+  const whatsappUrl = await rescheduleApprovedWhatsAppUrl(freshRequest)
+
+  return { ok: true, newEventSynced, oldEventRemoved, message, whatsappUrl }
+}
+
+async function rescheduleApprovedWhatsAppUrl(
+  request: AdminAppointmentRow,
+): Promise<string | undefined> {
+  const ctx = await loadMessageContext()
+  if (!ctx) return undefined
+
+  const { date, time } = formatDateTimeIL(request.starts_at)
+  const message = buildRescheduleApprovedMessage({
+    treatment: treatmentLabel(request),
+    date,
+    time,
+    buildingCode: ctx.buildingCode,
+    // ⚠️ ניסוח cutoff נפרד — שני הנוסחים אושרו בנפרד ואין לאחד אותם.
+    cutoffLines: rescheduleCutoffLines(ctx.policy),
+  })
+  return buildWhatsAppLinkToCustomer(request.customer_phone_e164, message)
 }
 
 /** דחיית בקשת שינוי מועד. אין כאן שום אינטראקציה עם Google Calendar —
@@ -506,7 +612,7 @@ export async function approveRescheduleAndSync(
 export async function rejectReschedule(
   requestId: string,
   adminId: string,
-): Promise<{ ok: true } | ApprovalFail> {
+): Promise<{ ok: true; whatsappUrl?: string } | ApprovalFail> {
   const rejected = await rejectRescheduleRequest(requestId, adminId)
   if (!rejected.ok) {
     if (rejected.error === 'not_pending') {
@@ -517,7 +623,36 @@ export async function rejectReschedule(
     }
     return { ok: false, status: 500, error: 'server_error', message: 'הדחייה נכשלה. נסי שוב.' }
   }
-  return { ok: true }
+
+  /*
+   * 🔒 15F — הנוסח המאושר של דחיית שינוי מועד.
+   *
+   * ⚠️ **המועד בהודעה הוא של התור המקורי, לא של הבקשה שנדחתה.** זו כל
+   * הנקודה: התור הקיים נשאר שמור, והלקוחה צריכה לראות מולו את המועד
+   * שאליו עליה להגיע. הצגת המועד שביקשה ושלא אושר הייתה בדיוק ההפך —
+   * והיא הייתה מגיעה ביום הלא נכון.
+   *
+   * ⚠️ ולכן נטען כאן **התור המקורי** ולא שורת הבקשה.
+   */
+  const original = rejected.originalId
+    ? await getAppointmentForAdmin(rejected.originalId)
+    : null
+  if (!original) {
+    // הדחייה עשתה COMMIT. חוסר הודעה אינו הופך אותה לכישלון.
+    console.error('[approval] reschedule rejected but original reload failed')
+    return { ok: true }
+  }
+
+  const { date, time } = formatDateTimeIL(original.starts_at)
+  const message = buildRescheduleRejectedMessage({
+    treatment: treatmentLabel(original),
+    date,
+    time,
+  })
+  return {
+    ok: true,
+    whatsappUrl: buildWhatsAppLinkToCustomer(original.customer_phone_e164, message),
+  }
 }
 
 /** דחיית בקשת pending. אין כאן שום אינטראקציה עם Google Calendar. */
@@ -535,6 +670,23 @@ export async function rejectAppointment(appointmentId: string, adminId: string):
     return { ok: false, status: 500, error: 'server_error', message: 'הדחייה נכשלה. נסי שוב.' }
   }
 
-  const message = buildRejectionMessage({ customerName: row.customer_full_name })
+  /*
+   * 🔒 15F — הנוסח המאושר, שמזכיר ללקוחה **על איזה תור** מדובר.
+   *
+   * ⚠️ המועד נלקח מ-`row` שנטען **לפני** הדחייה, וזה הנכון: הדחייה משנה
+   * רק את ה-status, ו-starts_at של הבקשה שנדחתה נשאר בדיוק מה שהלקוחה
+   * ביקשה. זה המועד שהיא מזהה.
+   *
+   * ⚠️ בניגוד להודעות האישור, הנוסח הזה אינו מכיל קוד כניסה ואינו מכיל
+   * חלון ביטול — אין תור שאליו להגיע. לכן אין כאן loadMessageContext ואין
+   * מסלול שבו ההודעה לא נבנית.
+   */
+  const { date, time } = formatDateTimeIL(row.starts_at)
+  const message = buildRejectionMessage({
+    customerName: row.customer_full_name,
+    treatment: treatmentLabel(row),
+    date,
+    time,
+  })
   return { ok: true, whatsappUrl: buildWhatsAppLinkToCustomer(row.customer_phone_e164, message) }
 }

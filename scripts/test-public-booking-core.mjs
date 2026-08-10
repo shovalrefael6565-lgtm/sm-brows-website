@@ -238,7 +238,7 @@ chk('🔒 אין שורת אישור מדיניות בשום וריאציה', ((
   const variants = [
     { customerName: 'א', phone: '05', treatment: 'ט' },
     { customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה', priceTotal: 70 },
-    { customerName: 'א', phone: '05', treatment: 'ט', durationLabel: '40 דקות',
+    { customerName: 'א', phone: '05', treatment: 'ט',
       dateLabel: 'ד', timeLabel: '17:00' },
   ]
   return variants.every(v => {
@@ -256,11 +256,30 @@ chk('ההודעה אינה מסתיימת בשורה ריקה', (() => {
     && withNotes.endsWith('📝 הערה') && without.endsWith('⏰ 17:00')
 })())
 
-chk('הרמת גבות: שורת משך מתווספת',
-  buildBookingRequestMessage({
+// 🔒 15F — שורת המשך הוסרה מהנוסח.
+//
+// ⚠️ הבדיקה הפוכה בכוונה: היא נכשלת אם מישהו יחזיר את השורה. המשך הוגדר
+// בקומפוננטה כמחרוזת קשיחה ('40 דקות' להרמת גבות) בזמן ש-duration_min
+// האמיתי יושב על שורת התור — שני מקורות לאותה עובדה, שרק אחד מהם מתעדכן.
+// שובל רואה את המשך במסך הניהול ואינה זקוקה לו בהודעה.
+chk('🔒 אין שורת משך בשום וריאציה', (() => {
+  const variants = [
+    { customerName: 'א', phone: '0541234567', treatment: 'הרמת גבות',
+      priceTotal: 250, dateLabel: 'ד', timeLabel: '17:00–17:40' },
+    { customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה' },
+  ]
+  return variants.every(v => {
+    const m = buildBookingRequestMessage(v)
+    return !m.includes('⏱️') && !m.includes('דקות')
+  })
+})())
+
+// שדה שהוסר אינו מחזיר את השורה גם אם קורא ישן ממשיך להעביר אותו
+chk('🔒 durationLabel שנשלח בטעות מתעלמים ממנו',
+  !buildBookingRequestMessage({
     customerName: 'א', phone: '0541234567', treatment: 'הרמת גבות',
-    priceTotal: 250, durationLabel: '40 דקות', dateLabel: 'ד', timeLabel: '17:00–17:40',
-  }).includes('⏱️ 40 דקות'))
+    durationLabel: '40 דקות', timeLabel: '17:00',
+  }).includes('40 דקות'))
 
 chk('בלי מחיר — שורת המחיר מושמטת',
   !buildBookingRequestMessage({

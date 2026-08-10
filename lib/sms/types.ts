@@ -8,14 +8,20 @@
  * אין מפתחות בקוד — כל פרטי הגישה מגיעים ממשתני סביבה.
  */
 
-/** סוגי ההודעות שהמערכת שולחת — משמש ללוגים, למדידה ולבחירת תבנית */
-export type SmsKind =
-  | 'otp'                  // קוד התחברות / אימות
-  | 'booking_confirmed'    // אישור קביעת תור
-  | 'booking_rescheduled'  // אישור שינוי מועד
-  | 'booking_cancelled'    // אישור ביטול
-  | 'reminder'             // תזכורת לפני התור
-  | 'admin_notice'         // עדכון לבעלת העסק
+/**
+ * סוגי ההודעות שהשכבה הזו שולחת — משמש ללוגים ולמדידה.
+ *
+ * ⚠️ **'otp' בלבד, ובכוונה.** עד 15F נמנו כאן גם booking_confirmed,
+ * booking_rescheduled, booking_cancelled, reminder ו-admin_notice — חמישה
+ * ערכים שאף תבנית לא ייצרה ואף קורא לא ביקש. ערך בטיפוס שאין לו מימוש הוא
+ * הזמנה לחווט אליו נוסח מומצא.
+ *
+ * 🔒 ההתראות הטרנזקציוניות של 15F **אינן עוברות כאן**. הן חיות ב-
+ * `lib/notifications/` ומשתמשות ב-`ReminderDeliveryResult` בעל ארבעת
+ * המצבים, כי `SmsResult` הבינארי אינו יודע להבחין בין retryable לעמום —
+ * ראה את הנימוק המלא ב-[lib/reminders/types.ts](../reminders/types.ts).
+ */
+export type SmsKind = 'otp'
 
 export interface SmsMessage {
   /** יעד בפורמט E.164 בלבד (ראה lib/phone.ts) */

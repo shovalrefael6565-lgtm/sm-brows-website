@@ -489,7 +489,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
         treatment: isCalendar ? summaryTreatment : form.service,
         priceTotal: isCalendar ? summaryPrice : 0,
         priceIsSum: isNatural,
-        durationLabel: isLifting ? '40 דקות' : undefined,
         dateLabel: form.date || undefined,
         timeLabel: form.time ? (isLifting ? liftingRange : form.time) : undefined,
         notes: form.notes,

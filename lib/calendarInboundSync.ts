@@ -1,5 +1,6 @@
 import 'server-only'
 import { randomUUID } from 'crypto'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 import {
   type CalendarChangesClient,
   createCalendarChangesClient,
@@ -428,6 +429,25 @@ async function handleDeletion(item: QueueItem, appt: AdminAppointmentRow): Promi
     case 'applied':
       // הסלוט משתחרר מיד; ה-EXCLUDE constraint חל רק על pending/confirmed.
       // אין outbound delete — האירוע כבר נמחק בפועל. אין WhatsApp אוטומטי.
+
+      /*
+       * 🔒 15F — **הפער שנסגר כאן.**
+       *
+       * ⚠️ עד 15F שובל מחקה אירוע ביומן, התור עבר ל-cancelled_by_business,
+       * **והלקוחה לא ידעה על כך דבר** — היא הייתה מגיעה לתור שכבר אינו
+       * קיים. זהו הביטול היחיד במערכת שהלקוחה אינה יוזמת, ולכן היחיד
+       * שהיא לא יכולה לדעת עליו בלי שנודיע לה.
+       *
+       * ⚠️ `await` ולא `waitUntil`, בשונה מכל ה-routes: הקוד הזה רץ בתוך
+       * worker סנכרון ולא בתוך route handler שמחזיר תשובה. אין כאן תשובה
+       * לחסום, ואין `waitUntil` שיחזיק את ה-function בחיים אחריה —
+       * fire-and-forget כאן היה נקטע בדיוק כמו ב-route.
+       *
+       * 🔒 `dispatchNow` אינה זורקת. הביטול כבר עשה COMMIT, וכשל SMS אינו
+       * הופך אותו ל-failed ואינו מחזיר את האירוע ליומן.
+       */
+      await dispatchNow(appt.id)
+
       return { status: 'processed', result: 'cancelled_by_google_delete' }
 
     case 'already_cancelled':
@@ -527,6 +547,17 @@ async function handleLiveEvent(
         return { status: 'failed', result: null, error: fixed.message }
       }
     }
+
+    /*
+     * 🔒 15F — התור זז תחת הלקוחה, בלי שביקשה ובלי שאישרה.
+     *
+     * ⚠️ **הנוסח טרם אושר.** ההתראה נרשמת ע"י הטריגר (0025) ותסומן
+     * `skipped/awaiting_approved_template`, כלומר תופיע ברשימת "דורש
+     * טיפול" כדי ששובל תיידע ידנית. הניקוז נקרא כאן בכל זאת, כדי שרגע
+     * שהנוסח יאושר לא יידרש שינוי בקובץ הזה.
+     */
+    await dispatchNow(appt.id)
+
     return { status: 'processed', result: 'rescheduled' }
   }
 

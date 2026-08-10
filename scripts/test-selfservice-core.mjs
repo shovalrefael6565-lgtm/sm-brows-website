@@ -416,11 +416,18 @@ section('שלב 15E — בקשת שינוי מועד (בדיקות מבנה קו
   chk('🔒 רשימת "דורש טיפול" כוללת status.eq.rescheduled',
     /status\.eq\.rescheduled/.test(dbLayer))
 
-  // 🔒 אין הודעת WhatsApp לשינוי מועד — הנוסח שייך ל-15F ולא הומצא כאן.
-  chk('🔒 approveRescheduleAndSync אינו מחזיר whatsappUrl',
-    !/RescheduleApprovalResult[\s\S]{0,400}whatsappUrl/.test(approval))
-  chk('🔒 אין שימוש ב-buildApprovalMessage במסלול שינוי המועד',
-    !/approveRescheduleAndSync[\s\S]{0,1200}approvalWhatsAppUrl/.test(approval))
+  /*
+   * 🔒 15F — הנוסח של "שינוי המועד אושר" **אושר**, והמסלול מחזיר אותו.
+   *
+   * ⚠️ עד 15E הבדיקה כאן הייתה הפוכה ("אינו מחזיר whatsappUrl"), כי לא
+   * היה נוסח מאושר ואסור היה להמציא אחד. מה שנשאר נכון הוא הכלל השני:
+   * זהו נוסח **נפרד**, ואין להשתמש בנוסח אישור התור הרגיל כתחליף.
+   */
+  chk('🔒 approveRescheduleAndSync מחזיר whatsappUrl (נוסח מאושר ב-15F)',
+    /RescheduleApprovalResult[\s\S]{0,600}whatsappUrl/.test(approval))
+  chk('🔒 ומשתמש בנוסח הייעודי ולא בנוסח אישור התור',
+    /buildRescheduleApprovedMessage/.test(approval)
+    && !/approveRescheduleAndSync[\s\S]{0,1200}approvalWhatsAppUrl\(/.test(approval))
 
   /*
    * 🔒 התור של הלקוחה עצמה **אינו** מסונן מרשימת התפוסים. הסינון הישן

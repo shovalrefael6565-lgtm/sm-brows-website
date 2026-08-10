@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { getCustomerById } from '@/lib/db/customers'
 import { createPersonalAreaBookingRequest } from '@/lib/db/appointments'
@@ -227,6 +229,13 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     )
   }
+
+  /*
+   * 🔒 15F — אותו אירוע בדיוק כמו במסלול הציבורי, ולכן אותו טריגר ואותה
+   * התראה. שני המסלולים כותבים שורת היסטוריה זהה (created/pending/customer),
+   * ולכן אין כאן חיווט שני — רק נקודת ניקוז שנייה.
+   */
+  waitUntil(dispatchNow(result.appointment.id))
 
   return NextResponse.json({ ok: true, appointment: result.appointment }, { status: 201 })
 }

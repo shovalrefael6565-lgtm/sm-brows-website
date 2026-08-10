@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { rejectReschedule } from '@/lib/appointmentApproval'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,8 +38,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     )
   }
 
+  // 🔒 15F — `id` = שורת הבקשה, שעליה נרשם `reschedule_rejected`.
+  waitUntil(dispatchNow(id))
+
   return NextResponse.json({
     ok: true,
     message: 'בקשת שינוי המועד נדחתה. התור המקורי נשאר ללא שינוי.',
+    // 🔒 15F — הנוסח המאושר, עם המועד **המקורי** שנשאר שמור.
+    whatsappUrl: result.whatsappUrl,
   })
 }

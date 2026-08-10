@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { approveAndSyncAppointment } from '@/lib/appointmentApproval'
+import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +23,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const result = await approveAndSyncAppointment(id, guard.userId)
+
+  /*
+   * 🔒 15F — ההתראה, אחרי ה-COMMIT ולפני ה-return.
+   *
+   * ⚠️ **גם במסלול השגיאה.** `result.approved` אומר שהתור אושר ב-DB ורק
+   * סנכרון היומן נכשל — הלקוחה צריכה לדעת שהתור אושר בדיוק כמו במסלול
+   * המוצלח. תלייה של ההתראה ב-`result.ok` הייתה משתיקה אותה בגלל תקלה
+   * ב-Google, שאין לה שום קשר ללקוחה.
+   *
+   * ⚠️ `waitUntil` ולא await, ולא fire-and-forget: ב-Next 14.2 אין
+   * `unstable_after`, ו-Promise שלא ממתינים לו נקטע ברגע שהתשובה נשלחת.
+   * `waitUntil` מחזיק את ה-function בחיים בלי לחסום את התשובה.
+   *
+   * 🔒 `dispatchNow` אינה זורקת ואינה משנה את תשובת ה-HTTP.
+   */
+  if (result.ok || result.approved) waitUntil(dispatchNow(id))
+
   if (!result.ok) {
     // ⚠️ approved=true נשלח גם בתשובת השגיאה: התור אושר ב-DB והשעה תפוסה,
     // ורק סנכרון היומן נכשל. בלי זה ה-UI היה מציג "האישור נכשל" על תור
