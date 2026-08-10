@@ -49,6 +49,38 @@
 
 
 -- ============================================================================
+-- חלק 0 — תנאי מוקדם
+--
+-- ⚠️ **נוסף אחרי כשל אמיתי בפרודקשן.** ההרצה הראשונה של 0026 החזירה
+-- `42710: type "notification_event" already exists` — שגיאה ש-0026 אינו
+-- יכול לייצר, כי אין בו `create type` והוא אינו מזכיר notification_event
+-- כלל. מה שהורץ בפועל היה **0025 בשנית**, ששורתו הראשונה היא בדיוק
+-- `create type notification_event`.
+--
+-- הבלוק הזה הופך את הבלבול הזה לשגיאה שמסבירה את עצמה: אם 0025 חסר,
+-- נאמר זאת במילים במקום להיכשל בהמשך על משהו שנראה לא קשור.
+-- ============================================================================
+
+do $$
+begin
+  if to_regtype('public.notification_event') is null
+     or to_regclass('public.appointment_notifications') is null then
+    raise exception
+      '0026 דורשת ש-0025 תותקן קודם (appointment_notifications חסרה). ⚠️ אם קיבלת "type notification_event already exists" — הורץ 0025 בשנית, לא 0026.'
+      using errcode = 'P0107';
+  end if;
+
+  if not exists (
+    select 1 from public.business_settings where key = 'building_entry_code'
+  ) then
+    raise exception '0026 דורשת ש-0024 תותקן קודם (building_entry_code חסר).'
+      using errcode = 'P0107';
+  end if;
+end;
+$$;
+
+
+-- ============================================================================
 -- חלק 1 — הסרת ההרשאה הישירה
 -- ============================================================================
 
@@ -66,6 +98,11 @@ revoke all on public.business_settings from anon, authenticated;
 -- ============================================================================
 
 drop policy if exists business_settings_read on public.business_settings;
+
+-- ⚠️ **גם על ה-policy החדש**, כדי ש-0026 תהיה ניתנת להרצה חוזרת.
+-- בלי זה הרצה שנייה נופלת על 42710 — בדיוק סוג השגיאה שגרם לבלבול
+-- בהרצה הראשונה. מיגרציה שנכשלת באמצע צריכה להיות בטוחה להרצה מחדש.
+drop policy if exists business_settings_read_public on public.business_settings;
 
 create policy business_settings_read_public on public.business_settings
   for select
