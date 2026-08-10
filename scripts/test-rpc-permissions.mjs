@@ -213,6 +213,18 @@ const ASSERTION_MIGRATIONS = {
     'approve_reschedule_request(uuid,uuid)',
     'reject_reschedule_request(uuid,uuid)',
   ],
+  /**
+   * שלב 15E, חלק שני — הסרת reschedule_appointment_by_customer.
+   *
+   * ⚠️ הרשימה **ריקה בכוונה**, מאותו שיקול בדיוק כמו 0021: 0023 אינה
+   * יוצרת שום פונקציה, היא רק מוחקת אחת. הכניסה כאן היא מה שמכריח אותה
+   * לשאת בלוק DO אמיתי עם has_function_privilege לשלושת התפקידים —
+   * כולל הבדיקה ההפוכה ש-service_role לא איבד הרשאה.
+   *
+   * החתימה שנמחקת עצמה נשארת ממופה ל-0007, שם יושב בלוק ה-assertion
+   * ההיסטורי שלה.
+   */
+  '0023_drop_legacy_reschedule.sql': [],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

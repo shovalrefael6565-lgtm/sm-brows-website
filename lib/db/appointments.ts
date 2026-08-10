@@ -780,47 +780,19 @@ function toCustomerRow(raw: Record<string, unknown>): CustomerAppointmentRow {
 }
 
 /**
- * שינוי מועד ע"י הלקוחה. כל האכיפה — בעלות, סטטוס, מדיניות, מונה ההזזות
- * וההיסטוריה — מתבצעת בתוך reschedule_appointment_by_customer (0005),
- * בטרנזקציה אחת עם ה-UPDATE. אין כאן בדיקה מקדימה שאפשר "לעקוף".
- */
-export async function rescheduleAppointmentByCustomer(params: {
-  appointmentId: string
-  customerId: string
-  newStartsAt: Date
-  /** המועד שהלקוחה ראתה על המסך — משמש רק להבחנה בין no_change להתאוששות */
-  expectedStartsAt: Date | null
-}): Promise<
-  | { ok: true; outcome: RescheduleOutcome; appointment: CustomerAppointmentRow }
-  | { ok: false; error: SelfServiceError }
-> {
-  const db = createSupabaseAdminClient()
-  const { data, error } = await db.rpc('reschedule_appointment_by_customer', {
-    p_appointment_id: params.appointmentId,
-    p_customer_id: params.customerId,
-    p_new_starts_at: params.newStartsAt.toISOString(),
-    p_expected_starts_at: params.expectedStartsAt?.toISOString() ?? null,
-  })
-
-  if (error) {
-    const mapped = mapSelfServiceError(error)
-    if (mapped === 'db_error') {
-      console.error('[appointments] reschedule failed', error.message)
-    }
-    return { ok: false, error: mapped }
-  }
-
-  const envelope = data as unknown as RpcEnvelope<RescheduleOutcome>
-  return { ok: true, outcome: envelope.outcome, appointment: toCustomerRow(envelope.appointment) }
-}
-
-/**
  * 🔒 שלב 15E — יצירת **בקשת** שינוי מועד.
  *
- * ⚠️ ההבדל המהותי מ-rescheduleAppointmentByCustomer שמעליה: כאן לא זז
- * שום דבר. נוצרת שורת appointments **שנייה** בסטטוס pending שמצביעה על
- * התור המקורי, והמקורי נשאר confirmed וחוסם את שעתו עד ששובל מכריעה.
- * ה-EXCLUDE constraint חוסם את שעת היעד בזכות עצם היות השורה pending.
+ * ⚠️ עד 15E ישבה כאן rescheduleAppointmentByCustomer, שקראה ל-
+ * reschedule_appointment_by_customer (0005) והזיזה תור **מיידית** —
+ * UPDATE ישיר על starts_at, בלי אישור ובלי שלב ביניים. הפונקציה הזו
+ * נמחקה מהקוד, וה-RPC שמאחוריה נמחק מהמסד ב-0023. **אין להחזיר אותה:**
+ * היא עוקפת את מודל האישור, ומחזיקה עותק שני של כלל 6 השעות ושל
+ * max_reschedules — כולל ענף המקדמה ש-15E ביטל.
+ *
+ * כאן לא זז שום דבר. נוצרת שורת appointments **שנייה** בסטטוס pending
+ * שמצביעה על התור המקורי, והמקורי נשאר confirmed וחוסם את שעתו עד
+ * ששובל מכריעה. ה-EXCLUDE constraint חוסם את שעת היעד בזכות עצם היות
+ * השורה pending.
  *
  * כל האכיפה — בעלות, סטטוס, חפיפה עצמית, כלל 6 השעות, מונה ההזזות
  * ובקשה-פתוחה-אחת — נמצאת בתוך create_reschedule_request (0022),

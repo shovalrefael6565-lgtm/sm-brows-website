@@ -711,6 +711,75 @@ section('14. 🔴 ביטול המקור סוגר בקשה פתוחה — אין 
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('15. 🔴 שני השומרים שהיו מכוסים רק ע"י ה-RPC הישן')
+/*
+ * ⚠️ הסעיף הזה נוסף יחד עם 0023.
+ *
+ * NEW_IN_PAST ו-SYNC_IN_PROGRESS נבדקו עד כה **רק** ב-
+ * scripts/test-reschedule-cancel.mjs, מול reschedule_appointment_by_customer
+ * שנמחקת ב-0023. אותם שני שומרים קיימים גם ב-create_reschedule_request —
+ * אבל מעולם לא היה להם טסט כאן.
+ *
+ * בלי הסעיף הזה, מחיקת ה-RPC הישן הייתה מורידה את הכיסוי היחיד שלהם
+ * בפרויקט, בלי שאף בדיקה תיכשל ותגיד על כך מילה.
+ */
+{
+  const c = await makeCustomer('+972500000915', 'לקוחה 15')
+
+  // ── NEW_IN_PAST — מועד יעד שכבר עבר ──────────────────────────────────────
+  //
+  // ⚠️ נבדק **לפני** כל שאר הוולידציות בפונקציה, ולכן הוא נכשל גם על תור
+  // תקין לחלוטין. זו בדיוק הנקודה: יעד בעבר אינו "מועד תפוס" ואינו
+  // "מאוחר מדי" — הוא קלט פסול.
+  {
+    const a = await makeConfirmed({ customerId: c.id, startsAt: hours(900) })
+    const past = await attempt(() => request(a.id, c.id, hours(-5)))
+    chk('🔴 בקשה למועד שכבר עבר נדחית ב-NEW_IN_PAST',
+      !past.ok && past.msg.includes('NEW_IN_PAST'),
+      past.ok ? 'עברה בטעות!' : past.msg.slice(0, 40))
+    chk('   התור המקורי לא נגוע', (await byId(a.id)).status === 'confirmed')
+    chk('   לא נוצרה שורת בקשה',
+      (await all(`select 1 from public.appointments where reschedule_of_appointment_id = $1`,
+        [a.id])).length === 0)
+  }
+
+  // ── SYNC_IN_PROGRESS — lease סנכרון חי על המקור ──────────────────────────
+  //
+  // ⚠️ החלון הוא **2 דקות** מ-calendar_sync_started_at. הבדיקה מזייפת lease
+  // טרי, ומיד אחריה lease ישן — כדי להוכיח שהחסימה תלויה בגיל ה-lease
+  // ולא רק בסטטוס 'syncing'. lease שפג אינו אמור לחסום לקוחה לנצח.
+  {
+    const a = await makeConfirmed({ customerId: c.id, startsAt: hours(910) })
+
+    await db.query(
+      `update public.appointments
+         set calendar_sync_status = 'syncing', calendar_sync_started_at = now()
+       where id = $1`,
+      [a.id],
+    )
+    const busy = await attempt(() => request(a.id, c.id, hours(930)))
+    chk('🔴 בקשה תחת lease סנכרון חי נדחית ב-SYNC_IN_PROGRESS',
+      !busy.ok && busy.msg.includes('SYNC_IN_PROGRESS'),
+      busy.ok ? 'עברה בטעות!' : busy.msg.slice(0, 40))
+
+    // אותו סטטוס בדיוק, אבל lease בן 5 דקות — כלומר worker שנקטע.
+    await db.query(
+      `update public.appointments
+         set calendar_sync_started_at = now() - interval '5 minutes'
+       where id = $1`,
+      [a.id],
+    )
+    const stale = await attempt(() => request(a.id, c.id, hours(930)))
+    chk('🔒 lease שפג (5 דקות) אינו חוסם — הלקוחה אינה תקועה', stale.ok,
+      stale.ok ? '' : stale.msg.slice(0, 40))
+    if (stale.ok) {
+      chk('   הבקשה נוצרה כ-pending', stale.row.status === 'pending')
+      chk('   ומצביעה על המקור', stale.row.reschedule_of_appointment_id === a.id)
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 const failed = results.filter(r => !r).length
 console.log(`\n${'═'.repeat(72)}`)
 console.log(failed === 0
