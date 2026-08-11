@@ -1,5 +1,6 @@
 import type { AppointmentRow } from '@/lib/db/appointments'
 import { NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS } from '@/lib/services'
+import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
 
 /**
  * תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB
@@ -87,6 +88,23 @@ export function formatDateTimeIL(iso: string): { date: string; time: string } {
     timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(d)
   return { date, time }
+}
+
+/**
+ * מועד קומפקטי ל-SMS: `24/08/2026` ו-`17:00`, בשעון ישראל.
+ *
+ * ⚠️ נפרד מ-`formatDateTimeIL` בכוונה. זה מחזיר "24 באוגוסט 2026" — 15
+ * תווים, כמעט שליש מהודעת SMS שלמה. בהודעה שנמדדת בתווים החודש המילולי
+ * הוא מותרות; במסך ניהול הוא קריא יותר. שני שימושים, שני נוסחים.
+ *
+ * ⚠️ נגזר מ-`israelDateStr` (en-CA, Asia/Jerusalem) ולא מ-`he-IL`: הפורמט
+ * של he-IL הוא `24.08.2026` עם נקודות, והוא נתון לשינוי לפי גרסת ICU.
+ * כאן הפלט דטרמיניסטי לחלוטין.
+ */
+export function formatDateTimeCompactIL(iso: string): { date: string; time: string } {
+  const d = new Date(iso)
+  const [y, m, day] = israelDateStr(d).split('-')
+  return { date: `${day}/${m}/${y}`, time: fmtIsrael(d) }
 }
 
 // ─── CRM (שלב 9) ────────────────────────────────────────────────────────────

@@ -2,11 +2,18 @@ import 'server-only'
 import { randomUUID } from 'crypto'
 import { areNotificationsEnabled, isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import { isDispatchable, resolveNotificationProvider, type ReminderProvider } from './provider'
-import { isAwaitingApprovedTemplate, smsBodyFor } from '@/lib/messageTemplates'
+import {
+  isAwaitingApprovedTemplate,
+  requiresContext,
+  smsBodyFor,
+  smsBodyWithContext,
+} from '@/lib/messageTemplates'
+import { formatDateTimeCompactIL } from '@/lib/admin/format'
 import {
   NOTIFICATION_MAX_ATTEMPTS,
   claimNotification,
   finishNotificationAttempt,
+  loadNotificationContext,
   loadNotificationRecipient,
   skipNotification,
   type NotificationRow,
@@ -83,6 +90,7 @@ export interface NotificationDb {
   finishNotificationAttempt: typeof finishNotificationAttempt
   skipNotification: typeof skipNotification
   loadNotificationRecipient: typeof loadNotificationRecipient
+  loadNotificationContext: typeof loadNotificationContext
 }
 
 export interface DispatchDeps {
@@ -100,6 +108,7 @@ function defaultDeps(): DispatchDeps {
       finishNotificationAttempt,
       skipNotification,
       loadNotificationRecipient,
+      loadNotificationContext,
     },
   }
 }
@@ -172,7 +181,32 @@ async function processOne(
   //
   // ⚠️ נבדק **לפני** טעינת הנמען. אין שום סיבה לשלוף מספר טלפון של לקוחה
   // עבור הודעה שלא נשלח לה נוסח.
-  const body = smsBodyFor(row.event, row.recipient_role)
+  let body = smsBodyFor(row.event, row.recipient_role)
+
+  /*
+   * שני נוסחי ה-admin הדינמיים — הם היחידים שדורשים נתוני לקוחה.
+   *
+   * ⚠️ הטעינה מותנית ב-`requiresContext` ולא נעשית תמיד. זה מה ששומר על
+   * הכלל של 15F: להודעות שנמענן הוא הלקוחה נטען **טלפון בלבד**, ואף שם,
+   * מועד או טיפול אינם נשלפים מה-DB עבורן.
+   */
+  if (requiresContext(row.event, row.recipient_role)) {
+    const ctx = await d.db.loadNotificationContext(row.appointment_id)
+    if (!ctx) {
+      // ⚠️ בלי הקשר אין הודעה — ואין לשלוח נוסח חלקי שחסר בו מי או מתי.
+      await d.db.skipNotification(row.id, leaseToken, 'context_unavailable')
+      stats.skipped++
+      return
+    }
+    // 🔒 מועד **התור**, לא רגע הביטול. ראה loadNotificationContext.
+    const { date, time } = formatDateTimeCompactIL(ctx.startsAt)
+    body = smsBodyWithContext(row.event, row.recipient_role, {
+      customerName: ctx.customerName,
+      appointmentDate: date,
+      appointmentTime: time,
+    })
+  }
+
   if (body === null) {
     // ⚠️ שתי עובדות שונות שנראות זהות: אירוע שממתין לאישור נוסח הוא פער
     // ידוע שדורש החלטה עסקית, ואילו זוג ללא נוסח הוא באג בחיווט שדורש

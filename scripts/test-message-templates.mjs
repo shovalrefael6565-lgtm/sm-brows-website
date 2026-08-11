@@ -38,6 +38,11 @@ const {
   smsBodyFor,
   smsLength,
   hasEmoji,
+  requiresContext,
+  smsBodyWithContext,
+  sanitizeCustomerName,
+  buildRescheduleRequestedAdminSms,
+  buildBookingCancelledAdminSms,
 } = await import('../lib/messageTemplates.ts')
 
 // ─── 1. המגבלה ──────────────────────────────────────────────────────────────
@@ -54,7 +59,7 @@ for (const [kind, body] of Object.entries(REMINDER_SMS_V2_UNWIRED)) {
   allTexts.push([`reminder/${kind}`, body])
 }
 
-chk('11 נוסחים בסך הכול', allTexts.length === 11, `נמצאו ${allTexts.length}`)
+chk('9 נוסחים סטטיים (שניים הפכו דינמיים)', allTexts.length === 9, `נמצאו ${allTexts.length}`)
 
 for (const [label, body] of allTexts) {
   const len = smsLength(body)
@@ -96,8 +101,6 @@ section('הנוסחים המאושרים (snapshot)')
  */
 const EXPECTED = {
   'booking_requested/admin':    ['בקשת תור חדשה. לניהול: https://smbrows.co.il/admin', 50],
-  'reschedule_requested/admin': ['בקשת שינוי מועד. לניהול: https://smbrows.co.il/admin', 52],
-  'booking_cancelled/admin':    ['תור בוטל ע"י לקוחה. לניהול: https://smbrows.co.il/admin', 55],
   'booking_approved/customer':  ['תורך אושר. לפרטים: https://smbrows.co.il/account', 48],
   'booking_rejected/customer':  ['בקשת התור לא אושרה. לפרטים: https://smbrows.co.il/account', 57],
   'reschedule_approved/customer': ['שינוי המועד אושר. לפרטים: https://smbrows.co.il/account', 55],
@@ -155,14 +158,11 @@ chk('🔒 הנוסחים סטטיים (אין תלות בשעון או במצב)
 // ─── 4. המיפוי ──────────────────────────────────────────────────────────────
 section('מיפוי (אירוע, נמען)')
 
-chk('booking_cancelled הוא היחיד עם שני נמענים',
-  Object.entries(SMS_TEXT).filter(([, r]) => Object.keys(r).length === 2)
-    .every(([e]) => e === 'booking_cancelled')
-  && Object.keys(SMS_TEXT.booking_cancelled).sort().join(',') === 'admin,customer')
+chk('🔒 שני הזוגות הדינמיים אינם ב-SMS_TEXT',
+  !SMS_TEXT.reschedule_requested && !SMS_TEXT.booking_cancelled.admin)
 
 chk('בקשות הולכות לאדמין, הכרעות ללקוחה',
   !!SMS_TEXT.booking_requested.admin && !SMS_TEXT.booking_requested.customer
-  && !!SMS_TEXT.reschedule_requested.admin && !SMS_TEXT.reschedule_requested.customer
   && !!SMS_TEXT.booking_approved.customer && !SMS_TEXT.booking_approved.admin
   && !!SMS_TEXT.booking_rejected.customer && !SMS_TEXT.booking_rejected.admin
   && !!SMS_TEXT.reschedule_approved.customer && !SMS_TEXT.reschedule_approved.admin
@@ -175,6 +175,64 @@ chk('בקשות הולכות לאדמין, הכרעות ללקוחה',
 chk('🔒 זוג ללא נוסח מחזיר null ולא נוסח חלופי',
   smsBodyFor('booking_approved', 'admin') === null
   && smsBodyFor('booking_requested', 'customer') === null)
+
+// ─── 4ב. שני נוסחי ה-ADMIN הדינמיים ─────────────────────────────────────────
+section('נוסחי ADMIN דינמיים')
+
+chk('🔒 שני הזוגות הדינמיים — ושניהם admin בלבד',
+  requiresContext('reschedule_requested', 'admin')
+  && requiresContext('booking_cancelled', 'admin')
+  && !requiresContext('reschedule_requested', 'customer')
+  && !requiresContext('booking_cancelled', 'customer')
+  && !requiresContext('booking_approved', 'customer'))
+
+chk('בקשת שינוי מועד — נוסח מדויק',
+  buildRescheduleRequestedAdminSms({ customerName: 'דנה כהן' })
+  === 'בקשת שינוי מועד: דנה כהן. ניהול: https://smbrows.co.il/admin')
+
+chk('ביטול — נוסח מדויק, וללא קישור',
+  buildBookingCancelledAdminSms({
+    customerName: 'דנה כהן', appointmentDate: '24/08/2026', appointmentTime: '17:00',
+  }) === 'תור בוטל: דנה כהן, 24/08/2026 17:00')
+chk('🔒 הודעת הביטול אינה מכילה URL',
+  !/https?:/.test(buildBookingCancelledAdminSms({
+    customerName: 'דנה כהן', appointmentDate: '24/08/2026', appointmentTime: '17:00' })))
+
+/**
+ * 🔒 **המקרה שהתקציב קיים בשבילו.** שם ארוך פתולוגית חייב להיחתך, ולא
+ * להפוך את ההודעה לשני מקטעים.
+ */
+{
+  const long = 'א'.repeat(400)
+  const a = buildRescheduleRequestedAdminSms({ customerName: long })
+  const b = buildBookingCancelledAdminSms({
+    customerName: long, appointmentDate: '24/08/2026', appointmentTime: '17:00' })
+  chk('🔒 שם באורך 400 — בקשת שינוי ≤70', smsLength(a) <= SMS_MAX_CHARS, `${smsLength(a)}`)
+  chk('🔒 שם באורך 400 — ביטול ≤70', smsLength(b) <= SMS_MAX_CHARS, `${smsLength(b)}`)
+  chk('הקיצוץ מסומן ב-…', a.includes('…') && b.includes('…'))
+  // ⚠️ הקישור והמועד לעולם אינם נחתכים — רק השם.
+  chk('🔒 הקישור נשאר שלם גם בשם מקסימלי', a.endsWith('https://smbrows.co.il/admin'))
+  chk('🔒 המועד נשאר שלם גם בשם מקסימלי', b.endsWith('24/08/2026 17:00'))
+}
+
+/**
+ * ⚠️ `full_name` הוא טקסט חופשי מהטופס. אמוג'י שם היה שובר את כלל
+ * ה-multipart ומבזבז תקציב.
+ */
+chk("🔒 אמוג'י בשם מוסר לפני המדידה",
+  sanitizeCustomerName('דנה 🌸💆‍♀️ כהן') === 'דנה כהן',
+  JSON.stringify(sanitizeCustomerName('דנה 🌸💆‍♀️ כהן')))
+chk('שורה חדשה ורווחים כפולים מנורמלים',
+  sanitizeCustomerName('  דנה\n\n  כהן  ') === 'דנה כהן')
+for (const bad of ['דנה 🌸 כהן', 'דנה\nכהן', 'דנה 🇮🇱']) {
+  const out = buildBookingCancelledAdminSms({
+    customerName: bad, appointmentDate: '24/08/2026', appointmentTime: '17:00' })
+  chk(`🔒 פלט נקי עבור ${JSON.stringify(bad)}`,
+    !hasEmoji(out) && !out.includes('\n') && smsLength(out) <= SMS_MAX_CHARS)
+}
+
+chk('smsBodyWithContext מחזיר null לזוג שאינו דינמי',
+  smsBodyWithContext('booking_approved', 'customer', { customerName: 'x' }) === null)
 
 // ─── 5. התזכורות אינן מחווטות ───────────────────────────────────────────────
 section('תזכורות — 15G, לא מחווטות')

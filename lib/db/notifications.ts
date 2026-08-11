@@ -164,3 +164,52 @@ export async function loadNotificationRecipient(
   }
   return (data as string | null) ?? null
 }
+
+/**
+ * שם הלקוחה ומועד התור — **רק** לשני נוסחי ה-admin הדינמיים.
+ *
+ * 🔒 **השם מגיע מ-`customers.full_name`**, מקור האמת הקנוני. לא מהשם
+ * שהוקלד בטופס ההזמנה, לא מ-snapshot על שורת התור, ולא מ-cache: לקוחה
+ * שעדכנה את שמה באזור האישי צריכה להופיע בשמה הנוכחי.
+ *
+ * 🔒 **`starts_at` הוא מועד התור, לא רגע הביטול.** ⚠️ ההבחנה הזו היא כל
+ * הערך של הודעת הביטול: "תור בוטל: דנה, 24/08 17:00" אומר לשובל איזו
+ * משבצת התפנתה. חותמת הזמן של הביטול הייתה אומרת לה רק מתי לחצו — מידע
+ * שהיא ממילא מסיקה מרגע קבלת ההודעה.
+ *
+ * ⚠️ נטען **רק** כש-`requiresContext` מחזיר true. שאר הזוגות ממשיכים
+ * במסלול שטוען טלפון בלבד, בדיוק כפי שנקבע ב-15F.
+ */
+export interface NotificationContext {
+  customerName: string
+  startsAt: string
+}
+
+export async function loadNotificationContext(
+  appointmentId: string,
+): Promise<NotificationContext | null> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('appointments')
+    // embed בעומק אחד — אותו דפוס כמו loadReminderRecipient
+    .select('starts_at, customers(full_name)')
+    .eq('id', appointmentId)
+    .single()
+
+  if (error || !data) {
+    if (error) console.error('[notifications] load context failed', error.message)
+    return null
+  }
+
+  const row = data as unknown as {
+    starts_at: string
+    customers: { full_name: string | null } | null
+  }
+
+  // ⚠️ שם ריק אינו חוסם: ההודעה עדיין נושאת את המועד, ששווה משהו לשובל.
+  // מה שכן חוסם הוא היעדר starts_at, שאינו אפשרי (עמודה not null).
+  return {
+    customerName: row.customers?.full_name?.trim() || 'לקוחה',
+    startsAt: row.starts_at,
+  }
+}

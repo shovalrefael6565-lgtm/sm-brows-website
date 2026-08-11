@@ -59,7 +59,8 @@ function fakeProvider(outcome = { outcome: 'accepted', providerMessageId: 'm1' }
  * ⚠️ הספירה היא כל העניין: "כבוי = אפס כתיבות" אינו ניתן לאכיפה ע"י
  * טיפוסים, ואי אפשר להוכיח אותו בלי לספור בפועל.
  */
-function fakeDb(rows = [], phone = '+972501112233') {
+function fakeDb(rows = [], phone = '+972501112233',
+  ctx = { customerName: 'דנה כהן', startsAt: '2026-08-24T14:00:00.000Z' }) {
   const queue = [...rows]
   const log = []
   return {
@@ -85,6 +86,10 @@ function fakeDb(rows = [], phone = '+972501112233') {
     async loadNotificationRecipient(appointmentId, role) {
       log.push({ fn: 'recipient', role })
       return typeof phone === 'function' ? phone(role) : phone
+    },
+    async loadNotificationContext(appointmentId) {
+      log.push({ fn: 'context', appointmentId })
+      return ctx
     },
   }
 }
@@ -162,6 +167,18 @@ section('2. מסלול מוצלח, וניקוז שתי שורות')
     stats.claimed === 2 && stats.sent === 2, `claimed=${stats.claimed} sent=${stats.sent}`)
   chk('נשלחו שני נוסחים שונים — ללקוחה ולשובל',
     provider.calls.length === 2 && provider.calls[0].body !== provider.calls[1].body)
+  /**
+   * 🔒 צד ה-admin דינמי ונושא שם ומועד; צד הלקוחה סטטי ואינו נושא PII.
+   * ⚠️ זו ההפרדה המרכזית של השינוי, ולכן היא נבדקת על הפלט בפועל.
+   */
+  const adminBody = provider.calls.find(c => c.body.startsWith('תור בוטל:'))?.body
+  const custBody = provider.calls.find(c => c.body.startsWith('תורך בוטל'))?.body
+  chk('הודעת ה-admin נושאת שם ומועד התור',
+    Boolean(adminBody) && adminBody.includes('דנה כהן') && adminBody.includes('17:00'),
+    adminBody)
+  chk('🔒 הודעת הלקוחה נשארה סטטית וללא PII',
+    custBody === 'תורך בוטל. לפרטים: https://smbrows.co.il/account', custBody)
+  chk('🔒 הודעת ה-admin ללא קישור', Boolean(adminBody) && !/https?:/.test(adminBody))
   chk('🔒 idempotencyKey = מזהה ההתראה, לא מספר ניסיון או חותמת זמן',
     provider.calls[0].idempotencyKey === '11111111-1111-1111-1111-111111111111'
     && provider.calls[1].idempotencyKey === '22222222-2222-2222-2222-222222222222')
@@ -234,6 +251,43 @@ chk('🔒 אין כרגע אף אירוע שממתין לאישור נוסח',
   await dispatchNow('appt-1', { provider: fakeProvider(), db })
   chk('לקוחה בלי טלפון → skip/customer_phone_missing',
     db.log.some(l => l.fn === 'skip' && l.reason === 'customer_phone_missing'))
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('3ב. 🔒 הקשר נטען רק לזוגות הדינמיים')
+
+{
+  enable()
+  const db = fakeDb([row({ event: 'booking_approved', recipient_role: 'customer' })])
+  await dispatchNow('appt-1', { provider: fakeProvider(), db })
+  /**
+   * 🔒 **הכלל של 15F נשמר.** להודעה שנמענה הוא הלקוחה לא נטענים שם או
+   * מועד — רק טלפון. אחרת השינוי הזה היה מרחיב PII לכל שמונת הנוסחים.
+   */
+  chk('🔒 זוג סטטי → אפס טעינת הקשר',
+    !db.log.some(l => l.fn === 'context'), JSON.stringify(db.log))
+}
+
+{
+  enable()
+  const db = fakeDb([row({ event: 'reschedule_requested', recipient_role: 'admin' })])
+  const provider = fakeProvider()
+  await dispatchNow('appt-1', { provider, db })
+  chk('זוג דינמי → ההקשר נטען', db.log.some(l => l.fn === 'context'))
+  chk('והשם הקנוני נכנס לגוף ההודעה',
+    provider.calls[0]?.body === 'בקשת שינוי מועד: דנה כהן. ניהול: https://smbrows.co.il/admin',
+    provider.calls[0]?.body)
+}
+
+{
+  enable()
+  // ⚠️ בלי הקשר אין הודעה — ולא נוסח חלקי שחסר בו מי או מתי.
+  const db = fakeDb([row({ event: 'booking_cancelled', recipient_role: 'admin' })], '+972501112233', null)
+  const provider = fakeProvider()
+  const stats = await dispatchNow('appt-1', { provider, db })
+  chk('🔒 הקשר חסר → skip/context_unavailable, ולא הודעה חלקית',
+    db.log.some(l => l.fn === 'skip' && l.reason === 'context_unavailable')
+    && provider.calls.length === 0 && stats.skipped === 1)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -357,13 +411,32 @@ const stripComments = code => code
 
 {
   const dbSrc = stripComments(src('lib/db/notifications.ts'))
+
   /**
-   * ⚠️ ההשוואה מול loadReminderRecipient אינה קישוט: שם נטענים service_key
-   * ו-variants כדי לבנות את שם הטיפול. כאן הנוסח סטטי, ולכן כל שדה נוסף
-   * הוא PII שנשלף בלי צורך.
+   * ⚠️ הבדיקה מתוחמת ל-`loadNotificationRecipient` בלבד, ולא לקובץ כולו.
+   *
+   * מאז שני נוסחי ה-admin הדינמיים יש בקובץ **מסלול PII מכוון** —
+   * `loadNotificationContext`. תיחום הסריקה הוא מה שמשאיר את הבדיקה
+   * משמעותית: מסלול הנמען חייב להישאר טלפון-בלבד, גם כשלידו יש מסלול
+   * שטוען שם.
    */
+  const recipientFn = dbSrc.slice(
+    dbSrc.indexOf('export async function loadNotificationRecipient'),
+    dbSrc.indexOf('export interface NotificationContext'),
+  )
   chk('🔒 טעינת הנמען מחזירה טלפון בלבד',
-    !/service_key|variants|full_name|price_total/.test(dbSrc))
+    recipientFn.length > 0
+    && !/service_key|variants|full_name|price_total/.test(recipientFn))
+
+  /**
+   * 🔒 מסלול ההקשר טוען **שם ומועד בלבד**. לא טיפול, לא מחיר, לא טלפון
+   * של הלקוחה — שום דבר שאינו נכנס בפועל לאחד משני הנוסחים.
+   */
+  const contextFn = dbSrc.slice(dbSrc.indexOf('export async function loadNotificationContext'))
+  chk('🔒 טעינת ההקשר אינה מושכת טיפול, מחיר או טלפון',
+    !/service_key|variants|price_total|phone_e164/.test(contextFn))
+  chk('🔒 והשם מגיע מ-customers.full_name הקנוני',
+    /customers\(full_name\)/.test(contextFn))
 
   const dispatchSrc = stripComments(src('lib/notifications/dispatch.ts'))
   const logLines = dispatchSrc.split('\n')
