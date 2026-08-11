@@ -23,9 +23,15 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 /** גודל עמוד ברשימת ה-CRM. ה-DB חותך ל-100 בכל מקרה. */
 export const CRM_PAGE_SIZE = 25
 
+/**
+ * ⚠️ 'archived' (15H) אינו עוד פילטר ברשימה אלא **מתג תצוגה**: הוא
+ * ה*יחיד* שמציג לקוחות מאורכבות, וכל שאר הערכים מסתירים אותן לגמרי
+ * (0028). הרשימה חייבת להישאר תואמת ל-v_filter ב-list_crm_customers —
+ * ערך שאינו מוכר שם נופל בשקט ל-'all', כלומר לתצוגה **בלי** הארכיון.
+ */
 export const CRM_FILTERS = [
   'all', 'active', 'inactive', 'has_future', 'no_future',
-  'returning', 'no_show', 'cancelled',
+  'returning', 'no_show', 'cancelled', 'archived',
 ] as const
 export type CrmFilter = (typeof CRM_FILTERS)[number]
 
@@ -66,6 +72,14 @@ export interface CrmCustomerRow extends CrmMetrics {
   has_login_account: boolean
   crm_status: 'active' | 'inactive'
   source_key: string
+  /**
+   * 🔒 15H — לא null ⟹ הכרטיס בארכיון. אינו מופיע ברשימה הרגילה, אבל
+   * קישור ישיר אליו ממשיך לעבוד (אחרת לא היה אפשר להוציא אותו משם).
+   *
+   * ⚠️ ארכיון **אינו** מחיקה ואינו חוסם את הלקוחה: התורים, ההיסטוריה
+   * וההערות נשארים, והיא עדיין יכולה להתחבר ולקבוע תור.
+   */
+  archived_at: string | null
 }
 
 export interface CrmCustomerProfile extends CrmCustomerRow {
@@ -299,9 +313,18 @@ export type CrmMutationError =
   | 'customer_not_found' | 'note_not_found' | 'note_archived'
   | 'note_empty' | 'note_too_long' | 'idempotency_key_reused'
   | 'missing_request_id' | 'unknown'
+  // ── 15H ──
+  | 'bad_name' | 'bad_phone' | 'phone_taken' | 'has_login_account' | 'not_a_customer'
 
 function toMutationError(message: string): CrmMutationError {
   const m = message.toUpperCase()
+  // ⚠️ לפני NOT_ADMIN: 'NOT_A_CUSTOMER' אינו מכיל אותו, אבל הסדר כאן
+  // משמעותי בכל זוג שבו אחד הוא תת-מחרוזת של השני.
+  if (m.includes('NOT_A_CUSTOMER'))          return 'not_a_customer'
+  if (m.includes('HAS_LOGIN_ACCOUNT'))       return 'has_login_account'
+  if (m.includes('PHONE_TAKEN'))             return 'phone_taken'
+  if (m.includes('BAD_PHONE'))               return 'bad_phone'
+  if (m.includes('BAD_NAME'))                return 'bad_name'
   if (m.includes('NOT_ADMIN'))               return 'not_admin'
   if (m.includes('INVALID_STATUS'))          return 'invalid_status'
   if (m.includes('SOURCE_INACTIVE'))         return 'source_inactive'
@@ -362,4 +385,81 @@ export function archiveCustomerNote(noteId: string, customerId: string, adminUse
   return callCrmRpc<{ changed: boolean; note_id: string }>('archive_customer_note', {
     p_note_id: noteId, p_customer_id: customerId, p_admin_id: adminUserId,
   })
+}
+
+// ─── 15H — עריכה, ארכיון ומחיקה ─────────────────────────────────────────────
+//
+// 🔒 כל הארבע מקבלות adminUserId מ-requireAdminApi בשרת, וה-RPC מאמת אותו
+// שוב מול טבלת admins. גוף הבקשה אינו יכול להשפיע על מי נרשם כמבצע —
+// אותו גבול שנקבע בראש הקובץ.
+
+export type UpdateDetailsOutcome = 'updated' | 'no_change'
+
+/**
+ * עריכת שם ו/או טלפון.
+ *
+ * ⚠️ שינוי טלפון מותר **רק** ללקוחה בלי חשבון התחברות. ה-RPC מחזיר
+ * HAS_LOGIN_ACCOUNT אחרת — ראה ההסבר המלא ב-0028: שינוי הטלפון בכרטיס
+ * בלבד היה מנתק את הלקוחה מהאזור האישי שלה לשני הכיוונים.
+ *
+ * ⚠️ null בשדה = "אל תיגע בו". מחרוזת ריקה אינה מוחקת שם — היא מתורגמת
+ * ב-RPC ל-null מאותה סיבה.
+ */
+export function updateCustomerDetails(
+  customerId: string,
+  adminUserId: string,
+  fields: { fullName?: string | null; phone?: string | null },
+) {
+  return callCrmRpc<{ outcome: UpdateDetailsOutcome; changed?: string[]; full_name?: string }>(
+    'update_customer_details',
+    {
+      p_customer_id:   customerId,
+      p_admin_user_id: adminUserId,
+      p_full_name:     fields.fullName ?? null,
+      p_phone_e164:    fields.phone ?? null,
+    },
+  )
+}
+
+export type ArchiveOutcome = 'archived' | 'already_archived' | 'blocked_active_appointments'
+
+export function archiveCustomer(customerId: string, adminUserId: string) {
+  return callCrmRpc<{ outcome: ArchiveOutcome; active_count?: number; archived_at?: string }>(
+    'archive_customer',
+    { p_customer_id: customerId, p_admin_user_id: adminUserId },
+  )
+}
+
+export function unarchiveCustomer(customerId: string, adminUserId: string) {
+  return callCrmRpc<{ outcome: 'unarchived' | 'not_archived' }>(
+    'unarchive_customer',
+    { p_customer_id: customerId, p_admin_user_id: adminUserId },
+  )
+}
+
+export type DeleteOutcome =
+  | 'deleted'
+  | 'blocked_has_appointments'
+  | 'blocked_has_login_account'
+
+/**
+ * מחיקה — אך ורק כשאין ללקוחה אף תור **ואין לה חשבון התחברות**.
+ *
+ * 🔒 שני ה-'blocked' אינם כשלים אלא **התשובה הנכונה**, וכל אחד מסיבה אחרת:
+ *
+ *   blocked_has_appointments  — היסטוריה עסקית אינה נמחקת. ה-FK
+ *     `on delete restrict` (0001) הוא האכיפה בפועל.
+ *
+ *   blocked_has_login_account — 🔴 מחיקת הכרטיס אינה נוגעת ב-auth.users,
+ *     ואי אפשר למחוק אותה איתו אטומית (מערכות נפרדות). התוצאה הייתה
+ *     auth user יתום, sessions שנשארים תקפים (app_sessions תלוי ב-auth
+ *     ולא בלקוחה), וכרטיס חדש בשקט בהתחברות הבאה. ראה 0028.
+ *
+ * בשני המקרים הכלי הנכון הוא **ארכיון**.
+ */
+export function deleteCustomerIfSafe(customerId: string, adminUserId: string) {
+  return callCrmRpc<{ outcome: DeleteOutcome; appointment_count?: number | null }>(
+    'delete_customer_if_safe',
+    { p_customer_id: customerId, p_admin_user_id: adminUserId },
+  )
 }

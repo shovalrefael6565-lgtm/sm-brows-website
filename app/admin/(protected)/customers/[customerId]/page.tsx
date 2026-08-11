@@ -12,6 +12,7 @@ import {
 } from '@/lib/admin/format'
 import CrmControls from '@/components/admin/CrmControls'
 import CustomerNotes from '@/components/admin/CustomerNotes'
+import CustomerAdminControls from '@/components/admin/CustomerAdminControls'
 import CustomerTimeline, { type TimelineAppointment } from '@/components/admin/CustomerTimeline'
 
 export const dynamic = 'force-dynamic'
@@ -132,6 +133,20 @@ export default async function CustomerProfilePage({
           crmStatus={customer.crm_status}
           sourceKey={customer.source_key}
           sources={sources}
+        />
+
+        {/*
+          🔒 15H — עריכה, ארכיון ומחיקה.
+          המחיקה נחסמת ב-DB לכל לקוחה שיש לה ולו תור אחד (on delete
+          restrict + delete_customer_if_safe), ולכן הכפתור כאן אינו מסתמך
+          על מה שמוצג במסך.
+        */}
+        <CustomerAdminControls
+          customerId={customer.id}
+          fullName={customer.full_name}
+          phone={customer.phone_e164}
+          hasLoginAccount={customer.has_login_account}
+          archivedAt={customer.archived_at}
         />
       </section>
 

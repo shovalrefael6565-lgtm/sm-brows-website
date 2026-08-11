@@ -261,6 +261,43 @@ const ASSERTION_MIGRATIONS = {
     'skip_notification(uuid,uuid,text)',
     'notification_recipient_phone(uuid,notification_recipient_role)',
   ],
+  /**
+   * שלב 15H, חלק ראשון — הביטול הניהולי.
+   *
+   * 🔴 cancel_confirmed_appointment_by_admin מבטלת תור מאושר **ושולחת SMS
+   * ללקוחה** דרך הטריגר של 0025. חשיפה ל-anon הייתה מאפשרת לכל מי שמחזיק
+   * את מפתח ה-anon לבטל תורים של לקוחות ולהציף אותם בהודעות ביטול
+   * שקריות — על חשבון העסק.
+   *
+   * ⚠️ claim_calendar_sync אינה כאן: היא מ-0005, כבר ברשימה תחת המיגרציה
+   * שהגדירה אותה, ו-0027 רק מחליפה את גופה.
+   */
+  '0027_admin_cancellation.sql': [
+    'cancel_confirmed_appointment_by_admin(uuid,uuid)',
+  ],
+  /**
+   * שלב 15H, חלק שני — ניהול כרטיס הלקוחה.
+   *
+   * 🔴 ארבע הפונקציות משנות זהות לקוחה, מסתירות כרטיסים ומוחקות שורות:
+   *
+   *   update_customer_details — משנה שם **וטלפון**. הטלפון הוא הזיהוי
+   *     הראשי במערכת; חשיפה כאן הייתה מאפשרת השתלטות על כרטיס לקוחה
+   *     ע"י הפניית המספר.
+   *   archive_customer / unarchive_customer — מעלימות ומחזירות כרטיסים
+   *     מהרשימה שעליה שובל מנהלת את העסק.
+   *   delete_customer_if_safe — **מוחקת שורה**. היא בטוחה מבחינת היסטוריה
+   *     (חסומה על כל לקוחה עם תור), אבל זו עדיין מחיקה.
+   *
+   * ⚠️ list_crm_customers ו-get_crm_customer אינן כאן: הן מ-0009/0010,
+   * כבר ברשימה תחת המיגרציות שהגדירו אותן, ו-0028 רק מחליפה את גופן —
+   * הן מקבלות revoke/grant חוזר שם כדי שההרשאות לא ייפתחו בהחלפה.
+   */
+  '0028_customer_management.sql': [
+    'update_customer_details(uuid,uuid,text,text)',
+    'archive_customer(uuid,uuid)',
+    'unarchive_customer(uuid,uuid)',
+    'delete_customer_if_safe(uuid,uuid)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

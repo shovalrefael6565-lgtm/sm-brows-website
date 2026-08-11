@@ -10,6 +10,7 @@ import {
   getAppointmentForAdmin,
   approveRescheduleRequest,
   rejectRescheduleRequest,
+  cancelConfirmedAppointmentByAdmin,
 } from '@/lib/db/appointments'
 import {
   updateAppointmentEventTime,
@@ -19,7 +20,7 @@ import {
 } from '@/lib/googleCalendar'
 import { loadAppointmentPolicy, loadBuildingEntryCode } from '@/lib/db/businessSettings'
 import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
-import { treatmentLabel, formatDateTimeIL } from '@/lib/admin/format'
+import { treatmentLabel, formatDateTimeIL, STATUS_LABELS } from '@/lib/admin/format'
 import {
   buildApprovalMessage,
   buildRejectionMessage,
@@ -443,10 +444,15 @@ export async function retryCalendarSync(appointmentId: string): Promise<Approval
   // 🔒 15E — (rescheduled, delete) הוא צירוף חוקי: התור המקורי שהוזז,
   // שהאירוע הישן שלו עדיין ממתין למחיקה. בלעדיו retry ידני על אירוע
   // כזה היה מוחזר כ-not_syncable והאירוע היה נשאר ביומן לנצח.
+  // 🔒 15H — (cancelled_by_business, delete) הוא צירוף חוקי: תור שבוטל ע"י
+  // שובל והאירוע שלו ממתין למחיקה. חייב להישאר תואם לרשימה ב-
+  // claim_calendar_sync (0027) — רשימה שמתירה שם וחוסמת כאן הייתה מייצרת
+  // not_syncable על תור שהמסד דווקא מוכן לסנכרן.
   const syncable =
     (row.status === 'confirmed' && row.calendar_sync_operation === 'upsert') ||
     (row.status === 'cancelled_by_customer' && row.calendar_sync_operation === 'delete') ||
-    (row.status === 'rescheduled' && row.calendar_sync_operation === 'delete')
+    (row.status === 'rescheduled' && row.calendar_sync_operation === 'delete') ||
+    (row.status === 'cancelled_by_business' && row.calendar_sync_operation === 'delete')
 
   if (!syncable) {
     return {
@@ -652,6 +658,105 @@ export async function rejectReschedule(
   return {
     ok: true,
     whatsappUrl: buildWhatsAppLinkToCustomer(original.customer_phone_e164, message),
+  }
+}
+
+/**
+ * 🔒 שלב 15H — ביטול תור מאושר ע"י שובל.
+ *
+ * ═══ סדר הפעולות, ולמה הוא כזה ═══
+ *
+ *   1. ה-RPC (0027) עושה הכול ב-DB בטרנזקציה אחת: הסטטוס, שחרור השעה,
+ *      סגירת בקשת שינוי מועד פתוחה, ושורת ההיסטוריה.
+ *      **אחרי ה-COMMIT הזה הביטול הוא עובדה מוגמרת.**
+ *   2. מחיקת האירוע מיומן Google.
+ *
+ * ⚠️ **כשל בשלב 2 אינו הופך את הביטול לכישלון.** Supabase הוא מקור האמת,
+ * השעה כבר משוחררת, והלקוחה כבר קיבלה הודעה. תור שהמחיקה שלו נכשלה מסומן
+ * `failed` ומופיע ברשימת "דורש טיפול" עם כפתור retry — בדיוק כמו כל כשל
+ * סנכרון אחר במערכת. זה העיקרון של דגל `approved` ב-15C, בכיוון ההפוך.
+ *
+ * ⚠️ ההתראה ללקוחה **אינה נשלחת מכאן**. הטריגר של 0025 רושם אותה כשנכתבת
+ * שורת ההיסטוריה, וה-route מנקז אותה ב-`waitUntil(dispatchNow(...))`.
+ * שליחה מכאן הייתה עוקפת את מנגנון ה-idempotency של 15F.
+ */
+export type AdminCancelServiceResult =
+  | { ok: true; outcome: 'applied' | 'already_cancelled'; calendarRemoved: boolean; message: string }
+  | { ok: false; status: number; error: string; message: string }
+
+export async function cancelConfirmedByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<AdminCancelServiceResult> {
+  const res = await cancelConfirmedAppointmentByAdmin(appointmentId, adminUserId)
+
+  if (!res.ok) {
+    switch (res.error) {
+      case 'not_found':
+        return { ok: false, status: 404, error: 'not_found', message: 'התור לא נמצא.' }
+      case 'sync_in_progress':
+        return {
+          ok: false, status: 409, error: 'sync_in_progress',
+          message: 'סנכרון היומן מתבצע כרגע על התור הזה. נסי שוב בעוד רגע.',
+        }
+      case 'not_admin':
+        // ⚠️ אמור להיחסם כבר ב-requireAdminApi. הגעה לכאן משמעה שההרשאה
+        // הוסרה בין הבדיקה לקריאה — או שמישהו קרא ל-RPC ממקום אחר.
+        return { ok: false, status: 403, error: 'forbidden', message: 'אין הרשאה לבצע את הפעולה.' }
+      case 'db_error':
+        return { ok: false, status: 500, error: 'server_error', message: 'הביטול נכשל. נסי שוב.' }
+    }
+  }
+
+  const { outcome, appointment } = res.result
+
+  if (outcome === 'not_cancellable') {
+    const label = STATUS_LABELS[res.result.currentStatus ?? '']?.label
+    return {
+      ok: false, status: 409, error: 'not_cancellable',
+      message: label
+        ? `לא ניתן לבטל תור בסטטוס "${label}".`
+        : 'לא ניתן לבטל את התור במצבו הנוכחי.',
+    }
+  }
+
+  if (outcome === 'in_past') {
+    return {
+      ok: false, status: 422, error: 'in_past',
+      message: 'התור כבר התחיל ולכן לא ניתן לבטלו. יש לסמן אותו כהושלם או כאי-הגעה.',
+    }
+  }
+
+  /*
+   * מ-'already_cancelled' ממשיכים לסנכרון בכוונה: ייתכן שהביטול הצליח
+   * בניסיון קודם והמחיקה מהיומן היא זו שנכשלה. זו ההזדמנות לסיים אותה.
+   *
+   * ⚠️ התנאי אינו "always": ביטול שמקורו במחיקה ידנית ב-Google מגיע לכאן
+   * עם 'synced' (0008 מסמנת אותו כך כי האירוע כבר נמחק בפועל), ואין שום
+   * סיבה לפנות ל-Google בשבילו שוב.
+   */
+  const needsCalendarWork =
+    appointment.calendar_sync_operation === 'delete' &&
+    appointment.calendar_sync_status !== 'synced'
+
+  let calendarRemoved = true
+  if (needsCalendarWork) {
+    try {
+      const sync = await retryCalendarSync(appointmentId)
+      calendarRemoved = sync.ok
+    } catch (err) {
+      console.error('[approval] admin cancel calendar delete threw', err)
+      calendarRemoved = false
+    }
+  }
+
+  return {
+    ok: true,
+    outcome,
+    calendarRemoved,
+    message: calendarRemoved
+      ? 'התור בוטל והאירוע הוסר מהיומן.'
+      : 'התור בוטל. הסרת האירוע מהיומן נכשלה ומופיעה ברשימת התורים שדורשים טיפול.',
   }
 }
 

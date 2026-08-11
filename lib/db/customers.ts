@@ -246,17 +246,63 @@ export async function searchCustomers(query: string, page = 1): Promise<PagedCus
   return { rows: (data ?? []) as Customer[], total: count ?? 0, page: p, pageSize: ADMIN_PAGE_SIZE }
 }
 
-/** עדכון שם — הפעולה היחידה שלקוחה יכולה לבצע על הכרטיס שלה */
-export async function updateCustomerName(id: string, fullName: string): Promise<boolean> {
+export type NameCompletionOutcome = 'updated' | 'already_named' | 'not_found' | 'error'
+
+/**
+ * שלב 15H — הלקוחה משלימה את שמה מהאזור האישי.
+ *
+ * ═══ שלוש התכונות שהמימוש הזה חייב, וכיצד הוא משיג אותן ═══
+ *
+ * 1. **לעולם לא duplicate.** זהו `UPDATE ... where id = ?` על מפתח ראשי.
+ *    אין כאן insert, אין upsert ואין קריאה לפי טלפון. אין מסלול שבו
+ *    הפעולה הזו יכולה לייצר שורת לקוחה שנייה — גם לא במרוץ, גם לא אחרי
+ *    retry, וגם לא כשה-id שגוי (אז פשוט 0 שורות).
+ *
+ * 2. **שם אמיתי לא נדרס.** התנאי `full_name in (placeholders)` הוא חלק
+ *    מה-UPDATE עצמו ולא בדיקה שקדמה לו. זה מה שהופך אותו לעמיד במרוץ:
+ *    read-then-write היה משאיר חלון שבו שובל מעדכנת שם ידנית ב-CRM בין
+ *    הקריאה לכתיבה, והכתיבה הייתה מוחקת את עבודתה. כאן ה-DB מכריע.
+ *
+ *    ⚠️ זו בדיוק המחויבות שנקבעה ב-0010:330 — "שם שנקבע ידנית ע"י המנהלת
+ *    לעולם אינו נדרס ע"י מה שהלקוחה הקלידה".
+ *
+ * 3. **idempotent.** לחיצה כפולה, שליחה חוזרת אחרי timeout, או שתי
+ *    לשוניות פתוחות: השנייה מוצאת שם תקין, מעדכנת 0 שורות, ומקבלת
+ *    'already_named' — שהוא הצלחה מבחינת הקורא, לא שגיאה.
+ *
+ * ⚠️ `already_named` נבדל מ-`not_found` בקריאה נוספת, כי `UPDATE` שלא נגע
+ * בשורות אינו מבחין בין "השורה אינה קיימת" ל"התנאי לא התקיים". ההבחנה
+ * חשובה: הראשון הוא session פגום שדינו התנתקות, השני הוא מצב תקין.
+ */
+export async function completeCustomerName(
+  id: string,
+  fullName: string,
+  placeholders: readonly string[],
+): Promise<NameCompletionOutcome> {
   const db = createSupabaseAdminClient()
-  const { error } = await db
+
+  const { data, error } = await db
     .from('customers')
-    .update({ full_name: fullName.trim() })
+    .update({ full_name: fullName })
     .eq('id', id)
+    .in('full_name', placeholders as string[])
+    .select('id')
 
   if (error) {
-    console.error('[customers] name update failed', error.message)
-    return false
+    console.error('[customers] name completion failed', error.message)
+    return 'error'
   }
-  return true
+  if (data && data.length > 0) return 'updated'
+
+  const { data: existing, error: readErr } = await db
+    .from('customers')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (readErr) {
+    console.error('[customers] name completion re-read failed', readErr.message)
+    return 'error'
+  }
+  return existing ? 'already_named' : 'not_found'
 }

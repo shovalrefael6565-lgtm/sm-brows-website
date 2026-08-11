@@ -3,6 +3,7 @@ import { listAppointmentsAdmin } from '@/lib/db/appointments'
 import { formatPhoneForDisplay } from '@/lib/phone'
 import { formatDateTimeIL, treatmentLabel, STATUS_LABELS } from '@/lib/admin/format'
 import Pagination from '@/components/admin/Pagination'
+import CancelAppointmentButton from '@/components/admin/CancelAppointmentButton'
 import { cn } from '@/lib/utils'
 
 /**
@@ -69,12 +70,27 @@ export default async function AdminAppointmentsPage({
                 <th className="px-2 py-2 font-medium">תאריך ושעה</th>
                 <th className="px-2 py-2 font-medium">סטטוס</th>
                 <th className="px-2 py-2 font-medium">מחיר</th>
+                <th className="px-2 py-2 font-medium">פעולות</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(appt => {
                 const { date, time } = formatDateTimeIL(appt.starts_at)
                 const s = STATUS_LABELS[appt.status] ?? { label: appt.status, className: '' }
+                /*
+                 * 🔒 15H — הביטול הניהולי מוצג רק לתור **מאושר שטרם התחיל**.
+                 *
+                 * ⚠️ שורת בקשת שינוי מועד (reschedule_of_appointment_id) אינה
+                 * תור בפני עצמו, וביטולה מכאן היה מבלבל: היא נסגרת ממילא
+                 * אוטומטית כשהתור המקורי מבוטל, ולדחייתה יש כפתור משלה.
+                 *
+                 * ⚠️ זו הסתרה בלבד. ה-RPC (0027) אוכף את שני התנאים בעצמו
+                 * ואינו סומך על מה שהוצג במסך.
+                 */
+                const canCancel =
+                  appt.status === 'confirmed' &&
+                  !appt.reschedule_of_appointment_id &&
+                  new Date(appt.starts_at).getTime() > Date.now()
                 return (
                   <tr key={appt.id} className="border-b border-brand-linen-dark/60">
                     <td className="px-4 sm:px-2 py-3">
@@ -92,6 +108,15 @@ export default async function AdminAppointmentsPage({
                     </td>
                     <td className="px-2 py-3 text-brand-dark font-medium">
                       {appt.price_total != null ? `₪${appt.price_total}` : '—'}
+                    </td>
+                    <td className="px-2 py-3">
+                      {canCancel && (
+                        <CancelAppointmentButton
+                          appointmentId={appt.id}
+                          customerName={appt.customer_full_name || 'הלקוחה'}
+                          whenLabel={`${date} בשעה ${time}`}
+                        />
+                      )}
                     </td>
                   </tr>
                 )

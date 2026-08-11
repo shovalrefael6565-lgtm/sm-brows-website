@@ -5,7 +5,10 @@ import LogoutButton from '@/components/account/LogoutButton'
 import CancelPendingButton from '@/components/account/CancelPendingButton'
 import AppointmentActions from '@/components/account/AppointmentActions'
 import AccountBookingForm from '@/components/account/AccountBookingForm'
+import CompleteProfileForm from '@/components/account/CompleteProfileForm'
+import AddToCalendarButtons from '@/components/account/AddToCalendarButtons'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
+import { needsNameCompletion } from '@/lib/customerProfile'
 import { getCustomerById } from '@/lib/db/customers'
 import { listAppointmentsForCustomer, type CustomerAppointmentRow } from '@/lib/db/appointments'
 import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
@@ -139,6 +142,21 @@ function AppointmentCard({ appt, policy, openRequest }: CardProps) {
         </div>
       )}
 
+      {/*
+        🔒 15H — "הוספה ליומן" מוצג אך ורק ל-confirmed.
+        pending עדיין אינו תור, ו-cancelled/rejected אינם תור יותר — קובץ
+        יומן עבורם היה שותל במכשיר הלקוחה אירוע שלא יתקיים. ה-route של
+        ה-.ics אוכף את אותו תנאי בעצמו ואינו סומך על הבדיקה הזו.
+      */}
+      {appt.status === 'confirmed' && (
+        <AddToCalendarButtons
+          appointmentId={appt.id}
+          treatment={treatmentLabel(appt)}
+          startsAt={appt.starts_at}
+          durationMin={appt.duration_min}
+        />
+      )}
+
       {appt.status === 'pending' && <CancelPendingButton appointmentId={appt.id} />}
 
       {capabilities && policy && (
@@ -186,6 +204,39 @@ export default async function AccountPage() {
 
   const customer = await getCustomerById(customerId)
   if (!customer) redirect('/login')
+
+  /*
+   * 🔒 15H — שער השלמת השם.
+   *
+   * לקוחה שנכנסה דרך `/login` בלי שהזינה שם מעולם נשמרה עם ה-placeholder
+   * `'לקוחה'` (0010:414), וכל מה שהמערכת שולחת עליה — SMS, כותרת האירוע
+   * ביומן, כרטיס ה-CRM — נושא את המילה הזו. כאן מבקשים שם אמיתי, פעם אחת.
+   *
+   * ⚠️ השער חוסם את שאר העמוד **בכוונה**: טופס שאפשר לגלול מעליו לא היה
+   * מתמלא לעולם, וזו ההזדמנות היחידה שבה הלקוחה נמצאת מול המסך ומחוברת.
+   *
+   * ⚠️ התורים **אינם** נטענים כשהשער פתוח — אין סיבה לשאילתות שאיש לא
+   * יראה את תוצאתן.
+   *
+   * ⚠️ needsNameCompletion מזהה **רשימה סגורה** של ערכים שהמערכת עצמה
+   * כתבה. שם של מילה אחת שהלקוחה הקלידה בעצמה אינו placeholder ואינו
+   * מוביל לכאן — ראה ההסבר המלא ב-lib/customerProfile.ts.
+   */
+  if (needsNameCompletion(customer.full_name)) {
+    return (
+      <>
+        <PageHero tag="אזור אישי" title="ברוכה הבאה" />
+        <section className="py-14 sm:py-20 px-4 sm:px-6">
+          <div className="w-full max-w-md mx-auto space-y-8">
+            <CompleteProfileForm />
+            <div className="text-center">
+              <LogoutButton />
+            </div>
+          </div>
+        </section>
+      </>
+    )
+  }
 
   const [appointments, policyResult] = await Promise.all([
     listAppointmentsForCustomer(customer.id),

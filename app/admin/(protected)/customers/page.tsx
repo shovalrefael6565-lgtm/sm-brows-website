@@ -77,9 +77,11 @@ export default async function AdminCustomersPage({
 
       {items.length === 0 ? (
         <div className="bg-white border border-brand-linen-dark rounded-2xl p-6 text-sm text-brand-muted">
-          {q || filter !== 'all' || sourceKey
-            ? 'לא נמצאו לקוחות שמתאימות לחיפוש.'
-            : 'אין עדיין לקוחות במערכת.'}
+          {filter === 'archived'
+            ? 'אין לקוחות בארכיון.'
+            : q || filter !== 'all' || sourceKey
+              ? 'לא נמצאו לקוחות שמתאימות לחיפוש.'
+              : 'אין עדיין לקוחות במערכת.'}
         </div>
       ) : (
         <>
@@ -162,6 +164,23 @@ function LoginAccountBadge({ has }: { has: boolean }) {
   )
 }
 
+/**
+ * 🔒 15H — תווית ארכיון.
+ *
+ * ⚠️ מופיעה **רק** תחת הפילטר 'archived' — 0028 מסתירה לקוחה מאורכבת מכל
+ * שאר התצוגות. היא קיימת כדי שלא יהיה רגע שבו מסתכלים על רשימה ולא ברור
+ * למה היא נראית אחרת.
+ */
+function ArchivedBadge({ archivedAt }: { archivedAt: string | null }) {
+  if (!archivedAt) return null
+  return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0
+                     bg-brand-cream text-brand-muted border-brand-cream-dark">
+      בארכיון
+    </span>
+  )
+}
+
 function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: string }) {
   const status = CRM_STATUS_LABELS[row.crm_status] ?? CRM_STATUS_LABELS.active
   const next = nextLabel(row)
@@ -182,9 +201,12 @@ function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLab
         <LoginAccountBadge has={row.has_login_account} />
       </td>
       <td className="px-4 py-3">
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
-          {status.label}
-        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+            {status.label}
+          </span>
+          <ArchivedBadge archivedAt={row.archived_at} />
+        </div>
       </td>
       <td className="px-4 py-3 text-brand-muted text-xs">{sourceLabel}</td>
       <td className="px-4 py-3 text-xs">
@@ -234,9 +256,12 @@ function CustomerCard({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: 
           </div>
           <LoginAccountBadge has={row.has_login_account} />
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${status.className}`}>
-          {status.label}
-        </span>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+            {status.label}
+          </span>
+          <ArchivedBadge archivedAt={row.archived_at} />
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs mb-2">

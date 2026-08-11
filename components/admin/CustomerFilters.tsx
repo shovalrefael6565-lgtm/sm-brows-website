@@ -13,6 +13,11 @@ const FILTER_OPTIONS = [
   { value: 'returning',  label: 'חזרו ליותר מטיפול אחד' },
   { value: 'no_show',    label: 'עם אי-הגעה' },
   { value: 'cancelled',  label: 'שביטלו' },
+  /*
+   * 🔒 15H — הערך היחיד שמציג לקוחות מאורכבות, וכל השאר מסתירים אותן.
+   * הוא ממוקם אחרון בכוונה: זו תצוגה חריגה ולא עוד חיתוך של אותה רשימה.
+   */
+  { value: 'archived',   label: 'ארכיון' },
 ]
 
 const SORT_OPTIONS = [

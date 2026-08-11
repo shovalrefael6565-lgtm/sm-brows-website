@@ -943,6 +943,94 @@ export async function cancelConfirmedAppointmentByCustomer(
 }
 
 /**
+ * 🔒 שלב 15H — ביטול תור מאושר ע"י המנהלת.
+ *
+ * ═══ למה זו פונקציה נפרדת ולא פרמטר על הביטול של הלקוחה ═══
+ *
+ * שני הביטולים נראים דומים ואינם אותה פעולה עסקית:
+ *
+ *   הלקוחה  → cancelled_by_customer · כפוף ל-cancel_cutoff_hours ·
+ *              שתי הודעות (ללקוחה ולשובל) · actor='customer'
+ *   שובל    → cancelled_by_business · ללא cutoff אך חסום על תור שהתחיל ·
+ *              הודעה אחת (ללקוחה בלבד) · actor='admin'
+ *
+ * דגל על פונקציה אחת היה מחייב את כל התנאים האלה להתפצל בתוכה, וכל שינוי
+ * עתידי באחד המסלולים היה נוגע גם בשני.
+ *
+ * ⚠️ 'not_cancellable' ו-'in_past' חוזרים כ-**outcome ולא כשגיאה**, כי
+ * ה-RPC צריך למסור יחד איתם את הסטטוס/המועד בפועל — מידע ששובל חייבת
+ * לראות ("התור כבר בוטל ע"י הלקוחה" שונה מאוד מ"התור כבר הושלם").
+ */
+export type AdminCancelOutcome =
+  | 'applied'
+  | 'already_cancelled'
+  | 'not_cancellable'
+  | 'in_past'
+
+export type AdminCancelError = 'not_found' | 'sync_in_progress' | 'not_admin' | 'db_error'
+
+/**
+ * ⚠️ שורת ה-appointments **הגולמית** שה-RPC מחזירה, ולא AdminAppointmentRow:
+ * ל-`to_jsonb(v_row)` אין את שדות ה-join (customer_full_name,
+ * customer_phone_e164), והצהרה עליהם כאן הייתה שקר טיפוסי שמתפוצץ בזמן
+ * ריצה. מי שצריך את פרטי הלקוחה טוען אותם בנפרד.
+ */
+export interface CancelledAppointmentRow {
+  id: string
+  status: string
+  starts_at: string
+  calendar_sync_operation: CalendarSyncOperation
+  calendar_sync_status: string
+  google_event_id: string | null
+}
+
+export interface AdminCancelResult {
+  outcome: AdminCancelOutcome
+  appointment: CancelledAppointmentRow
+  /** הסטטוס בפועל, כש-outcome='not_cancellable' */
+  currentStatus?: string
+  /** מזהה בקשת שינוי המועד שנסגרה יחד עם הביטול, או null */
+  cancelledRequestId?: string | null
+}
+
+export async function cancelConfirmedAppointmentByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<{ ok: true; result: AdminCancelResult } | { ok: false; error: AdminCancelError }> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('cancel_confirmed_appointment_by_admin', {
+    p_appointment_id: appointmentId,
+    p_admin_user_id: adminUserId,
+  })
+
+  if (error) {
+    const m = error.message ?? ''
+    if (m.includes('NOT_FOUND')) return { ok: false, error: 'not_found' }
+    if (m.includes('SYNC_IN_PROGRESS')) return { ok: false, error: 'sync_in_progress' }
+    if (m.includes('NOT_ADMIN') || m.includes('ADMIN_REQUIRED')) return { ok: false, error: 'not_admin' }
+    console.error('[appointments] admin cancel failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+
+  const envelope = data as unknown as {
+    outcome: AdminCancelOutcome
+    appointment: Record<string, unknown>
+    current_status?: string
+    cancelled_request_id?: string | null
+  }
+
+  return {
+    ok: true,
+    result: {
+      outcome: envelope.outcome,
+      appointment: envelope.appointment as unknown as CancelledAppointmentRow,
+      currentStatus: envelope.current_status,
+      cancelledRequestId: envelope.cancelled_request_id ?? null,
+    },
+  }
+}
+
+/**
  * טווחי תפוסה (HH:MM ישראל) מתוך תורים פעילים (pending/confirmed) ב-DB
  * לתאריך נתון — מיועד להתמזג עם טווחי התפוסה מ-Google Calendar כדי
  * שבקשה שממתינה לאישור תיחסם מהצגה כפנויה ללקוחה אחרת. מראה בדיוק את
