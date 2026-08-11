@@ -5,6 +5,25 @@
  * המערכת אף פעם לא שולחת הודעה אוטומטית — היא רק פותחת שיחה עם טקסט
  * מוכן, ושובל לוחצת בעצמה "שליחה". הנוסחים כאן זמניים ומיועדים להחלפה
  * בהמשך בלי לגעת בלוגיקת האישור/הדחייה עצמה.
+ *
+ * ═══ 🔒 אפס אמוג'י בהודעות admin→customer ═══
+ *
+ * ⚠️ באג אמיתי: הודעות שנפתחות אצל שובל ב-WhatsApp Business ומכילות
+ * אמוג'י מגיעות ללקוחה כ-`???` — תקלת encoding בצד WhatsApp Business,
+ * לא בקוד כאן. הפתרון היחיד האמין הוא לא לשלוח אמוג'י בכלל בהודעות
+ * ששובל שולחת ללקוחה: `buildApprovalMessage`, `buildRejectionMessage`,
+ * `buildRescheduleApprovedMessage`, `buildRescheduleRejectedMessage`,
+ * `buildReminderWhatsAppMessage`, וכל תבנית admin→customer עתידית.
+ *
+ * מקום שבו אמוג'י שימש כתחליף לתווית מילולית (לדוגמה `📍 {כתובת}` בלי
+ * המילה "כתובת") קיבל תווית טקסט מפורשת במקומו, ולא נשאר שקוף — אחרת
+ * ההודעה הייתה מאבדת מידע, לא רק אייקון.
+ *
+ * ⚠️ **customer→business נשאר כפי שהוא** — `buildBookingRequestMessage`
+ * ו-`buildLateChangeMessage`. אלה הודעות שהלקוחה עצמה כותבת/שולחת
+ * מהטלפון שלה ב-WhatsApp הרגיל (לא WhatsApp Business), ואין בהן את
+ * הבאג. ⚠️ SMS (lib/messageTemplates.ts, lib/sms/templates.ts) גם הוא
+ * ללא שינוי — הוא כבר היה ללא אמוג'י מטעמים אחרים לגמרי (מגבלת מקטע).
  */
 
 /**
@@ -170,29 +189,34 @@ export function cutoffPolicyLines(p: {
  *
  * ⚠️ שם הטיפול מופיע **פעמיים** — בשורה הראשונה ובבלוק "הטיפול שלך".
  * זה מכוון ולא כפילות שנשכחה.
+ *
+ * 🔒 **אפס אמוג'י.** האמוג'י המקוריים הוסרו — WhatsApp Business מציג
+ * אותם ללקוחה כ-`???`. ראה הערת ה-encoding בראש הקובץ. כל תו שהיה תווית
+ * (📅/🕒/📍/🔑/💳/🔄) קיבל את המילה המקבילה בעברית במקומו, ולכן שום
+ * מידע לא הלך לאיבוד — רק האייקון.
  */
 export function buildApprovalMessage(params: ApprovalMessageParams): string {
   return [
-    `נקבע לך תור ל־${params.treatment} ❤️`,
+    `נקבע לך תור ל־${params.treatment}`,
     '',
-    `📅 תאריך: ${params.date}`,
-    `🕒 שעה: ${params.time}`,
+    `תאריך: ${params.date}`,
+    `שעה: ${params.time}`,
     '',
-    `📍 כתובת: ${STUDIO_DETAILS.address}`,
+    `כתובת: ${STUDIO_DETAILS.address}`,
     STUDIO_DETAILS.addressNote,
-    `🔑 קוד כניסה לבניין: ${params.buildingCode}`,
+    `קוד כניסה לבניין: ${params.buildingCode}`,
     '',
-    '💆‍♀️ הטיפול שלך:',
+    'הטיפול שלך:',
     params.treatment,
     ...(params.priceLine ? [params.priceLine] : []),
     '',
-    `💳 אמצעי תשלום: ${STUDIO_DETAILS.paymentMethods}`,
+    `אמצעי תשלום: ${STUDIO_DETAILS.paymentMethods}`,
     `Bit / PayBox: ${STUDIO_DETAILS.paymentPhone}`,
     '',
-    '🔄 לשינוי או ביטול התור:',
+    'לשינוי או ביטול התור:',
     ...params.cutoffLines,
     '',
-    'ניפגש ❤️',
+    'ניפגש',
   ].join('\n')
 }
 
@@ -273,10 +297,14 @@ export function rescheduleCutoffLines(p: {
  * 🔒 **הנוסח המאושר** של דחיית בקשת תור.
  *
  * ⚠️ הוחלף ב-15F. הנוסח הקודם היה זמני וסומן ככזה. הנוסח כאן נמסר ואושר
- * מילה במילה — כולל מיקום האמוג'י והרווחים. אין לנסח אותו מחדש ואין
- * "לתקן" את הרווח בסוף השורה האחרונה: זה מה שאושר.
+ * מילה במילה. אין לנסח אותו מחדש ואין "לתקן" את הרווח בסוף השורה
+ * האחרונה: זה מה שאושר.
  *
  * ⚠️ בניגוד להודעת האישור, הנוסח הזה **כן** פונה ללקוחה בשמה.
+ *
+ * 🔒 **אפס אמוג'י.** ה-🌸 וה-❤️ המקוריים הוסרו — WhatsApp Business מציג
+ * אותם ללקוחה כ-`???`, ראה הערת ה-encoding בראש הקובץ. שתי המילים ששכנו
+ * לצידם ("היי {שם}", "אפשר לבחור...") נשארו מילה במילה.
  */
 export interface RejectionMessageParams {
   customerName: string
@@ -287,12 +315,12 @@ export interface RejectionMessageParams {
 
 export function buildRejectionMessage(params: RejectionMessageParams): string {
   return [
-    `היי ${params.customerName} 🌸`,
+    `היי ${params.customerName}`,
     '',
     `לצערי לא ניתן לאשר את התור שביקשת ל־${params.treatment}`,
     `בתאריך ${params.date} בשעה ${params.time}.`,
     '',
-    '❤️אפשר לבחור מועד אחר דרך האתר או לשלוח לנו הודעה בוואטסאפ ונשמח לעזור ',
+    'אפשר לבחור מועד אחר דרך האתר או לשלוח לנו הודעה בוואטסאפ ונשמח לעזור ',
   ].join('\n')
 }
 
@@ -304,6 +332,12 @@ export function buildRejectionMessage(params: RejectionMessageParams): string {
  *
  * ⚠️ קוד הכניסה מגיע כפרמטר מ-`business_settings`, ולא מהקוד. ראה
  * STUDIO_DETAILS.
+ *
+ * 🔒 **אפס אמוג'י.** ה-❤️/💆‍♀️/📅/🕒/📍/🔑 המקוריים הוסרו — ראה הערת
+ * ה-encoding בראש הקובץ. שני מקומות שבהם האמוג'י שימש **כתווית היחידה**
+ * (הטיפול, הכתובת) קיבלו תווית טקסט ("הטיפול:", "כתובת:") כדי שהמידע לא
+ * ילך לאיבוד — לא רק האייקון. הרווחים המובילים/נגררים שהקיפו את ❤️
+ * הוסרו איתו: הם היו ריפוד סביב האמוג'י ולא תוכן בפני עצמו.
  */
 export interface RescheduleApprovedMessageParams {
   treatment: string
@@ -316,21 +350,21 @@ export interface RescheduleApprovedMessageParams {
 
 export function buildRescheduleApprovedMessage(p: RescheduleApprovedMessageParams): string {
   return [
-    ' ❤️שינוי המועד שלך אושר',
+    'שינוי המועד שלך אושר',
     '',
-    `💆‍♀️ ${p.treatment}`,
+    `הטיפול: ${p.treatment}`,
     '',
-    `📅 תאריך חדש: ${p.date}`,
-    `🕒 שעה חדשה: ${p.time}`,
+    `תאריך חדש: ${p.date}`,
+    `שעה חדשה: ${p.time}`,
     '',
-    `📍 ${STUDIO_DETAILS.address}`,
+    `כתובת: ${STUDIO_DETAILS.address}`,
     STUDIO_DETAILS.addressNote,
-    `🔑 קוד כניסה לבניין: ${p.buildingCode}`,
+    `קוד כניסה לבניין: ${p.buildingCode}`,
     '',
     'לשינוי או ביטול:',
     ...p.cutoffLines,
     '',
-    ' ❤️ניפגש ',
+    'ניפגש',
   ].join('\n')
 }
 
@@ -340,6 +374,10 @@ export function buildRescheduleApprovedMessage(p: RescheduleApprovedMessageParam
  * ⚠️ המועד בהודעה הוא **המועד המקורי** ולא זה שהתבקש. זו כל הנקודה של
  * ההודעה: התור הקיים נשאר שמור, והלקוחה צריכה לראות מולו את המועד שאליו
  * עליה להגיע. הצגת המועד שביקשה ושלא אושר הייתה בדיוק ההפך.
+ *
+ * 🔒 **אפס אמוג'י.** ה-❤️/💆‍♀️/📅/🕒 המקוריים הוסרו — ראה הערת ה-encoding
+ * בראש הקובץ. שורת הטיפול קיבלה תווית "הטיפול:" (האמוג'י היה התווית
+ * היחידה שלה), ותאריך/שעה קיבלו "תאריך:"/"שעה:" מאותה סיבה.
  */
 export interface RescheduleRejectedMessageParams {
   treatment: string
@@ -352,13 +390,55 @@ export function buildRescheduleRejectedMessage(p: RescheduleRejectedMessageParam
   return [
     'בקשת שינוי המועד שלך לא אושרה.',
     '',
-    '❤️התור המקורי שלך נשאר שמור ',
+    'התור המקורי שלך נשאר שמור',
     '',
-    `💆‍♀️ ${p.treatment}`,
-    `📅 ${p.date}`,
-    `🕒 ${p.time}`,
+    `הטיפול: ${p.treatment}`,
+    `תאריך: ${p.date}`,
+    `שעה: ${p.time}`,
     '',
     ' אם תרצי לבדוק מועד אחר, אפשר להיכנס שוב לאזור האישי.',
+  ].join('\n')
+}
+
+/**
+ * 🔒 **הנוסח המאושר** של תזכורת ידנית ב-WhatsApp.
+ *
+ * ⚠️ שולח כפתור "שליחת WhatsApp" במסך "כל התורים" (רק לתור confirmed
+ * עתידי, ראה app/admin/(protected)/appointments/page.tsx) — פותח חלון
+ * WhatsApp עם הטקסט הזה מוכן. שובל היא זו שלוחצת "שליחה"; שום קריאה
+ * לפונקציה הזו אינה כותבת ל-DB ואינה נוגעת בסטטוס של אף תזכורת אוטומטית
+ * (appointment_reminders, lib/reminders/).
+ *
+ * ⚠️ הכתובת מגיעה מ-`STUDIO_DETAILS.address` — אותו מקור אמת יחיד שמזין
+ * גם את `buildApprovalMessage` ואת `buildRescheduleApprovedMessage`. אין
+ * כאן `addressNote` ('(הבניין על הכיכר)') ואין אמצעי תשלום: זה מה שאושר —
+ * תזכורת תמציתית, לא חזרה על הודעת האישור המלאה.
+ *
+ * ⚠️ שם המותג כאן הוא **'SM BROWS'** בלי נקודות, בדיוק כפי שאושר בנוסח
+ * הזה. אינו קשור ל-`'S.M BROWS'` שמופיע במקומות אחרים (לדוגמה
+ * lib/reminders/templates.ts) — כל נוסח מאושר נאמן למה שנמסר לו, לא
+ * למוסכמה של נוסח אחר.
+ *
+ * 🔒 **אפס אמוג'י**, כמו שאר ארבעת הנוסחים ששובל שולחת ללקוחה. ראה הערת
+ * ה-encoding בראש הקובץ.
+ */
+export interface ReminderWhatsAppMessageParams {
+  treatment: string
+  date: string
+  time: string
+}
+
+export function buildReminderWhatsAppMessage(p: ReminderWhatsAppMessageParams): string {
+  return [
+    'תזכורת לתור שלך ב-SM BROWS',
+    '',
+    `טיפול: ${p.treatment}`,
+    `תאריך: ${p.date}`,
+    `שעה: ${p.time}`,
+    '',
+    `כתובת: ${STUDIO_DETAILS.address}`,
+    '',
+    'ניפגש',
   ].join('\n')
 }
 

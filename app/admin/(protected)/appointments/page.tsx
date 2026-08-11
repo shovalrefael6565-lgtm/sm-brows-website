@@ -1,7 +1,9 @@
 import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 import { listAppointmentsAdmin } from '@/lib/db/appointments'
-import { formatPhoneForDisplay } from '@/lib/phone'
+import { formatPhoneForDisplay, E164_IL_MOBILE } from '@/lib/phone'
 import { formatDateTimeIL, treatmentLabel, STATUS_LABELS } from '@/lib/admin/format'
+import { buildReminderWhatsAppMessage, buildWhatsAppLinkToCustomer } from '@/lib/whatsappTemplates'
 import Pagination from '@/components/admin/Pagination'
 import CancelAppointmentButton from '@/components/admin/CancelAppointmentButton'
 import { cn } from '@/lib/utils'
@@ -91,6 +93,18 @@ export default async function AdminAppointmentsPage({
                   appt.status === 'confirmed' &&
                   !appt.reschedule_of_appointment_id &&
                   new Date(appt.starts_at).getTime() > Date.now()
+
+                /**
+                 * 🔒 כפתור "שליחת WhatsApp" — תזכורת ידנית, לא אוטומטית.
+                 *
+                 * ⚠️ אותם שני תנאים בדיוק כמו canCancel (confirmed, לא
+                 * שורת בקשת שינוי מועד, עתידי) ובנוסף בדיקת טלפון: מספר
+                 * שאינו נייד ישראלי תקין אינו יכול לפתוח שיחת WhatsApp
+                 * בכלל. אין כאן שום כתיבה ל-DB — הקישור רק פותח חלון
+                 * WhatsApp עם טקסט מוכן; שובל לוחצת "שליחה" בעצמה.
+                 */
+                const canSendReminder =
+                  canCancel && E164_IL_MOBILE.test(appt.customer_phone_e164)
                 return (
                   <tr key={appt.id} className="border-b border-brand-linen-dark/60">
                     <td className="px-4 sm:px-2 py-3">
@@ -110,13 +124,34 @@ export default async function AdminAppointmentsPage({
                       {appt.price_total != null ? `₪${appt.price_total}` : '—'}
                     </td>
                     <td className="px-2 py-3">
-                      {canCancel && (
-                        <CancelAppointmentButton
-                          appointmentId={appt.id}
-                          customerName={appt.customer_full_name || 'הלקוחה'}
-                          whenLabel={`${date} בשעה ${time}`}
-                        />
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {canCancel && (
+                          <CancelAppointmentButton
+                            appointmentId={appt.id}
+                            customerName={appt.customer_full_name || 'הלקוחה'}
+                            whenLabel={`${date} בשעה ${time}`}
+                          />
+                        )}
+                        {canSendReminder && (
+                          <a
+                            href={buildWhatsAppLinkToCustomer(
+                              appt.customer_phone_e164,
+                              buildReminderWhatsAppMessage({
+                                treatment: treatmentLabel(appt), date, time,
+                              }),
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#25D366]
+                                       border border-[#25D366]/30 hover:bg-[#25D366]/10 px-3.5 py-1.5
+                                       rounded-full cursor-pointer transition-colors focus-visible:outline-none
+                                       focus-visible:ring-2 focus-visible:ring-brand-gold"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                            שליחת WhatsApp
+                          </a>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

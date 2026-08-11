@@ -37,11 +37,14 @@ const {
   buildRejectionMessage,
   buildRescheduleApprovedMessage,
   buildRescheduleRejectedMessage,
+  buildReminderWhatsAppMessage,
   buildWhatsAppLinkToBusiness,
+  buildWhatsAppLinkToCustomer,
   cutoffPolicyLines,
   rescheduleCutoffLines,
   STUDIO_DETAILS,
 } = await import('../lib/whatsappTemplates.ts')
+const { hasEmoji } = await import('../lib/messageTemplates.ts')
 
 /**
  * 🔒 **קוד בדיקה, לא הקוד האמיתי.**
@@ -57,31 +60,34 @@ section('1. נוסח אישור התור (snapshot מאושר)')
 
 /**
  * ⚠️ snapshot תו-בתו של הנוסח שנמסר ואושר ב-2026-08-09
- * (.handoff/STAGE-15F-APPROVED-TEMPLATES.md). כל סטייה — כולל אמוג'י או
- * רווח — היא ניסוח מחדש של נוסח מאושר, ולכן נכשלת כאן.
+ * (.handoff/STAGE-15F-APPROVED-TEMPLATES.md), **אחרי** הסרת האמוג'י:
+ * WhatsApp Business מציג אותם ללקוחה כ-`???` (באג encoding אמיתי בפרודקשן,
+ * לא בקוד). כל תווית שהאמוג'י שימש בשבילה קיבלה מילה בעברית במקומו —
+ * "תאריך:", "שעה:", "כתובת:" וכו' — כך שהמידע לא הלך לאיבוד. כל סטייה
+ * נוספת — כולל רווח — היא ניסוח מחדש של נוסח מאושר, ולכן נכשלת כאן.
  */
 const APPROVED = [
-  'נקבע לך תור ל־עיצוב גבות טבעי ❤️',
+  'נקבע לך תור ל־עיצוב גבות טבעי',
   '',
-  '📅 תאריך: 24 אוגוסט 2026',
-  '🕒 שעה: 17:00',
+  'תאריך: 24 אוגוסט 2026',
+  'שעה: 17:00',
   '',
-  '📍 כתובת: הכורמים 14, קומה 4, דירה 16',
+  'כתובת: הכורמים 14, קומה 4, דירה 16',
   '(הבניין על הכיכר)',
-  `🔑 קוד כניסה לבניין: ${CODE}`,
+  `קוד כניסה לבניין: ${CODE}`,
   '',
-  '💆‍♀️ הטיפול שלך:',
+  'הטיפול שלך:',
   'עיצוב גבות טבעי',
   '₪110',
   '',
-  '💳 אמצעי תשלום: מזומן / Bit / PayBox',
+  'אמצעי תשלום: מזומן / Bit / PayBox',
   'Bit / PayBox: 054-7261564',
   '',
-  '🔄 לשינוי או ביטול התור:',
+  'לשינוי או ביטול התור:',
   'עד 6 שעות לפני התור ניתן לבצע שינוי או ביטול דרך האזור האישי באתר.',
   'פחות מ־6 שעות לפני התור יש לפנות אלינו בוואטסאפ.',
   '',
-  'ניפגש ❤️',
+  'ניפגש',
 ].join('\n')
 
 const actual = buildApprovalMessage({
@@ -96,6 +102,13 @@ chk('🔒 הנוסח זהה למאושר תו-בתו', actual === APPROVED)
 if (actual !== APPROVED) {
   console.log('--- צפוי ---\n' + APPROVED + '\n--- בפועל ---\n' + actual)
 }
+
+/**
+ * 🔒 **באג ה-encoding.** WhatsApp Business מציג אמוג'י ללקוחה כ-`???`.
+ * ההודעה הזו נפתחת אצל שובל ב-WhatsApp Business, ולכן אסור שיהיה בה
+ * ולו אמוג'י אחד — לא רק שהיא תואמת ל-snapshot שכבר לא מכיל אמוג'י.
+ */
+chk("🔒 אפס אמוג'י (WhatsApp Business הופך אמוג'י ל-???)", !hasEmoji(actual))
 
 /**
  * ⚠️ הנוסח המאושר פותח ב"נקבע לך תור" ואינו פונה ללקוחה בשמה. זו בחירה
@@ -259,20 +272,23 @@ section('6. 🔒 מה שלא זז')
 section('7. שלושת הנוסחים המאושרים (snapshot)')
 
 /**
- * ⚠️ snapshot תו-בתו של שלושת הנוסחים שנמסרו ואושרו.
+ * ⚠️ snapshot תו-בתו של שלושת הנוסחים שנמסרו ואושרו — **אחרי** הסרת
+ * האמוג'י (WhatsApp Business מציג אותם ללקוחה כ-`???`, ראה הערת
+ * ה-encoding בראש lib/whatsappTemplates.ts).
  *
- * 🔒 **כולל הרווחים ומיקום האמוג'י.** הנוסחים נכתבו ב-RTL, ולכן ❤️ מופיע
- * במקור לפני הטקסט ("❤️אפשר...") ומוצג בסופו. רווח מוביל או נגרר אינו
- * "לכלוך" שיש לנקות — הוא מה שאושר, וניקוי שלו הוא שינוי נוסח.
+ * 🔒 **הרווחים המוביל/נגרר עדיין כולל.** אלה לא היו ריפוד סביב אמוג'י
+ * בכל מקום — הרווח הנגרר ב-REJECT קיים במקור המאושר גם בלי קשר לאמוג'י,
+ * ולכן נשאר. רווחים שהיו **אך ורק** ריפוד סביב ❤️ שהוסר (בפתיחה/סיום של
+ * RESCHED_OK, ובפתיחת RESCHED_NO) הוסרו יחד איתו.
  */
 {
   const REJECT = [
-    'היי דנה 🌸',
+    'היי דנה',
     '',
     'לצערי לא ניתן לאשר את התור שביקשת ל־עיצוב גבות טבעי',
     'בתאריך 24 אוגוסט 2026 בשעה 17:00.',
     '',
-    '❤️אפשר לבחור מועד אחר דרך האתר או לשלוח לנו הודעה בוואטסאפ ונשמח לעזור ',
+    'אפשר לבחור מועד אחר דרך האתר או לשלוח לנו הודעה בוואטסאפ ונשמח לעזור ',
   ].join('\n')
 
   const got = buildRejectionMessage({
@@ -283,26 +299,27 @@ section('7. שלושת הנוסחים המאושרים (snapshot)')
   if (got !== REJECT) console.log('--- צפוי ---\n' + REJECT + '\n--- בפועל ---\n' + got)
   chk('🔒 הרווח הנגרר בשורה האחרונה נשמר', got.endsWith('ונשמח לעזור '))
   chk('הנוסח פונה ללקוחה בשמה (בניגוד לנוסח האישור)', got.startsWith('היי דנה'))
+  chk("🔒 אפס אמוג'י (WhatsApp Business הופך אמוג'י ל-???)", !hasEmoji(got))
 }
 
 {
   const RESCHED_OK = [
-    ' ❤️שינוי המועד שלך אושר',
+    'שינוי המועד שלך אושר',
     '',
-    '💆‍♀️ עיצוב גבות טבעי',
+    'הטיפול: עיצוב גבות טבעי',
     '',
-    '📅 תאריך חדש: 25 אוגוסט 2026',
-    '🕒 שעה חדשה: 18:00',
+    'תאריך חדש: 25 אוגוסט 2026',
+    'שעה חדשה: 18:00',
     '',
-    '📍 הכורמים 14, קומה 4, דירה 16',
+    'כתובת: הכורמים 14, קומה 4, דירה 16',
     '(הבניין על הכיכר)',
-    `🔑 קוד כניסה לבניין: ${CODE}`,
+    `קוד כניסה לבניין: ${CODE}`,
     '',
     'לשינוי או ביטול:',
     'עד 6 שעות לפני התור ניתן לבצע דרך האזור האישי באתר.',
     'פחות מכך יש לפנות אלינו בוואטסאפ.',
     '',
-    ' ❤️ניפגש ',
+    'ניפגש',
   ].join('\n')
 
   const got = buildRescheduleApprovedMessage({
@@ -312,24 +329,23 @@ section('7. שלושת הנוסחים המאושרים (snapshot)')
   })
   chk('🔒 אישור שינוי מועד — זהה למאושר תו-בתו', got === RESCHED_OK)
   if (got !== RESCHED_OK) console.log('--- צפוי ---\n' + RESCHED_OK + '\n--- בפועל ---\n' + got)
-  chk('🔒 הרווחים המובילים/נגררים נשמרו',
-    got.startsWith(' ❤️') && got.endsWith(' ❤️ניפגש '))
   chk('🔒 קוד הכניסה מגיע מהפרמטר',
     buildRescheduleApprovedMessage({
       treatment: 'ט', date: 'ד', time: '17:00', buildingCode: '#9999',
       cutoffLines: rescheduleCutoffLines({ cancelCutoffHours: 6, rescheduleCutoffHours: 6 }),
     }).includes('#9999'))
+  chk("🔒 אפס אמוג'י (WhatsApp Business הופך אמוג'י ל-???)", !hasEmoji(got))
 }
 
 {
   const RESCHED_NO = [
     'בקשת שינוי המועד שלך לא אושרה.',
     '',
-    '❤️התור המקורי שלך נשאר שמור ',
+    'התור המקורי שלך נשאר שמור',
     '',
-    '💆‍♀️ עיצוב גבות טבעי',
-    '📅 24 אוגוסט 2026',
-    '🕒 17:00',
+    'הטיפול: עיצוב גבות טבעי',
+    'תאריך: 24 אוגוסט 2026',
+    'שעה: 17:00',
     '',
     ' אם תרצי לבדוק מועד אחר, אפשר להיכנס שוב לאזור האישי.',
   ].join('\n')
@@ -339,10 +355,91 @@ section('7. שלושת הנוסחים המאושרים (snapshot)')
   })
   chk('🔒 דחיית שינוי מועד — זהה למאושר תו-בתו', got === RESCHED_NO)
   if (got !== RESCHED_NO) console.log('--- צפוי ---\n' + RESCHED_NO + '\n--- בפועל ---\n' + got)
+  chk("🔒 אפס אמוג'י (WhatsApp Business הופך אמוג'י ל-???)", !hasEmoji(got))
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('8. 🔒 כלל ה-cutoff חל גם על נוסח אישור השינוי')
+section('8. 🔒 תזכורת ידנית ב-WhatsApp (snapshot)')
+
+/**
+ * ⚠️ snapshot תו-בתו של הנוסח המאושר. שולח כפתור "שליחת WhatsApp" במסך
+ * "כל התורים" (app/admin/(protected)/appointments/page.tsx), לתור
+ * confirmed עתידי בלבד — ראה סעיף 10.
+ */
+{
+  const REMINDER = [
+    'תזכורת לתור שלך ב-SM BROWS',
+    '',
+    'טיפול: עיצוב גבות טבעי',
+    'תאריך: 24 אוגוסט 2026',
+    'שעה: 17:00',
+    '',
+    'כתובת: הכורמים 14, קומה 4, דירה 16',
+    '',
+    'ניפגש',
+  ].join('\n')
+
+  const got = buildReminderWhatsAppMessage({
+    treatment: 'עיצוב גבות טבעי', date: '24 אוגוסט 2026', time: '17:00',
+  })
+  chk('🔒 תזכורת WhatsApp — זהה למאושר תו-בתו', got === REMINDER)
+  if (got !== REMINDER) console.log('--- צפוי ---\n' + REMINDER + '\n--- בפועל ---\n' + got)
+  chk("🔒 אפס אמוג'י (WhatsApp Business הופך אמוג'י ל-???)", !hasEmoji(got))
+  chk('🔒 הכתובת זהה ל-STUDIO_DETAILS.address (אין עותק שני)',
+    got.includes(`כתובת: ${STUDIO_DETAILS.address}`))
+  /**
+   * ⚠️ בניגוד ל-buildApprovalMessage, הנוסח הזה **אינו** כולל addressNote
+   * ('(הבניין על הכיכר)') ואינו כולל אמצעי תשלום — זה מה שאושר: תזכורת
+   * תמציתית, לא חזרה על הודעת האישור המלאה.
+   */
+  chk('🔒 אין addressNote בתזכורת (בכוונה, בניגוד להודעת האישור)',
+    !got.includes(STUDIO_DETAILS.addressNote))
+  chk('🔒 אין קישור בתזכורת (בכוונה — זו תזכורת, לא כפתור ניהול)',
+    !/https?:/.test(got))
+}
+
+/**
+ * 🔒 **בדיקת רשת ביטחון**, נפרדת מה-snapshots הבודדים למעלה: סורקת את כל
+ * חמשת הנוסחים ש**שובל שולחת ללקוחה** ומוודאת שאין ולו אמוג'י אחד באף
+ * אחד מהם, על פני קלט שרירותי — לא רק על ערכי הבדיקה הקבועים. אמוג'י
+ * חדש שייכנס בעתיד לאחד הנוסחים האלה ייתפס כאן גם אם אף אחד לא עדכן
+ * snapshot.
+ */
+{
+  const FIVE_ADMIN_TO_CUSTOMER = [
+    ['buildApprovalMessage', buildApprovalMessage({
+      date: 'ד', time: 'ש', treatment: 'ט', priceLine: '₪1', buildingCode: CODE,
+      cutoffLines: cutoffPolicyLines({ cancelCutoffHours: 6, rescheduleCutoffHours: 12 }),
+    })],
+    ['buildRejectionMessage', buildRejectionMessage({
+      customerName: 'ל', treatment: 'ט', date: 'ד', time: 'ש',
+    })],
+    ['buildRescheduleApprovedMessage', buildRescheduleApprovedMessage({
+      treatment: 'ט', date: 'ד', time: 'ש', buildingCode: CODE,
+      cutoffLines: rescheduleCutoffLines({ cancelCutoffHours: 6, rescheduleCutoffHours: 12 }),
+    })],
+    ['buildRescheduleRejectedMessage', buildRescheduleRejectedMessage({
+      treatment: 'ט', date: 'ד', time: 'ש',
+    })],
+    ['buildReminderWhatsAppMessage', buildReminderWhatsAppMessage({
+      treatment: 'ט', date: 'ד', time: 'ש',
+    })],
+  ]
+  for (const [name, body] of FIVE_ADMIN_TO_CUSTOMER) {
+    chk(`🔒 ${name}: אפס אמוג'י על קלט שרירותי`, !hasEmoji(body))
+  }
+
+  /**
+   * ⚠️ ההפך המכוון: customer→business לא נגעו, ועדיין מכילות אמוג'י. אם
+   * הבדיקה הזו תיפול, מישהו הסיר אמוג'י ממקום שלא אמור להשתנות.
+   */
+  const cancelPrefill = buildLateChangeMessage({ action: 'cancel', treatment: 'ט', whenLabel: 'ד' })
+  chk('🔒 customer→business (buildLateChangeMessage) לא נגעו — עדיין עם אמוג\'י',
+    hasEmoji(cancelPrefill))
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('9. 🔒 כלל ה-cutoff חל גם על נוסח אישור השינוי')
 
 {
   const same = rescheduleCutoffLines({ cancelCutoffHours: 6, rescheduleCutoffHours: 6 })
@@ -363,6 +460,55 @@ section('8. 🔒 כלל ה-cutoff חל גם על נוסח אישור השינו�
   // ⚠️ שני הניסוחים אושרו בנפרד ואין לאחד אותם.
   chk('🔒 ניסוח נפרד מזה של הודעת האישור',
     same[0] !== cutoffPolicyLines({ cancelCutoffHours: 6, rescheduleCutoffHours: 6 })[0])
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('10. 🔒 כפתור "שליחת WhatsApp" — חיווט וגייטינג במסך "כל התורים"')
+
+/**
+ * ⚠️ עמוד שרת (React Server Component) בלי שום harness לרינדור בפרויקט
+ * הזה — כמו בדיקות סעיף 5, החיווט נבדק על **קוד המקור** ולא על DOM
+ * מרונדר. זה בודק שהכפתור מחובר נכון ושהתנאים הנכונים קיימים בקוד; זה
+ * *אינו* מוכיח שהם מתבצעים נכון בזמן ריצה (לכך יש את test:reminders-core
+ * ואת test:15h-core לתנאים המקבילים ב-canCancel).
+ */
+{
+  const PAGE = 'app/admin/(protected)/appointments/page.tsx'
+  const clean = stripComments(src(PAGE))
+
+  chk('🔒 מייבא את buildReminderWhatsAppMessage ואת buildWhatsAppLinkToCustomer',
+    /import\s*\{[^}]*buildReminderWhatsAppMessage[^}]*\}\s*from\s*'@\/lib\/whatsappTemplates'/.test(clean)
+    && /import\s*\{[^}]*buildWhatsAppLinkToCustomer[^}]*\}\s*from\s*'@\/lib\/whatsappTemplates'/.test(clean))
+
+  chk('🔒 מייבא את E164_IL_MOBILE — אותו מקור אמת יחיד לתקינות טלפון',
+    /import\s*\{[^}]*E164_IL_MOBILE[^}]*\}\s*from\s*'@\/lib\/phone'/.test(clean))
+
+  /**
+   * ⚠️ canSendReminder **נשען על** canCancel ולא משכפל את שלושת התנאים
+   * שלו (confirmed, לא שורת בקשת שינוי מועד, עתידי) — כך שאי אפשר שהכפתור
+   * יוצג בתנאים שונים מכפתור הביטול בלי ששני המקומות עודכנו יחד.
+   */
+  chk('🔒 canSendReminder נשען על canCancel (לא כפילות תנאים)',
+    /canSendReminder\s*=\s*\n?\s*canCancel\s*&&\s*E164_IL_MOBILE\.test\(appt\.customer_phone_e164\)/.test(clean))
+
+  chk('🔒 הכפתור מוצג רק כש-canSendReminder אמת',
+    /\{canSendReminder\s*&&\s*\(/.test(clean))
+
+  chk('🔒 הקישור נבנה מ-buildWhatsAppLinkToCustomer עם טלפון + buildReminderWhatsAppMessage',
+    /buildWhatsAppLinkToCustomer\(\s*\n?\s*appt\.customer_phone_e164,\s*\n?\s*buildReminderWhatsAppMessage\(/.test(clean))
+
+  chk('נפתח בטאב חדש עם rel="noopener noreferrer" (לא ניווט-עזיבה מהניהול)',
+    /target="_blank"[\s\S]{0,80}rel="noopener noreferrer"/.test(clean))
+
+  /**
+   * 🔒 **אין קריאת רשת בעמוד הזה בכלל.** הכפתור הוא קישור wa.me בלבד —
+   * פתיחתו אינה יכולה לשנות DB או סטטוס תזכורת, כי אין שום קוד בעמוד
+   * שקורא לשרת. (הביטול עצמו חי ב-CancelAppointmentButton, קובץ נפרד.)
+   */
+  chk('🔒 העמוד עצמו אינו מבצע שום fetch/קריאת API',
+    !/\bfetch\(/.test(clean))
+
+  chk('הטקסט על הכפתור עצמו', /שליחת WhatsApp/.test(clean))
 }
 
 // ─── סיכום ──────────────────────────────────────────────────────────────────
