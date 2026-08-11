@@ -1,10 +1,14 @@
 /**
  * בדיקות שלב 11 שאינן דורשות DB או רשת.
  *
- * המיקוד: שלוש ההחלטות שאין דרך לתקן בדיעבד אם ישתבשו —
+ * המיקוד: ההחלטות שאין דרך לתקן בדיעבד אם ישתבשו —
  *   1. מתי המערכת בכלל נוגעת בתזכורות (disabled = אפס claim).
  *   2. שסימולציה אינה יכולה לרוץ בפרודקשן.
- *   3. שגוף ההודעה לעולם אינו אומר "מחר" או "בעוד שעתיים".
+ *   3. שגוף day_before/two_hours_before הוא בדיוק REMINDER_SMS
+ *      מ-lib/messageTemplates.ts (מקור אמת יחיד, נוסחי 15F) —
+ *      ולא נוסח מקומי, ולא נוסח שתלוי בטיפול/תאריך/שעה.
+ *   4. שגוף manual (שאינו אחד מנוסחי 15F) עדיין נושא תאריך ושעה
+ *      מפורשים ולא "מחר"/"היום" — כי הוא נשלח בכל רגע לפני התור.
  *
  * הרצה:  npm run test:reminders-core
  */
@@ -27,6 +31,7 @@ const {
 } = await import('../lib/reminders/templates.ts')
 const { manualReminderFingerprint, FINGERPRINT_RE } = await import('../lib/adminIdempotency.ts')
 const { areRemindersEnabled } = await import('../lib/featureFlags.ts')
+const { REMINDER_SMS, SMS_MAX_CHARS, hasEmoji, smsLength } = await import('../lib/messageTemplates.ts')
 
 // ════════════════════════════════════════════════════════════════════════════
 section('🔒 disabled = אפס נגיעה בתזכורות')
@@ -216,7 +221,13 @@ const withFlag = async (value, fn, booking = 'true') => {
   chk('⚠️ accepted מספק שאינו חי נספר כ-simulated ולא כ-sent', stats.sent === 0)
   chk('⚠️ מפתח ה-idempotency הוא reminder.id', sent[0]?.idempotencyKey === REMINDER.id)
   chk('הטלפון הועבר לספק אך לא נשמר', sent[0]?.to === '+972541234567')
-  chk('גוף ההודעה נבנה מה-snapshot', sent[0]?.body.includes('10:00'))
+  /**
+   * ⚠️ day_before סטטי — הגוף שנשלח הוא בדיוק REMINDER_SMS.day_before
+   * (מקור אמת יחיד, 15F), ואינו נבנה מהשעה או מהטיפול שב-snapshot. הניתוב
+   * לפי reminder_kind הוא מה שנגזר מה-snapshot, לא תוכן ההודעה עצמו.
+   */
+  chk('🔒 גוף ההודעה הוא בדיוק הנוסח המאושר של day_before',
+    sent[0]?.body === REMINDER_SMS.day_before)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -296,25 +307,56 @@ chk('הלוג כן מכיל את מפתח ה-idempotency (מזהה בלבד)', l
 chk('הלוג מציין במפורש שלא נשלח SMS', logged.includes('לא נשלח'))
 
 // ════════════════════════════════════════════════════════════════════════════
-section('⚠️ התבניות — תאריך מפורש, בלי "מחר"')
+section('⚠️ התבניות — day_before/two_hours_before מחווטות, manual נשאר מפורש')
 // ════════════════════════════════════════════════════════════════════════════
 
 const STARTS = new Date('2026-08-24T07:00:00Z') // יום ב', 10:00 בישראל
 const P = { treatment: 'עיצוב גבות טבעי', startsAt: STARTS }
 
 const bodies = {
-  day_before: dayBeforeReminderBody(P),
-  two_hours_before: twoHoursBeforeReminderBody(P),
+  day_before: dayBeforeReminderBody(),
+  two_hours_before: twoHoursBeforeReminderBody(),
   manual: manualReminderBody(P),
 }
 
-for (const [kind, text] of Object.entries(bodies)) {
-  chk(`⚠️ ${kind}: אין "מחר" בגוף ההודעה`, !text.includes('מחר'))
-  chk(`⚠️ ${kind}: אין "בעוד שעתיים"`, !text.includes('בעוד שעתיים'))
-  chk(`${kind}: השעה המדויקת מופיעה`, text.includes('10:00'))
-  chk(`${kind}: התאריך המפורש מופיע`, text.includes('24') && text.includes('אוגוסט'))
+/**
+ * 🔒 מקור אמת יחיד. הנוסחים האלה אינם מחרוזות מקומיות — הם בדיוק
+ * REMINDER_SMS מ-lib/messageTemplates.ts (15F, מאושר ונמדד שם).
+ */
+chk('🔒 day_before === REMINDER_SMS.day_before (אין עותק שני)',
+  bodies.day_before === REMINDER_SMS.day_before)
+chk('🔒 two_hours_before === REMINDER_SMS.two_hours_before (אין עותק שני)',
+  bodies.two_hours_before === REMINDER_SMS.two_hours_before)
+chk('day_before/two_hours_before סטטיים — אינם מקבלים קלט',
+  dayBeforeReminderBody.length === 0 && twoHoursBeforeReminderBody.length === 0)
+
+for (const kind of ['day_before', 'two_hours_before']) {
+  const text = bodies[kind]
+  chk(`${kind}: ≤ ${SMS_MAX_CHARS} תווים (מקטע יחיד)`, smsLength(text) <= SMS_MAX_CHARS,
+    `${smsLength(text)} תווים`)
+  chk(`${kind}: אפס אמוג'י`, !hasEmoji(text))
   chk(`${kind}: אין טלפון בגוף ההודעה`, !/\+9725\d{8}/.test(text))
+  chk(`${kind}: אין placeholder — סטטי לגמרי`, !/\$\{|\{[a-zA-Z]|%s|__/.test(text))
 }
+
+/**
+ * ⚠️ אלה **כן** אומרות "מחר"/"היום" — זו ההחלטה שאושרה ונמדדה ב-15F, לא
+ * כלל שהתהפך. ראה lib/reminders/templates.ts למה זה בטוח בפועל בזכות
+ * חלונות השליחה הקבועים ב-0011 (day_before יוצאת לכל המאוחר 6 שעות אחרי
+ * scheduled_for; two_hours_before עד רבע שעה לפני התור עצמו).
+ */
+chk('🔒 day_before אומר "מחר" (מאושר, לא באג)', /מחר/.test(bodies.day_before))
+chk('🔒 two_hours_before אומר "היום" (מאושר, לא באג)', /היום/.test(bodies.two_hours_before))
+
+/**
+ * manual אינו אחד מנוסחי 15F ונשאר תבנית דינמית: מנהלת שולחת אותו בכל רגע
+ * לפני התור, כולל ימים מראש, ושם "מחר"/"היום" היה שקר.
+ */
+chk('⚠️ manual: אין "מחר" בגוף ההודעה', !bodies.manual.includes('מחר'))
+chk('⚠️ manual: אין "בעוד שעתיים"', !bodies.manual.includes('בעוד שעתיים'))
+chk('manual: השעה המדויקת מופיעה', bodies.manual.includes('10:00'))
+chk('manual: התאריך המפורש מופיע', bodies.manual.includes('24') && bodies.manual.includes('אוגוסט'))
+chk('manual: אין טלפון בגוף ההודעה', !/\+9725\d{8}/.test(bodies.manual))
 
 chk('reminderBodyFor מנתב נכון לכל סוג',
   reminderBodyFor('day_before', P) === bodies.day_before &&

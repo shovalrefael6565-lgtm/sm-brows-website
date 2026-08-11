@@ -34,7 +34,7 @@ const src = p => readFileSync(join(HERE, '..', p), 'utf8')
 const {
   SMS_MAX_CHARS,
   SMS_TEXT,
-  REMINDER_SMS_V2_UNWIRED,
+  REMINDER_SMS,
   smsBodyFor,
   smsLength,
   hasEmoji,
@@ -55,7 +55,7 @@ const allTexts = []
 for (const [event, byRole] of Object.entries(SMS_TEXT)) {
   for (const [role, body] of Object.entries(byRole)) allTexts.push([`${event}/${role}`, body])
 }
-for (const [kind, body] of Object.entries(REMINDER_SMS_V2_UNWIRED)) {
+for (const [kind, body] of Object.entries(REMINDER_SMS)) {
   allTexts.push([`reminder/${kind}`, body])
 }
 
@@ -234,9 +234,15 @@ for (const bad of ['דנה 🌸 כהן', 'דנה\nכהן', 'דנה 🇮🇱']) {
 chk('smsBodyWithContext מחזיר null לזוג שאינו דינמי',
   smsBodyWithContext('booking_approved', 'customer', { customerName: 'x' }) === null)
 
-// ─── 5. התזכורות אינן מחווטות ───────────────────────────────────────────────
-section('תזכורות — 15G, לא מחווטות')
+// ─── 5. התזכורות — מקור אמת משותף עם lib/reminders/templates.ts ────────────
+section('תזכורות — מחווטות ל-lib/reminders/templates.ts')
 
+/**
+ * ⚠️ נשאר `true` גם אחרי החיווט: לתזכורת יש חלון שליחה, snapshot של המועד
+ * ו-`expires_at`, ואילו אירוע ב-SMS_TEXT הוא נקודה בזמן. השניים נשלחים
+ * דרך runReminderDispatch ולא דרך המסלול הטרנזקציוני, ולכן אינם ב-SMS_TEXT
+ * וב-NotificationEvent.
+ */
 chk('🔒 day_before/two_hours_before אינם ב-SMS_TEXT',
   !('day_before' in SMS_TEXT) && !('two_hours_before' in SMS_TEXT))
 
@@ -259,10 +265,26 @@ chk('🔒 smsBodyFor אינו יודע להחזיר נוסח תזכורת',
 
 /** ⚠️ לתזכורת יש חלון ולא רגע — ולכן "מחר"/"היום" ולא שעה מדויקת. */
 chk('נוסחי התזכורות מדברים בחלון ולא בשעה',
-  /מחר/.test(REMINDER_SMS_V2_UNWIRED.day_before)
-  && /היום/.test(REMINDER_SMS_V2_UNWIRED.two_hours_before)
-  && !/\d{1,2}:\d{2}/.test(REMINDER_SMS_V2_UNWIRED.day_before)
-  && !/\d{1,2}:\d{2}/.test(REMINDER_SMS_V2_UNWIRED.two_hours_before))
+  /מחר/.test(REMINDER_SMS.day_before)
+  && /היום/.test(REMINDER_SMS.two_hours_before)
+  && !/\d{1,2}:\d{2}/.test(REMINDER_SMS.day_before)
+  && !/\d{1,2}:\d{2}/.test(REMINDER_SMS.two_hours_before))
+
+/**
+ * 🔒 **מקור אמת יחיד.** lib/reminders/templates.ts (הנקרא ע"י
+ * runReminderDispatch) אינו מחזיק עותק משלו של הטקסט — הוא מנתב ישירות
+ * ל-REMINDER_SMS שנבדק כאן. אם מישהו יחליף את הניתוב בהעתקה ידנית,
+ * הבדיקה הזו נופלת ברגע שהעותקים מתפצלים.
+ */
+const {
+  dayBeforeReminderBody,
+  twoHoursBeforeReminderBody,
+} = await import('../lib/reminders/templates.ts')
+
+chk('🔒 dayBeforeReminderBody === REMINDER_SMS.day_before (אין עותק שני)',
+  dayBeforeReminderBody() === REMINDER_SMS.day_before)
+chk('🔒 twoHoursBeforeReminderBody === REMINDER_SMS.two_hours_before (אין עותק שני)',
+  twoHoursBeforeReminderBody() === REMINDER_SMS.two_hours_before)
 
 // ─── 6. חמש התבניות המתות ───────────────────────────────────────────────────
 section('ניקוי lib/sms/templates.ts')

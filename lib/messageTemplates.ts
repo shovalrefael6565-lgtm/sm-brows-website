@@ -59,8 +59,10 @@ const ACCOUNT_URL = `${SITE_URL}/account`
  * האירועים הטרנזקציוניים של 15F.
  *
  * ⚠️ תזכורות (`day_before`, `two_hours_before`) **אינן כאן** — הן מסלול
- * נפרד עם snapshot, `scheduled_for` ו-`expires_at`, והן שייכות ל-15G.
- * הנוסחים שלהן נשמרים בתחתית הקובץ כקבועים לא-מחווטים.
+ * נפרד עם snapshot, `scheduled_for` ו-`expires_at`, ורצות דרך
+ * `runReminderDispatch` ולא דרך המסלול הטרנזקציוני. הנוסחים שלהן נשמרים
+ * בתחתית הקובץ כ-`REMINDER_SMS`, ומחווטים משם ישירות ב-
+ * `lib/reminders/templates.ts`.
  */
 export type NotificationEvent =
   | 'booking_requested'
@@ -299,27 +301,28 @@ export function smsBodyWithContext(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// תזכורות — נוסחים מאושרים, **לא מחווטים**. 15G.
+// תזכורות — נוסחים מאושרים, מחווטים ל-lib/reminders/templates.ts
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * 🔒 **אין לחווט את השניים האלה ב-15F.**
+ * 🔒 המקור היחיד לנוסח day_before/two_hours_before.
  *
- * הם נמדדו ואושרו יחד עם השמונה שמעליהם, ולכן הם נשמרים כאן ונבדקים ע"י
- * אותו assertion של ≤70 — אחרת המדידה המאושרת הייתה הולכת לאיבוד ומישהו
- * היה מנסח אותם מחדש ב-15G.
+ * הם נמדדו ואושרו יחד עם השמונה שמעליהם, ונבדקים ע"י אותו assertion של
+ * ≤70 בתחתית הקובץ. `lib/reminders/templates.ts` (`dayBeforeReminderBody`,
+ * `twoHoursBeforeReminderBody`) קורא לשני הקבועים האלה ישירות — אין עותק
+ * שני של הטקסט בשום מקום. שינוי נוסח נעשה **כאן בלבד**.
  *
- * ⚠️ הם **אינם** ב-`SMS_TEXT` וב-`NotificationEvent` בדיוק כדי שלא ייכנסו
- * למסלול הטרנזקציוני בטעות: לתזכורת יש חלון שליחה, snapshot של המועד
- * ו-`expires_at`, ואילו אירוע טרנזקציוני הוא נקודה בזמן. ראה את הנימוק
- * המלא ב-STAGE-15F-ARCHITECTURE (למה טבלה חדשה ולא הרחבת
- * appointment_reminders).
+ * ⚠️ הם **אינם** ב-`SMS_TEXT` וב-`NotificationEvent`, וזה נשאר כך גם אחרי
+ * החיווט: לתזכורת יש חלון שליחה, snapshot של המועד ו-`expires_at`, ואילו
+ * אירוע טרנזקציוני הוא נקודה בזמן. הם רצים דרך `runReminderDispatch`
+ * ולא דרך מסלול ההתראות הטרנזקציוני. ראה הנימוק המלא ב-
+ * STAGE-15F-ARCHITECTURE (למה טבלה חדשה ולא הרחבת appointment_reminders).
  *
- * ⚠️ הנוסחים אומרים "מחר" ו"היום" ולא שעה מדויקת — בהתאם לכלל של
- * [lib/reminders/templates.ts:8](reminders/templates.ts), שלתזכורת יש חלון
- * ולא רגע.
+ * ⚠️ הנוסחים אומרים "מחר" ו"היום" ולא שעה מדויקת — זו החלטה שאושרה
+ * ונמדדה כאן, לא תיאור של כלל כללי: `lib/reminders/templates.ts` מסביר
+ * למה זה בטוח בפועל בזכות חלונות השליחה שקבועים ב-0011.
  */
-export const REMINDER_SMS_V2_UNWIRED: Readonly<Record<string, string>> = {
+export const REMINDER_SMS: Readonly<Record<string, string>> = {
   day_before: `תזכורת: התור שלך מחר. פרטים: ${ACCOUNT_URL}`,
   two_hours_before: `תזכורת: התור שלך היום. פרטים: ${ACCOUNT_URL}`,
 } as const
@@ -413,7 +416,7 @@ function assertAllTextsFitOneSegment(): void {
       if (typeof body === 'string') all.push([`${event}/${role}`, body])
     }
   }
-  for (const [kind, body] of Object.entries(REMINDER_SMS_V2_UNWIRED)) {
+  for (const [kind, body] of Object.entries(REMINDER_SMS)) {
     all.push([`reminder/${kind}`, body])
   }
 
