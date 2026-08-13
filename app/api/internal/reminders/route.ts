@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual, createHash } from 'crypto'
 import { runReminderDispatch } from '@/lib/reminders/dispatch'
+import { completePastConfirmedAppointments } from '@/lib/db/appointments'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,24 @@ export const dynamic = 'force-dynamic'
  *   • התשובה היא דגלים וספירות בלבד — לעולם לא ה-secret, מזהי תזכורות,
  *     שמות, טלפונים או גוף הודעה.
  *   • הגנה מפני הפעלה כפולה היא ה-lease ב-DB, לא ה-route.
+ *
+ * ═══ 0029 — sibling call עצמאי, לא הרחבה של runReminderDispatch ═══
+ *
+ * ⚠️ **לא נכנס לתוך runReminderDispatch.** השער שם (shouldDispatch, שורה
+ * "gate → sweep → claim") הוא כלל ספציפי לתזכורות: "כשהמערכת כבויה, אין
+ * שום כתיבה" — ונועד למנוע כתיבות תזכורות לא רצויות, לא לחסום פעולות
+ * שאין להן שום קשר לתזכורות. סיום תור אוטומטי הוא עובדה על תור שעבר
+ * את זמנו, לא תלוי ב-REMINDERS_ENABLED/isNewBookingSystemEnabled, ואסור
+ * שידום אם מישהו יכבה את דגל התזכורות מסיבה שאין לה שום קשר לסיום תורים.
+ *
+ * זו הסיבה שהקריאה כאן היא שלב עצמאי ב-route, עם try/catch משלה: תקלה
+ * בסיום תורים לא תמנע דיוור תזכורות, ותקלה בדיוור לא תמנע סיום תורים.
+ * שני הצדדים כותבים best-effort (completePastConfirmedAppointments כבר
+ * עוטפת ומדפיסה ללוג, בדיוק כמו expireStalePendingAppointments) — ה-try
+ * כאן הוא הגנה כפולה בלבד, למקרה שמשהו יזרוק בכל זאת.
+ *
+ * 🔒 שיתוף התשתית מוגבל ל-transport: אותו secret, אותו route, אותה קריאת
+ * QStash של 5 דקות. שום לוגיקה עסקית אינה משותפת בין שני הצדדים.
  */
 export async function POST(req: NextRequest) {
   const secret = process.env.REMINDERS_DISPATCH_SECRET
@@ -47,6 +66,13 @@ export async function POST(req: NextRequest) {
   const token = bearerToken(req.headers.get('authorization'))
   if (!token || !secretsMatch(token, secret)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  try {
+    await completePastConfirmedAppointments()
+  } catch (err) {
+    console.error('[internal/reminders] completion sweep threw',
+      err instanceof Error ? err.message : String(err))
   }
 
   // ⚠️ אין כאן בדיקת דגל שמחזירה 403. הדגלים נבדקים בתוך ה-dispatcher,

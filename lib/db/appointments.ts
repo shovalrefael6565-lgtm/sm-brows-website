@@ -254,6 +254,22 @@ export async function expireStalePendingAppointments(): Promise<void> {
   }
 }
 
+/**
+ * מסמנת confirmed שה-ends_at שלו עבר כ-completed (+ היסטוריה). best-effort,
+ * בדיוק כמו expireStalePendingAppointments — כשל נרשם ללוג ולא זורק.
+ *
+ * ⚠️ נקראת מ-app/api/internal/reminders/route.ts כ-sibling call עצמאי,
+ * בלי שום תלות בדגלי התזכורות (REMINDERS_ENABLED וכו') — סיום תור אינו
+ * חלק ממערכת התזכורות, רק רוכב על אותה קריאת QStash של 5 דקות.
+ */
+export async function completePastConfirmedAppointments(): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db.rpc('complete_past_confirmed_appointments')
+  if (error) {
+    console.error('[appointments] completion sweep failed', error.message)
+  }
+}
+
 export interface AppointmentRow {
   id: string
   service_key: string
@@ -1026,6 +1042,65 @@ export async function cancelConfirmedAppointmentByAdmin(
       appointment: envelope.appointment as unknown as CancelledAppointmentRow,
       currentStatus: envelope.current_status,
       cancelledRequestId: envelope.cancelled_request_id ?? null,
+    },
+  }
+}
+
+/**
+ * 🔒 שלב 16 (0029) — סימון אי-הגעה ע"י המנהלת.
+ *
+ * זכאות: completed, או confirmed שה-ends_at שלו עבר (למקרה שה-sweep עדיין
+ * לא הגיע לשורה). 'not_ended' ו-'not_eligible' חוזרים כ-outcome ולא
+ * כשגיאה, מאותו טעם כמו ב-cancelConfirmedAppointmentByAdmin: המנהלת חייבת
+ * לראות מה קרה בפועל, לא רק "נכשל".
+ */
+export type AdminNoShowOutcome = 'applied' | 'already_no_show' | 'not_ended' | 'not_eligible'
+export type AdminNoShowError = 'not_found' | 'not_admin' | 'db_error'
+
+export interface NoShowAppointmentRow {
+  id: string
+  status: string
+  starts_at: string
+  ends_at: string
+}
+
+export interface AdminNoShowResult {
+  outcome: AdminNoShowOutcome
+  appointment: NoShowAppointmentRow
+  /** הסטטוס בפועל, כש-outcome='not_eligible' */
+  currentStatus?: string
+}
+
+export async function markAppointmentNoShowByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<{ ok: true; result: AdminNoShowResult } | { ok: false; error: AdminNoShowError }> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('mark_appointment_no_show', {
+    p_appointment_id: appointmentId,
+    p_admin_user_id: adminUserId,
+  })
+
+  if (error) {
+    const m = error.message ?? ''
+    if (m.includes('NOT_FOUND')) return { ok: false, error: 'not_found' }
+    if (m.includes('NOT_ADMIN') || m.includes('ADMIN_REQUIRED')) return { ok: false, error: 'not_admin' }
+    console.error('[appointments] mark no_show failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+
+  const envelope = data as unknown as {
+    outcome: AdminNoShowOutcome
+    appointment: Record<string, unknown>
+    current_status?: string
+  }
+
+  return {
+    ok: true,
+    result: {
+      outcome: envelope.outcome,
+      appointment: envelope.appointment as unknown as NoShowAppointmentRow,
+      currentStatus: envelope.current_status,
     },
   }
 }

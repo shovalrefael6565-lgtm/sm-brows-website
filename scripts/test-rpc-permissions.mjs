@@ -298,6 +298,22 @@ const ASSERTION_MIGRATIONS = {
     'unarchive_customer(uuid,uuid)',
     'delete_customer_if_safe(uuid,uuid)',
   ],
+  /**
+   * שלב 16 — סיום תור אוטומטי וסימון אי-הגעה.
+   *
+   * 🔴 mark_appointment_no_show משנה סטטוס עסקי סופי (no_show) ומקבלת
+   * p_admin_user_id כפרמטר — חשיפה ל-anon/authenticated הייתה מאפשרת
+   * לכל מי שמחזיק מפתח כזה לסמן אי-הגעה על תור של לקוחה אחרת, עם actor_id
+   * שרירותי בהיסטוריה.
+   *
+   * complete_past_confirmed_appointments אינה מקבלת פרמטרים ואינה חושפת
+   * מידע, אבל היא כתיבה המונית לכל תור confirmed שעבר — נכללת מאותו טעם
+   * שכל RPC כותב בפרויקט הזה הוא service_role בלבד (ראה 0003).
+   */
+  '0029_appointment_completion.sql': [
+    'complete_past_confirmed_appointments()',
+    'mark_appointment_no_show(uuid,uuid)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

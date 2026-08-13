@@ -11,6 +11,7 @@ import {
   approveRescheduleRequest,
   rejectRescheduleRequest,
   cancelConfirmedAppointmentByAdmin,
+  markAppointmentNoShowByAdmin,
 } from '@/lib/db/appointments'
 import {
   updateAppointmentEventTime,
@@ -757,6 +758,69 @@ export async function cancelConfirmedByAdmin(
     message: calendarRemoved
       ? 'התור בוטל והאירוע הוסר מהיומן.'
       : 'התור בוטל. הסרת האירוע מהיומן נכשלה ומופיעה ברשימת התורים שדורשים טיפול.',
+  }
+}
+
+/**
+ * 🔒 שלב 16 (0029) — סימון אי-הגעה ע"י המנהלת.
+ *
+ * ⚠️ **אין כאן שום התראה.** בשונה מ-cancelConfirmedByAdmin, אין
+ * `waitUntil(dispatchNow(...))`: שורת ההיסטוריה שנכתבת (to_status='no_show')
+ * אינה תואמת שום ענף ב-enqueue_notifications_from_history (0025) — היא
+ * מתעדת explicitly שסימון completed/no_show אינו מייצר התראה. אין שום דבר
+ * לנקז.
+ *
+ * ⚠️ אין כאן גם שום אינטראקציה עם Google Calendar: התור כבר קרה (או שהיה
+ * צריך לקרות), ואין אירוע למחוק או לעדכן.
+ */
+export type AdminNoShowServiceResult =
+  | { ok: true; outcome: 'applied' | 'already_no_show'; message: string }
+  | { ok: false; status: number; error: string; message: string }
+
+export async function markNoShowByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<AdminNoShowServiceResult> {
+  const res = await markAppointmentNoShowByAdmin(appointmentId, adminUserId)
+
+  if (!res.ok) {
+    switch (res.error) {
+      case 'not_found':
+        return { ok: false, status: 404, error: 'not_found', message: 'התור לא נמצא.' }
+      case 'not_admin':
+        // ⚠️ אמור להיחסם כבר ב-requireAdminApi. ראה ההערה המקבילה ב-
+        // cancelConfirmedByAdmin.
+        return { ok: false, status: 403, error: 'forbidden', message: 'אין הרשאה לבצע את הפעולה.' }
+      case 'db_error':
+        return { ok: false, status: 500, error: 'server_error', message: 'הפעולה נכשלה. נסי שוב.' }
+    }
+  }
+
+  const { outcome, currentStatus } = res.result
+
+  if (outcome === 'not_ended') {
+    return {
+      ok: false, status: 422, error: 'not_ended',
+      message: 'התור עדיין לא הסתיים, ולכן לא ניתן לסמן אותו כאי-הגעה.',
+    }
+  }
+
+  if (outcome === 'not_eligible') {
+    const label = STATUS_LABELS[currentStatus ?? '']?.label
+    return {
+      ok: false, status: 409, error: 'not_eligible',
+      message: label
+        ? `לא ניתן לסמן תור בסטטוס "${label}" כאי-הגעה.`
+        : 'לא ניתן לסמן את התור במצבו הנוכחי כאי-הגעה.',
+    }
+  }
+
+  return {
+    ok: true,
+    outcome,
+    message: outcome === 'already_no_show'
+      ? 'התור כבר מסומן כאי-הגעה.'
+      : 'התור סומן כאי-הגעה.',
   }
 }
 

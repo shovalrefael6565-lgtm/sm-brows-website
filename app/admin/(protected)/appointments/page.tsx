@@ -6,6 +6,7 @@ import { formatDateTimeIL, treatmentLabel, STATUS_LABELS } from '@/lib/admin/for
 import { buildReminderWhatsAppMessage, buildWhatsAppLinkToCustomer } from '@/lib/whatsappTemplates'
 import Pagination from '@/components/admin/Pagination'
 import CancelAppointmentButton from '@/components/admin/CancelAppointmentButton'
+import MarkNoShowButton from '@/components/admin/MarkNoShowButton'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,6 +106,20 @@ export default async function AdminAppointmentsPage({
                  */
                 const canSendReminder =
                   canCancel && E164_IL_MOBILE.test(appt.customer_phone_e164)
+
+                /**
+                 * 🔒 שלב 16 (0029) — סימון אי-הגעה מוצג לתור **שכבר הסתיים**:
+                 * completed (הסימון האוטומטי כבר קרה), או confirmed שה-
+                 * ends_at שלו עבר (ה-sweep עדיין לא הגיע לשורה — אין לחסום
+                 * את שובל בגלל תזמון).
+                 *
+                 * ⚠️ זו הסתרה בלבד. ה-RPC (0029) אוכף את הזכאות בעצמו ואינו
+                 * סומך על מה שהוצג במסך — בדיוק כמו canCancel.
+                 */
+                const canMarkNoShow =
+                  !appt.reschedule_of_appointment_id &&
+                  (appt.status === 'completed' ||
+                    (appt.status === 'confirmed' && new Date(appt.ends_at).getTime() <= Date.now()))
                 return (
                   <tr key={appt.id} className="border-b border-brand-linen-dark/60">
                     <td className="px-4 sm:px-2 py-3">
@@ -127,6 +142,13 @@ export default async function AdminAppointmentsPage({
                       <div className="flex flex-wrap items-center gap-2">
                         {canCancel && (
                           <CancelAppointmentButton
+                            appointmentId={appt.id}
+                            customerName={appt.customer_full_name || 'הלקוחה'}
+                            whenLabel={`${date} בשעה ${time}`}
+                          />
+                        )}
+                        {canMarkNoShow && (
+                          <MarkNoShowButton
                             appointmentId={appt.id}
                             customerName={appt.customer_full_name || 'הלקוחה'}
                             whenLabel={`${date} בשעה ${time}`}
