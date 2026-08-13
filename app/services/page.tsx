@@ -13,7 +13,7 @@ const listedServices = services.filter((s) => s.id !== 'microblading')
 export const metadata: Metadata = {
   title: 'טיפולים',
   description:
-    'טיפולי עיצוב גבות מקצועיים: מיקרובליידינג, עיצוב גבות טבעי והרמת גבות. קורס עיצוב גבות מקצועי. S.M BROWS אשקלון.',
+    'טיפולי עיצוב גבות מקצועיים: מיקרובליידינג, עיצוב גבות טבעיות והרמת גבות. קורס עיצוב גבות מקצועי. S.M BROWS אשקלון.',
   alternates: { canonical: '/services' },
 }
 

@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     template: '%s | S.M BROWS',
   },
   description:
-    'קליניקה מקצועית לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות. קבעי תור בוואצאפ.',
+    'קליניקה מקצועית לעיצוב גבות באשקלון. מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות. קבעי תור בוואצאפ.',
   keywords: [
     'מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות', 'גבות', 'גבות באשקלון',
     'עיצוב גבות באשקלון', 'מיקרובליידינג אשקלון', 'הרמת גבות אשקלון',
@@ -114,7 +114,7 @@ const localBusinessJsonLd = {
   '@type': 'BeautySalon',
   name: 'S.M BROWS',
   alternateName: "S.M BROWS — IT'S ALL ABOUT YOUR EYEBROWS",
-  description: 'קליניקה מקצועית לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות וקורסים.',
+  description: 'קליניקה מקצועית לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות וקורסים.',
   url: SITE_URL,
   telephone: PHONE_NUMBER,
   email: EMAIL,
@@ -148,7 +148,7 @@ const localBusinessJsonLd = {
     name: 'שירותי עיצוב גבות',
     itemListElement: [
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'מיקרובליידינג' }, priceCurrency: 'ILS', price: '1800' },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'עיצוב גבות טבעי' }, priceCurrency: 'ILS', price: '70' },
+      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'עיצוב גבות טבעיות' }, priceCurrency: 'ILS', price: '70' },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'הרמת גבות' }, priceCurrency: 'ILS', price: '250' },
     ],
   },

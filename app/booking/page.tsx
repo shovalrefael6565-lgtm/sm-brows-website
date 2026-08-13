@@ -5,7 +5,7 @@ import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
 export const metadata: Metadata = {
   title: 'קביעת תור',
-  description: 'קבעי תור לטיפול גבות מקצועי — מיקרובליידינג, עיצוב גבות טבעי, הרמת גבות וקורס מקצועי. S.M BROWS אשקלון.',
+  description: 'קבעי תור לטיפול גבות מקצועי — מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות וקורס מקצועי. S.M BROWS אשקלון.',
   alternates: { canonical: '/booking' },
 }
 
