@@ -147,7 +147,8 @@ const req1 = await request(orig1.id, c1.id, T1)
   chk('הבקשה ירשה טיפול/מחיר/משך מהמקור',
     req1.service_key === orig1.service_key && req1.price_total === orig1.price_total &&
     req1.duration_min === orig1.duration_min)
-  chk('לבקשה יש pending_expires_at', !!req1.pending_expires_at)
+  chk('🔒 0030: לבקשה אין pending_expires_at (null — אין תפוגה מבוססת-זמן)',
+    req1.pending_expires_at === null)
 
   chk('🔴 שעת המקור עדיין חסומה', await slotBlocked(T0))
   chk('🔴 שעת היעד חסומה ע"י הבקשה', await slotBlocked(T1))
@@ -227,14 +228,14 @@ section('4. 🔴 claim_calendar_sync על המקור שהוזז')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('5. אישור כפול ואישור אחרי תפוגה')
+section('5. אישור כפול; 0030 — pending_expires_at בעבר כבר לא חוסם אישור')
 
 {
   const again = await attempt(() => approve(req1.id))
   chk('אישור חוזר נדחה (idempotency)', !again.ok)
   chk('  הסיבה NOT_PENDING', !again.ok && again.msg.includes('NOT_PENDING'))
 
-  // בקשה שפגה
+  // בקשה עם pending_expires_at בעבר (שורה ישנה מלפני 0030, למשל)
   const c = await makeCustomer('+972541230002', 'דנה')
   const o = await makeConfirmed({ customerId: c.id, startsAt: hours(50) })
   const rq = await request(o.id, c.id, hours(74))
@@ -242,12 +243,12 @@ section('5. אישור כפול ואישור אחרי תפוגה')
     `update public.appointments set pending_expires_at = now() - interval '1 minute' where id = $1`,
     [rq.id])
 
-  const expiredApprove = await attempt(() => approve(rq.id))
-  chk('אישור בקשה שפגה נדחה', !expiredApprove.ok)
-  chk('  הסיבה NOT_PENDING', !expiredApprove.ok && expiredApprove.msg.includes('NOT_PENDING'))
+  const oldExpiryApprove = await attempt(() => approve(rq.id))
+  chk('🔒 0030: אישור מצליח גם עם pending_expires_at בעבר', oldExpiryApprove.ok,
+    oldExpiryApprove.ok ? '' : oldExpiryApprove.msg)
 
   const oAfter = await byId(o.id)
-  chk('🔒 המקור נשאר confirmed אחרי אישור שנכשל', oAfter.status === 'confirmed')
+  chk('🔒 המקור עבר rescheduled אחרי האישור המוצלח', oAfter.status === 'rescheduled')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -284,7 +285,7 @@ section('6. דחייה — המקור נשאר בדיוק כפי שהיה')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('7. תפוגה — אותה הבטחה כמו דחייה')
+section('7. 0030 — הטאטוא הוא no-op גם לבקשות שינוי מועד')
 
 {
   const c = await makeCustomer('+972541230004', 'שירה')
@@ -299,12 +300,17 @@ section('7. תפוגה — אותה הבטחה כמו דחייה')
 
   const r = await byId(rq.id)
   const o = await byId(o0.id)
-  chk("הבקשה פגה ('expired')", r.status === 'expired', `status=${r.status}`)
+  chk('🔒 0030: הבקשה נשארת pending — הטאטוא לא נגע בה', r.status === 'pending', `status=${r.status}`)
   chk('🔒 המקור נשאר confirmed', o.status === 'confirmed')
   chk('🔒 starts_at של המקור לא השתנה',
     new Date(o.starts_at).getTime() === new Date(S).getTime())
   chk('🔴 שעת המקור עדיין חסומה', await slotBlocked(S))
-  chk('🔴 שעת היעד השתחררה', !(await slotBlocked(N)))
+  chk('🔴 שעת היעד עדיין חסומה — לא משתחררת מעצמה', await slotBlocked(N))
+
+  // ועדיין ניתנת לדחייה, בדיוק כמו כל pending אחרת
+  const rejected = await reject(rq.id)
+  chk("ועדיין ניתנת לדחייה: 'rejected'", rejected.status === 'rejected')
+  chk('🔴 שעת היעד משתחררת עכשיו, ע"י הדחייה', !(await slotBlocked(N)))
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -491,54 +497,29 @@ section('12. 🔴 שרשרת שני שינויי מועד — max_reschedules ב
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('13. 🔴 בקשה אינה שורדת את המועדים שהיא נוגעת בהם')
+section('13. 0030 — pending_expires_at תמיד null; ORIGINAL_IN_PAST/TARGET_IN_PAST מגנים לבד')
 
 {
   const c = await makeCustomer('+972541230011', 'תפוגה')
   const far = h => hours(h)
 
-  // ── 1. תפוגה עסקית רגילה כששני המועדים רחוקים ────────────────────────────
+  // ── 1-4 (היו: חיתוך התפוגה למועד המקור/היעד) — 0030 ביטלה את
+  // v_expires_at := least(...) לגמרי: pending_expires_at תמיד null, לא
+  // משנה מה p_expires_at ולא משנה כמה קרובים המקור/היעד. ההגנה על
+  // "אישור לא מזיז תור שכבר קרה" עברה כולה לבדיקה 5 למטה, שכבר הייתה
+  // עצמאית מהעמודה הזו לפני 0030 (ראה approve_reschedule_request).
   {
     const o = await makeConfirmed({ customerId: c.id, startsAt: far(200) })
-    const exp = hours(3)
-    const r = await request(o.id, c.id, far(220), exp)
-    const diff = Math.abs(new Date(r.pending_expires_at).getTime() - new Date(exp).getTime())
-    chk('1. שני המועדים רחוקים → התפוגה העסקית נשמרת כמות שהיא', diff < 2000,
-      `Δ=${diff}ms`)
+    const r = await request(o.id, c.id, far(220), hours(3))
+    chk('🔒 0030: pending_expires_at הוא null גם עם p_expires_at תקין',
+      r.pending_expires_at === null)
   }
-
-  // ── 2. גלגול ל-11:00 כששני התורים מאוחרים יותר — נשאר תקין ───────────────
   {
-    const o = await makeConfirmed({ customerId: c.id, startsAt: far(202) })
-    const rollover = hours(40)           // מדמה גלגול ל-11:00 ביום עבודה הבא
-    const r = await request(o.id, c.id, far(222), rollover)
-    const diff = Math.abs(new Date(r.pending_expires_at).getTime() - new Date(rollover).getTime())
-    chk('2. גלגול ל-11:00 ושני התורים מאוחרים יותר → לא נחתך', diff < 2000, `Δ=${diff}ms`)
-  }
-
-  // ── 3. המקור מוקדם מהתפוגה → נחתך למועד המקור ────────────────────────────
-  {
-    const S = far(20)                    // המקור בעוד 20 שעות
+    const S = far(20) // המקור קרוב, תפוגה מבוקשת רחוקה בהרבה
     const o = await makeConfirmed({ customerId: c.id, startsAt: S })
-    const r = await request(o.id, c.id, far(224), hours(40))  // תפוגה "מגולגלת" ל-40ש'
-    chk('3. 🔴 המקור לפני התפוגה → התפוגה נחתכת למועד המקור',
-      new Date(r.pending_expires_at).getTime() === new Date(S).getTime(),
-      `exp=${r.pending_expires_at}`)
-    chk('   התפוגה אינה מאוחרת מהמקור',
-      new Date(r.pending_expires_at) <= new Date(S))
-  }
-
-  // ── 4. היעד מוקדם מהתפוגה → נחתך למועד היעד ──────────────────────────────
-  {
-    const S = far(206)
-    const T = far(22)                    // היעד בעוד 22 שעות, לפני התפוגה
-    const o = await makeConfirmed({ customerId: c.id, startsAt: S })
-    const r = await request(o.id, c.id, T, hours(40))
-    chk('4. 🔴 היעד לפני התפוגה → התפוגה נחתכת למועד היעד',
-      new Date(r.pending_expires_at).getTime() === new Date(T).getTime(),
-      `exp=${r.pending_expires_at}`)
-    chk('   התפוגה אינה מאוחרת מהיעד',
-      new Date(r.pending_expires_at) <= new Date(T))
+    const r = await request(o.id, c.id, far(224), hours(40))
+    chk('🔒 0030: pending_expires_at נשאר null גם כשהמקור קרוב מהתפוגה שהתבקשה',
+      r.pending_expires_at === null)
   }
 
   // ── 5. אישור אחרי שאחד המועדים הגיע — אסור להצליח ────────────────────────
@@ -660,16 +641,14 @@ section('14. 🔴 ביטול המקור סוגר בקשה פתוחה — אין 
     chk('4. actor של הדחייה נשאר admin ולא נדרס',
       before.status === 'rejected')
 
-    // אותו דבר לבקשה שפגה
+    // אותו דבר לבקשה שכבר expired — 0030 ביטלה את הדרך היחידה לייצר
+    // expired חדשה (הטאטוא), אבל שורה היסטורית כזו (מלפני 0030, או שנקבעה
+    // ידנית) עדיין חייבת להתנהג נכון: לא להיסגר שוב ע"י ביטול המקור.
     const o5 = await makeConfirmed({ customerId: c.id, startsAt: hours(306) })
     const r5 = await request(o5.id, c.id, hours(326))
-    await db.query(
-      `update public.appointments set pending_expires_at = now() - interval '1 minute' where id=$1`,
-      [r5.id])
-    await db.query(`select public.expire_stale_pending_appointments()`)
-    chk('4. הבקשה פגה', (await byId(r5.id)).status === 'expired')
+    await db.query(`update public.appointments set status = 'expired' where id = $1`, [r5.id])
     const res5 = await cancelOrig(o5.id, c.id)
-    chk('4. בקשה שפגה נשארת expired', (await byId(r5.id)).status === 'expired')
+    chk('4. בקשה שכבר expired (שורה היסטורית) נשארת expired', (await byId(r5.id)).status === 'expired')
     chk('4. cancelled_request_id = null גם כאן', res5.r.cancelled_request_id === null)
   }
 

@@ -91,7 +91,7 @@ chk('נוצר תור אחד', after1.appointments === before1.appointments + 1)
 chk('נרשם אירוע קצב אחד', after1.rate_events === before1.rate_events + 1)
 const h1 = await one(`select * from public.appointment_history where appointment_id = $1`, [a1.id])
 chk('נכתבה היסטוריה עם actor=customer', h1.actor === 'customer' && h1.action === 'created')
-chk('התפוגה נשמרה כפי שנשלחה', a1.pending_expires_at !== null)
+chk('🔒 0030: pending_expires_at הוא null — אין תפוגה מבוססת-זמן', a1.pending_expires_at === null)
 
 // ── 2. conflict — אפס שאריות ────────────────────────────────────────────────
 section('2. conflict — לא נשארת לקוחה, לא תור, לא אירוע קצב')

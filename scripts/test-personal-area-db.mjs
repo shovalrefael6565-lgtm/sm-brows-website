@@ -134,9 +134,8 @@ const a1 = await bookPA({ customerId: c1.id, startsAt: future(30), expires: expi
 chk('נוצר תור pending', a1.status === 'pending' && !!a1.id)
 chk('🔒 booking_source = personal_area', a1.booking_source === 'personal_area',
   String(a1.booking_source))
-chk('🔒 התפוגה נשמרה **כפי שנשלחה** ולא חושבה מחדש',
-  new Date(a1.pending_expires_at).toISOString() === new Date(expires1).toISOString(),
-  `${a1.pending_expires_at}`)
+chk('🔒 0030: pending_expires_at הוא null — לא expires1 שנשלח, אין תפוגה מבוססת-זמן',
+  a1.pending_expires_at === null, `${a1.pending_expires_at}`)
 chk('התור משויך ללקוחה שנשלחה', a1.customer_id === c1.id)
 chk('ends_at חושב ע"י הטריגר',
   new Date(a1.ends_at) - new Date(a1.starts_at) === 20 * 60_000)
@@ -149,16 +148,9 @@ chk('ends_at חושב ע"י הטריגר',
   chk('to_starts_at נרשם', h.to_starts_at !== null)
 }
 
-{
-  // 🔒 הכלל שהמיגרציה באה לתקן: 12 שעות אינן בשום מקום בחישוב.
-  const gapHours = (new Date(a1.pending_expires_at) - new Date(a1.created_at)) / 3600_000
-  chk('🔒 הפער מהיצירה אינו 12 שעות (כלל 0003 הישן מת)',
-    Math.round(gapHours) !== 12, `${gapHours.toFixed(2)}h`)
-}
-
 
 // ════════════════════════════════════════════════════════════════════════════
-section('3. אותה תפוגה בדיוק כמו במסלול הציבורי')
+section('3. 0030 — שני המסלולים זהים: אף אחד לא שומר תפוגה אמיתית')
 
 {
   const shared = future(3)
@@ -166,8 +158,8 @@ section('3. אותה תפוגה בדיוק כמו במסלול הציבורי')
   const rPa = await bookPA({ customerId: cPa.id, startsAt: future(200), expires: shared })
   const rPub = await bookPublic({ phone: '+972541220011', name: 'השוואה ב',
                                   startsAt: future(202), expires: shared, ip: '203.0.113.31' })
-  chk('🔒 שני המסלולים שומרים את אותה תפוגה שנשלחה להם',
-    new Date(rPa.pending_expires_at).toISOString() === new Date(rPub.pending_expires_at).toISOString())
+  chk('🔒 שני המסלולים כותבים null ל-pending_expires_at, לא את מה שנשלח',
+    rPa.pending_expires_at === null && rPub.pending_expires_at === null)
   chk('booking_source מבדיל ביניהם',
     rPa.booking_source === 'personal_area' && rPub.booking_source === 'public_booking')
 }
@@ -246,23 +238,31 @@ section('6. EXCLUDE constraint — pending חוסם סלוט, בלי partial wri
 
 
 // ════════════════════════════════════════════════════════════════════════════
-section('7. תפוגה עצלה — pending שפג משחרר את הסלוט')
+section('7. 0030 — pending לעולם לא משחרר סלוט מעצמו')
 
 {
-  const cA = await makeCustomer('+972541220050', 'פגה')
-  const cB = await makeCustomer('+972541220051', 'הבאה בתור')
+  const cA = await makeCustomer('+972541220050', 'תופסת ללא הגבלת זמן')
+  const cB = await makeCustomer('+972541220051', 'מנסה לתפוס')
   const slot = future(70)
   const stale = await bookPA({ customerId: cA.id, startsAt: slot })
 
+  // מדמה שורה עם מועד תפוגה בעבר, כמו שורה ישנה מלפני 0030
   await db.query(`update public.appointments set pending_expires_at = now() - interval '1 hour'
                   where id = $1`, [stale.id])
 
-  // ⚠️ בלי sweep נפרד: expire_stale_pending_appointments רצה בתוך ה-RPC עצמו
+  // ⚠️ בלי sweep נפרד: expire_stale_pending_appointments רצה בתוך ה-RPC עצמו,
+  // אבל אחרי 0030 היא no-op — הסלוט חייב להישאר תפוס
   const reused = await tryPA({ customerId: cB.id, startsAt: slot })
-  chk('סלוט של pending שפג משתחרר לבקשה הבאה', reused.ok)
+  chk('🔒 0030: הסלוט נשאר חסום — pending_expires_at בעבר לא משחרר אותו',
+    !reused.ok && (reused.msg.includes('exclusion') || reused.msg.includes('23P01')))
 
   const old = await one(`select status from public.appointments where id = $1`, [stale.id])
-  chk('הבקשה שפגה סומנה expired ולא נמחקה', old.status === 'expired')
+  chk('🔒 הבקשה נשארת pending — לא expired', old.status === 'pending')
+
+  // רק שינוי סטטוס בפועל (דחייה/ביטול/אישור) משחרר — לא הזמן
+  await db.query(`update public.appointments set status = 'rejected' where id = $1`, [stale.id])
+  const reused2 = await tryPA({ customerId: cB.id, startsAt: slot })
+  chk('אחרי שהסטטוס השתנה בפועל (rejected) הסלוט משתחרר', reused2.ok, reused2.ok ? '' : reused2.msg)
 }
 
 

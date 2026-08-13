@@ -203,19 +203,22 @@ section('2. אטומיות הדחייה')
   chk('🔒 התור נשאר confirmed', (await statusOf(a2.id)) === 'confirmed')
   chk('🔒 ההיסטוריה של האישור לא נפגעה', (await historyOf(a2.id)).length === 1)
 
-  // ── דחייה על pending שפג ──
+  // ── 0030: pending_expires_at בעבר כבר לא חוסם דחייה — אין יותר תפוגה
+  // מבוססת-זמן. שורה כזו יכולה להיות שורה ישנה מלפני 0030 (אין backfill
+  // לנתוני פרודקשן) והיא חייבת להישאר ניתנת לדחייה כרגיל.
   const c3 = await newCustomer()
   const a3 = await pending({ customerId: c3.id, startsAt: future(42), expiresAt: future(-1) })
-  const onExpired = await reject(a3.id)
+  const onOldExpiry = await reject(a3.id)
 
-  chk('דחייה על בקשה שפגה נכשלת', !onExpired.ok && onExpired.msg.includes('NOT_PENDING'))
-  chk('🔒 לא נכתבה היסטוריה', (await historyOf(a3.id)).length === 0)
+  chk('🔒 0030: דחייה מצליחה גם עם pending_expires_at בעבר', onOldExpiry.ok,
+    onOldExpiry.ok ? '' : onOldExpiry.msg)
+  chk('status = rejected', (await statusOf(a3.id)) === 'rejected')
 
-  // ── pending_expires_at = null אינו חוסם ──
+  // ── pending_expires_at = null (המצב הרגיל אחרי 0030) גם לא חוסם ──
   const c4 = await newCustomer()
   const a4 = await pending({ customerId: c4.id, startsAt: future(46), expiresAt: null })
   const noExpiry = await reject(a4.id)
-  chk('בקשה ללא תפוגה כן ניתנת לדחייה (התנאי is null נשמר)', noExpiry.ok)
+  chk('בקשה ללא תפוגה ניתנת לדחייה', noExpiry.ok)
 }
 
 
@@ -270,12 +273,14 @@ section('3. אישור — רגרסיה מלאה, 0019 לא נגעה בו')
   chk('אישור כפול נכשל ב-NOT_PENDING', !twice.ok && twice.msg.includes('NOT_PENDING'))
   chk('🔒 שורת היסטוריה אחת בלבד', (await historyOf(a3.id)).length === 1)
 
-  // ── אישור בקשה שפגה (AT-18) ──
+  // ── 0030: אישור בקשה עם pending_expires_at בעבר כן מצליח ──
+  // אין יותר תפוגה מבוססת-זמן — status='pending' הוא כל מה שקובע.
   const c4 = await newCustomer()
   const a4 = await pending({ customerId: c4.id, startsAt: future(58), expiresAt: future(-1) })
-  const expired = await approve(a4.id)
-  chk('🔒 אי אפשר לאשר בקשה שפגה (AT-18)', !expired.ok && expired.msg.includes('NOT_PENDING'))
-  chk('🔒 לא נכתבה היסטוריה', (await historyOf(a4.id)).length === 0)
+  const oldExpiry = await approve(a4.id)
+  chk('🔒 0030: אישור מצליח גם עם pending_expires_at בעבר', oldExpiry.ok,
+    oldExpiry.ok ? '' : oldExpiry.msg)
+  chk('status = confirmed', oldExpiry.ok && oldExpiry.row?.status === 'confirmed')
 
   // ── אישור אחרי דחייה ──
   const c5 = await newCustomer()
@@ -288,19 +293,25 @@ section('3. אישור — רגרסיה מלאה, 0019 לא נגעה בו')
 
 
 // ════════════════════════════════════════════════════════════════════════════
-section('4. תפוגה — expired נשאר נפרד מ-rejected')
+section('4. 0030 — הטאטוא הוא no-op, אין יותר תפוגה מבוססת-זמן')
 
 {
   const c = await newCustomer()
   const a = await pending({ customerId: c.id, startsAt: future(66), expiresAt: future(-1) })
   await db.query(`select public.expire_stale_pending_appointments()`)
 
-  chk('בקשה שפגה עוברת ל-expired ולא ל-rejected', (await statusOf(a.id)) === 'expired')
-  const h = await historyOf(a.id)
-  chk('היסטוריה: expired · pending→expired · system',
-    h.length === 1 && h[0].action === 'expired' && h[0].to_status === 'expired' &&
-    h[0].actor === 'system')
-  chk('🔒 השורה נשמרה', (await one(`select 1 as x from public.appointments where id = $1`, [a.id]))?.x === 1)
+  chk('🔒 0030: הטאטוא לא נוגע בבקשה גם כש-pending_expires_at בעבר',
+    (await statusOf(a.id)) === 'pending')
+  chk('🔒 לא נכתבה היסטוריה ע"י הטאטוא', (await historyOf(a.id)).length === 0)
+
+  // ואפילו כמה קריאות חוזרות — עדיין no-op
+  await db.query(`select public.expire_stale_pending_appointments()`)
+  await db.query(`select public.expire_stale_pending_appointments()`)
+  chk('🔒 idempotent: עדיין pending אחרי כמה קריאות', (await statusOf(a.id)) === 'pending')
+
+  // ── היא עדיין ניתנת לאישור רגיל אחרי כל זה ──
+  const r = await approve(a.id)
+  chk('🔒 עדיין ניתנת לאישור', r.ok && r.row?.status === 'confirmed')
 }
 
 

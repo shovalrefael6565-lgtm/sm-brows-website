@@ -323,7 +323,11 @@ chk('🔒 ולא את שובל — היא זו שביצעה את הפעולה',
 // ════════════════════════════════════════════════════════════════════════════
 section('6. מה שאינו מייצר התראה')
 
-// תפוגה — 0003 כותבת 'expired' ולא 'rejected'
+// 🔒 0030: expire_stale_pending_appointments הפכה ל-no-op — אין יותר דרך
+// אמיתית להגיע ל-'expired'. מדמים כאן ידנית בדיוק את מה שהתפוגה הישנה
+// הייתה עושה (UPDATE + שורת היסטוריה action='expired') כדי לוודא שאם
+// שורה כזו כן קיימת (למשל שורה היסטורית מלפני 0030), הטריגר עדיין לא
+// הופך אותה להתראת דחייה כוזבת.
 const c7 = await makeCustomer()
 const req7 = await one(
   `select * from public.create_personal_area_booking_request(
@@ -331,14 +335,15 @@ const req7 = await one(
      $2::timestamptz, 20, null, 'v1', $3::timestamptz)`,
   [c7.id, hours(220), hours(3)],
 )
-// ⚠️ ה-RPC דוחה תפוגה בעבר (BAD_EXPIRY), ולכן מזדקנים את השורה ישירות.
+await db.query(`update public.appointments set status = 'expired' where id = $1`, [req7.id])
 await db.query(
-  `update public.appointments set pending_expires_at = now() - interval '1 hour' where id = $1`,
+  `insert into public.appointment_history (appointment_id, action, from_status, to_status, actor)
+   values ($1, 'expired', 'pending', 'expired', 'system')`,
   [req7.id])
-await db.query(`select public.expire_stale_pending_appointments()`)
 const st7 = await one(`select status from public.appointments where id=$1`, [req7.id])
-chk('תפוגה כותבת expired', st7.status === 'expired', `status=${st7.status}`)
-chk('🔒 תפוגה אינה מייצרת התראת דחייה',
+chk('הסטטוס expired (מדומה — 0030 ביטלה את התפוגה האמיתית)',
+  st7.status === 'expired', `status=${st7.status}`)
+chk('🔒 מעבר ל-expired אינו מייצר התראת דחייה',
   !(await notifsFor(req7.id)).some(n => n.includes('rejected')),
   (await notifsFor(req7.id)).join(','))
 
