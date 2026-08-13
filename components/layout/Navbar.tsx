@@ -252,6 +252,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                   <li key={label}>
                     <Link
                       href={href}
+                      prefetch={false}
                       className={cn(
                         'text-sm font-medium transition-colors duration-200 relative py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded',
                         special === 'sale'
@@ -384,6 +385,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               {/* Cart */}
               <Link
                 href="/shop"
+                prefetch={false}
                 aria-label={`עגלת קניות — ${cartCount} פריטים`}
                 className="relative hidden sm:flex p-2 rounded-lg text-brand-dark hover:bg-brand-rose-light transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
               >
