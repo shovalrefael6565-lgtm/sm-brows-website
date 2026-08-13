@@ -1,7 +1,3 @@
-'use client'
-
-import { motion } from 'framer-motion'
-
 interface Props {
   tag?: string
   title: string
@@ -9,6 +5,10 @@ interface Props {
   description?: string
 }
 
+/**
+ * שרת בלבד — בלי framer-motion. הכותרת היא לרוב אלמנט ה-LCP של עמודי
+ * המשנה, ולכן חייבת להיות גלויה בציור הראשון ולא ממתינה ל-hydration.
+ */
 export default function PageHero({ tag, title, titleHighlight, description }: Props) {
   return (
     <section
@@ -23,21 +23,11 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
       />
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6">
         {tag && (
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3"
-          >
+          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
             {tag}
-          </motion.p>
+          </p>
         )}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark mb-4"
-        >
+        <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark mb-4">
           {title}
           {titleHighlight && (
             <>
@@ -45,19 +35,13 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
               <span className="text-brand-rose">{titleHighlight}</span>
             </>
           )}
-        </motion.h1>
+        </h1>
         {description && (
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-brand-medium text-base sm:text-lg leading-relaxed"
-          >
+          <p className="text-brand-medium text-base sm:text-lg leading-relaxed">
             {description}
-          </motion.p>
+          </p>
         )}
       </div>
     </section>
   )
 }
-

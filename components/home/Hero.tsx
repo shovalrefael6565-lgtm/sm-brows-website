@@ -58,48 +58,32 @@ export default function Hero() {
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full flex flex-col items-center gap-10">
         {/* Text content */}
         <div className="order-2 text-center w-full mt-8 sm:mt-0">
-          {/* Brand name */}
-          <motion.h1
-            custom={0}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="font-serif text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold text-brand-dark leading-none tracking-wide mb-2"
+          {/* Brand name — plain h1, visible in first paint (no framer-motion hydration wait) */}
+          <h1
+            className="font-serif text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold text-brand-dark leading-none tracking-wide mb-2 motion-safe:animate-rise"
           >
             S.M BROWS
-          </motion.h1>
+          </h1>
 
           {/* Tagline */}
-          <motion.p
-            custom={1}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold-text font-medium uppercase mb-8 lg:mb-10"
+          <p
+            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold-text font-medium uppercase mb-8 lg:mb-10 motion-safe:animate-rise [animation-delay:150ms]"
             lang="en"
           >
             IT&apos;S ALL ABOUT YOUR EYEBROWS
-          </motion.p>
+          </p>
 
           {/* Description */}
-          <motion.p
-            custom={2}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto"
+          <p
+            className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto motion-safe:animate-rise [animation-delay:300ms]"
           >
             מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות — הגבות שחלמת עליהן
             מחכות לך בקליניקה שלי באשקלון.
-          </motion.p>
+          </p>
 
           {/* CTA buttons */}
-          <motion.div
-            custom={3}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col sm:flex-row items-center gap-3 justify-center"
+          <div
+            className="flex flex-col sm:flex-row items-center gap-3 justify-center motion-safe:animate-rise [animation-delay:450ms]"
           >
             {/* Single booking button with dropdown */}
             <div ref={bookingRef} className="relative">
@@ -177,7 +161,7 @@ export default function Hero() {
             >
               לקורס המקצועי ←
             </Link>
-          </motion.div>
+          </div>
 
           {/* Trust badges */}
           <motion.div

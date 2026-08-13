@@ -51,6 +51,7 @@ const config: Config = {
         'fade-up': 'fadeUp 0.6s ease-out forwards',
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         float: 'float 3s ease-in-out infinite',
+        rise: 'rise 0.6s ease-out both',
       },
       keyframes: {
         fadeUp: {
@@ -64,6 +65,13 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-8px)' },
+        },
+        // ⚠️ transform-only, no opacity — content stays fully painted/visible
+        // from first frame (LCP-eligible immediately). Used for above-the-fold
+        // hero text that previously waited on framer-motion hydration.
+        rise: {
+          '0%': { transform: 'translateY(16px)' },
+          '100%': { transform: 'translateY(0)' },
         },
       },
     },
