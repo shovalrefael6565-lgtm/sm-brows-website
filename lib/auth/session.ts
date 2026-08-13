@@ -1,6 +1,7 @@
 import 'server-only'
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
+import { waitUntil } from '@vercel/functions'
 import { readSessionClaims, type SessionRole } from '@/lib/auth/sessionClaims'
 import {
   createSessionRecord,
@@ -150,9 +151,11 @@ export async function createSession(payload: SessionPayload): Promise<boolean> {
     maxAge: SESSION_TTL_SEC,
   })
 
-  // ⚠️ אחרי שהכניסה כבר הצליחה, ובתוך פונקציה שלעולם אינה זורקת: ניקוי
-  // תחזוקה לא יכול וגם לא צריך להפיל התחברות תקינה (ראה sessionStore).
-  await deleteExpiredSessions()
+  // ⚠️ waitUntil ולא await: זה ניקוי תחזוקה best-effort (ראה sessionStore),
+  // לא חלק מהאישור שכבר הושלם למעלה. אין סיבה שהתשובה ללקוחה תמתין לו —
+  // אותו דפוס בדיוק כמו dispatchNow ב-routes של תורים (@vercel/functions).
+  // הפונקציה לעולם אינה זורקת, כך שאין כאן unhandled rejection.
+  waitUntil(deleteExpiredSessions())
 
   return true
 }

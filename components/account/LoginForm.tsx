@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Phone, KeyRound, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 import { isValidIsraeliMobile } from '@/lib/phone'
+import { createInFlightGuard, createOtpAutoSubmitGate } from '@/lib/otpFormGuards'
 
 /**
  * התחברות בשני שלבים: מספר טלפון → קוד אימות.
@@ -34,6 +35,14 @@ export default function LoginForm() {
 
   const codeRef = useRef<HTMLInputElement>(null)
 
+  // 🔒 שער "בקשה אחת בכל רגע", משותף לשליחה ולאימות — ראה lib/otpFormGuards.ts
+  // לנימוק המלא של למה זה משתנה רגיל ולא state.
+  const inFlightRef = useRef(createInFlightGuard())
+  // 🔒 מפעיל אימות אוטומטי לכל היותר פעם אחת לכל קוד בן 6 ספרות מובחן —
+  // ראה lib/otpFormGuards.ts. ה-instance נשמר לאורך חיי הקומפוננטה כדי
+  // שהזיכרון "כבר ניסינו את הקוד הזה" ישרוד רינדורים.
+  const autoSubmitRef = useRef(createOtpAutoSubmitGate())
+
   // ספירה לאחור לכפתור "שליחה חוזרת"
   useEffect(() => {
     if (cooldown <= 0) return
@@ -46,14 +55,18 @@ export default function LoginForm() {
   }, [step])
 
   const sendCode = async (resend = false) => {
-    if (!isValidIsraeliMobile(phone)) {
-      setError('יש להזין מספר נייד ישראלי תקין')
-      return
-    }
-    setLoading(true)
-    setError(null)
-    setNotice(null)
+    // 🔒 סינכרוני ולפני כל דבר אחר — חוסם גם לחיצה כפולה וגם Enter כפול,
+    // בלי תלות ב-re-render של הכפתור המנוטרל (ראה lib/otpFormGuards.ts).
+    if (!inFlightRef.current.tryStart()) return
     try {
+      if (!isValidIsraeliMobile(phone)) {
+        setError('יש להזין מספר נייד ישראלי תקין')
+        return
+      }
+      setLoading(true)
+      setError(null)
+      setNotice(null)
+
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,23 +86,30 @@ export default function LoginForm() {
       setNotice(typeof data.notice === 'string' ? data.notice : null)
       setStep('code')
       setCooldown(60)
+      // קוד חדש בדרך — כל זיכרון של קוד קודם שכבר נוסה כבר לא רלוונטי.
+      autoSubmitRef.current.reset()
       if (resend) setCode('')
     } catch {
       setError('אין חיבור לאינטרנט. בדקי את החיבור ונסי שוב.')
     } finally {
       setLoading(false)
+      inFlightRef.current.finish()
     }
   }
 
   const verifyCode = async () => {
-    if (!/^\d{6}$/.test(code)) {
-      setError('יש להזין קוד בן 6 ספרות')
-      return
-    }
-    setLoading(true)
-    setError(null)
-    setNotice(null)
+    // 🔒 אותו שער בדיוק כמו ב-sendCode — כולל הגנה על אימות שהופעל
+    // אוטומטית (6 ספרות) בו-זמנית עם לחיצה ידנית על "כניסה".
+    if (!inFlightRef.current.tryStart()) return
     try {
+      if (!/^\d{6}$/.test(code)) {
+        setError('יש להזין קוד בן 6 ספרות')
+        return
+      }
+      setLoading(true)
+      setError(null)
+      setNotice(null)
+
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,18 +118,53 @@ export default function LoginForm() {
       const data = await res.json()
 
       if (!res.ok) {
+        // ⚠️ הקוד **נשאר** בשדה במכוון: הלקוחה יכולה לתקן ספרה ולנסות שוב
+        // בלי להקליד הכול מחדש. עריכה כלשהי מאפסת את שער האימות האוטומטי
+        // (ראה lib/otpFormGuards.ts), כך שקוד מתוקן מפעיל אימות אוטומטי שוב.
         setError(data.message ?? 'הקוד שגוי')
         return
       }
 
-      router.push(data.redirectTo ?? '/account')
+      /*
+       * 🔒 replace ולא push — /login לא נשאר בהיסטוריה אחרי כניסה מוצלחת,
+       * כך שכפתור "אחורה" לא מחזיר למסך קוד שכבר נוצל.
+       *
+       * 🔒 refresh() נשאר, בכוונה. הסיבה אינה עוגיית ה-session עצמה —
+       * ה-cookie כבר נמצא אצל הדפדפן (Set-Cookie מתשובת /api/auth/otp/
+       * verify), ולכן גם push לבד היה שולח אותו בבקשת ה-RSC הבאה. הסיכון
+       * הוא ב-Router Cache: components/booking/BookingForm.tsx מציגה
+       * קישור אמיתי ל-/account ("צפייה באזור האישי") אחרי הזמנה — כולל
+       * ללקוחה **שלא** מחוברת, שם הוא מוביל ל-redirect('/login') בצד
+       * השרת. אם אותה לקוחה ביקרה שם ואז התחברה תוך כדי חלון ה-cache
+       * (עד 30 שניות ל-route דינמי), replace/push לבדם עלולים לשרת מחדש
+       * את תוצאת ה-redirect הישנה במקום לטעון /account מחדש עם ה-session
+       * הנוכחי. refresh() מבטל את ה-cache הזה במפורש ומכריח fetch טרי.
+       */
+      router.replace(data.redirectTo ?? '/account')
       router.refresh()
     } catch {
       setError('אין חיבור לאינטרנט. בדקי את החיבור ונסי שוב.')
     } finally {
       setLoading(false)
+      inFlightRef.current.finish()
     }
   }
+
+  // 🔒 אימות אוטומטי כשהקוד מגיע ל-6 ספרות — הקלדה, הדבקה, ו-AutoFill של
+  // iOS (autocomplete="one-time-code") כולם רק משנים את ה-state של הקוד,
+  // ולכן כולם עוברים כאן באותה דרך בדיוק. shouldFire דואגת ל"פעם אחת
+  // בלבד" לכל קוד מובחן; inFlightRef ב-verifyCode דואג לכך שאימות אוטומטי
+  // ואימות ידני לא ירוצו במקביל.
+  useEffect(() => {
+    if (step !== 'code') return
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- verifyCode
+    // נוצרת מחדש בכל רינדור; הוספתה כתלות הייתה מפעילה את ה-effect הזה
+    // בכל רינדור במקום רק כששינוי הקוד עצמו קורה. autoSubmitRef כבר מונע
+    // הפעלה כפולה, ו-inFlightRef ב-verifyCode מונע בקשה כפולה בפועל.
+    if (autoSubmitRef.current.shouldFire(code)) {
+      void verifyCode()
+    }
+  }, [code, step])
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -145,12 +200,15 @@ export default function LoginForm() {
                 placeholder="054-123-4567"
                 value={phone}
                 onChange={e => { setPhone(e.target.value); setError(null) }}
+                disabled={loading}
                 aria-invalid={!!error}
+                aria-busy={loading}
                 aria-describedby={error ? 'login-error' : undefined}
                 className={cn(
                   'w-full h-14 pr-12 pl-4 rounded-2xl border bg-white text-brand-dark text-lg text-center',
                   'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent',
                   'transition-colors placeholder:text-brand-muted/50',
+                  'disabled:opacity-60 disabled:cursor-not-allowed',
                   error ? 'border-red-400' : 'border-brand-linen-dark',
                 )}
               />
@@ -160,7 +218,7 @@ export default function LoginForm() {
               נשלח לך קוד אימות חד־פעמי ב־SMS. אין צורך בסיסמה.
             </p>
 
-            <SubmitButton loading={loading} label="שליחת קוד" />
+            <SubmitButton loading={loading} label="שליחת קוד" loadingLabel="שולחים קוד…" />
           </motion.form>
         ) : (
           <motion.form
@@ -198,25 +256,34 @@ export default function LoginForm() {
                   setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
                   setError(null)
                 }}
+                disabled={loading}
                 aria-invalid={!!error}
+                aria-busy={loading}
                 aria-describedby={error ? 'login-error' : undefined}
                 className={cn(
                   'w-full h-14 pr-12 pl-4 rounded-2xl border bg-white text-brand-dark',
                   'text-2xl text-center tracking-[0.5em] font-semibold',
                   'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent',
                   'transition-colors placeholder:text-brand-muted/30 placeholder:tracking-[0.5em]',
+                  'disabled:opacity-60 disabled:cursor-not-allowed',
                   error ? 'border-red-400' : 'border-brand-linen-dark',
                 )}
               />
             </div>
 
-            <SubmitButton loading={loading} label="כניסה" />
+            {/*
+              🔒 האימות מופעל אוטומטית ברגע שהקוד מגיע ל-6 ספרות (ראה
+              ה-effect למעלה) — הכפתור נשאר כנתיב חוזר ידני, ומציג
+              "מאמתים…" גם כשההפעלה הייתה אוטומטית, כי loading משותף.
+            */}
+            <SubmitButton loading={loading} label="כניסה" loadingLabel="מאמתים…" />
 
             <div className="flex items-center justify-between mt-4 text-sm">
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => { setStep('phone'); setCode(''); setError(null); setNotice(null) }}
-                className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
+                className="text-brand-muted hover:text-brand-dark transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
               >
                 שינוי מספר
               </button>
@@ -275,11 +342,21 @@ export default function LoginForm() {
   )
 }
 
-function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
+function SubmitButton({
+  loading,
+  label,
+  loadingLabel,
+}: {
+  loading: boolean
+  label: string
+  /** מוצג במקום label + מציג spinner בזמן הבקשה — טקסט ספציפי לפעולה (שליחה/אימות) */
+  loadingLabel: string
+}) {
   return (
     <button
       type="submit"
       disabled={loading}
+      aria-busy={loading}
       className={cn(
         'w-full h-14 mt-6 rounded-2xl bg-brand-dark text-white font-semibold text-base',
         'flex items-center justify-center gap-2 transition-all duration-200',
@@ -291,7 +368,7 @@ function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
       {loading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-          <span>רגע…</span>
+          <span>{loadingLabel}</span>
         </>
       ) : (
         <>

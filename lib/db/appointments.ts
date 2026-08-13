@@ -241,22 +241,26 @@ export async function cancelPendingAppointment(
   return { ok: true }
 }
 
-/**
- * מסמנת בקשות pending שפג תוקפן כ-expired (+ היסטוריה). best-effort —
- * נקראת יזום לפני קריאה, כדי שסלוט ישתחרר ותור יוצג כ-expired גם בלי
- * שמישהי מנסה לקבוע תור חדש באותו רגע.
+/*
+ * ⚠️ 0030 — expireStalePendingAppointments() הוסרה מכאן.
+ *
+ * expire_stale_pending_appointments() ב-DB הפכה ל-no-op במיגרציה 0030
+ * (אין יותר תפוגה מבוססת-זמן ל-pending — ראה supabase/migrations/
+ * 0030_disable_pending_time_expiration.sql). קריאה אליה מהאפליקציה הייתה
+ * סבב רשת שלם ל-Supabase בלי שום השפעה — על כל טעינת /account, כל טעינת
+ * לוח הבקרה של המנהלת, וכל בדיקת זמינות לא-ממוטמנת. הוסרו ארבע הקריאות
+ * (listAppointmentsAdmin, listAppointmentsNeedingAdminAction,
+ * listAppointmentsForCustomer, getDbBusyRangesForDate) וההגדרה עצמה.
+ *
+ * ה-RPC ב-DB עצמו **לא נמחק** — שלוש פונקציות היצירה (create_public_
+ * booking_request וכו') עדיין קוראות לו כ-perform בתוך הטרנזקציה שלהן,
+ * ו-0030 השאירה אותו קיים בכוונה. זה נשאר כך; רק הקריאות העצמאיות
+ * מהאפליקציה הוסרו.
  */
-export async function expireStalePendingAppointments(): Promise<void> {
-  const db = createSupabaseAdminClient()
-  const { error } = await db.rpc('expire_stale_pending_appointments')
-  if (error) {
-    console.error('[appointments] expire sweep failed', error.message)
-  }
-}
 
 /**
- * מסמנת confirmed שה-ends_at שלו עבר כ-completed (+ היסטוריה). best-effort,
- * בדיוק כמו expireStalePendingAppointments — כשל נרשם ללוג ולא זורק.
+ * מסמנת confirmed שה-ends_at שלו עבר כ-completed (+ היסטוריה). best-effort —
+ * כשל נרשם ללוג ולא זורק.
  *
  * ⚠️ נקראת מ-app/api/internal/reminders/route.ts כ-sibling call עצמאי,
  * בלי שום תלות בדגלי התזכורות (REMINDERS_ENABLED וכו') — סיום תור אינו
@@ -385,7 +389,6 @@ export async function listAppointmentsAdmin(opts: {
   status?: string
   page?: number
 }): Promise<PagedResult<AdminAppointmentRow>> {
-  await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const page = Math.max(1, opts.page ?? 1)
   const from = (page - 1) * ADMIN_PAGE_SIZE
@@ -434,8 +437,6 @@ export type NeedsActionResult =
   | { ok: false }
 
 export async function listAppointmentsNeedingAdminAction(): Promise<NeedsActionResult> {
-  await expireStalePendingAppointments()
-
   try {
     const db = createSupabaseAdminClient()
 
@@ -682,7 +683,6 @@ const CUSTOMER_APPOINTMENT_COLUMNS =
 export async function listAppointmentsForCustomer(
   customerId: string,
 ): Promise<CustomerAppointmentRow[]> {
-  await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const { data, error } = await db
     .from('appointments')
@@ -1112,7 +1112,6 @@ export async function markAppointmentNoShowByAdmin(
  * לוגיקת ה-clamping של getBusyRanges ב-lib/googleCalendar.ts.
  */
 export async function getDbBusyRangesForDate(isoDate: string): Promise<{ start: string; end: string }[]> {
-  await expireStalePendingAppointments()
   const db = createSupabaseAdminClient()
   const { timeMin, timeMax } = dayBoundsUtc(isoDate)
 

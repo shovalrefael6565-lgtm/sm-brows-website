@@ -1,6 +1,7 @@
 import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getSession } from '@/lib/auth/session'
+import type { Customer } from '@/lib/db/customers'
 
 /**
  * מיהי הלקוחה שמבצעת את הבקשה הנוכחית (שלב 10).
@@ -56,4 +57,41 @@ export async function getCurrentCustomerId(): Promise<string | null> {
   }
 
   return data.id as string
+}
+
+/**
+ * זהה ל-getCurrentCustomerId, אבל מחזירה את שורת הלקוחה המלאה במקום רק
+ * את המזהה — לקוראים שהיו קוראים ל-getCurrentCustomerId ואז מיד ל-
+ * getCustomerById(id) על אותה שורה בדיוק (כמו app/account/page.tsx).
+ * שאילתה אחת במקום שתיים לאותה טבלה על כל טעינת עמוד.
+ *
+ * אותה הוכחת בעלות בדיוק (auth_user_id + בדיקת עקביות cid) — רק העמודות
+ * הנבחרות שונות. קוראים שצריכים אך ורק את המזהה ימשיכו להשתמש ב-
+ * getCurrentCustomerId, כדי לא לשנות את מספר הקריאות ב-routes שלא זקוקים
+ * לשאר השדות.
+ */
+export async function getCurrentCustomer(): Promise<Customer | null> {
+  const session = await getSession()
+  if (!session) return null
+  if (session.role !== 'customer') return null
+
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('customers')
+    .select('id, phone_e164, full_name, created_at, is_blocked')
+    .eq('auth_user_id', session.userId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[currentCustomer] lookup failed', error.message)
+    return null
+  }
+  if (!data) return null
+
+  if (session.cid && session.cid !== data.id) {
+    console.error('[currentCustomer] session cid does not match linked customer — rejecting')
+    return null
+  }
+
+  return data as Customer
 }

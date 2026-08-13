@@ -7,9 +7,8 @@ import AppointmentActions from '@/components/account/AppointmentActions'
 import AccountBookingForm from '@/components/account/AccountBookingForm'
 import CompleteProfileForm from '@/components/account/CompleteProfileForm'
 import AddToCalendarButtons from '@/components/account/AddToCalendarButtons'
-import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
+import { getCurrentCustomer } from '@/lib/auth/currentCustomer'
 import { needsNameCompletion } from '@/lib/customerProfile'
-import { getCustomerById } from '@/lib/db/customers'
 import { listAppointmentsForCustomer, type CustomerAppointmentRow } from '@/lib/db/appointments'
 import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
 import { capabilitiesFor } from '@/lib/appointmentSelfService'
@@ -197,12 +196,11 @@ export default async function AccountPage() {
    */
   if (!isNewBookingSystemEnabled()) notFound()
 
-  // מזהה הלקוחה מוכח מחדש מול customers.auth_user_id בכל טעינה — לא
-  // נגזר מה-auth user id ולא נלקח מפרמטר ב-URL (lib/auth/currentCustomer.ts)
-  const customerId = await getCurrentCustomerId()
-  if (!customerId) redirect('/login')
-
-  const customer = await getCustomerById(customerId)
+  // הלקוחה מוכחת מחדש מול customers.auth_user_id בכל טעינה — לא נגזרת
+  // מה-auth user id ולא נלקחת מפרמטר ב-URL (lib/auth/currentCustomer.ts).
+  // שאילתה אחת מחזירה את השורה המלאה — אין צורך בבדיקת מזהה נפרדת ואז
+  // getCustomerById על אותה שורה.
+  const customer = await getCurrentCustomer()
   if (!customer) redirect('/login')
 
   /*
