@@ -17,10 +17,12 @@ const nextConfig = {
     // Next.js 16 default is [75] only — pinned explicitly to preserve the
     // quality= values already used across the app (75/80/90).
     qualities: [75, 80, 90],
-    // Next.js 16 requires local image query strings to be allow-listed
-    // explicitly (anti-enumeration). These are pre-existing cache-busting
-    // versions on two before/after images (components/home/BeforeAfterSection.tsx).
+    // Next.js 16 requires local images to be allow-listed explicitly
+    // (anti-enumeration). The wildcard entry covers every local image with
+    // no query string (the vast majority); the exact entries below allow
+    // the specific cache-busting versions used on a few images.
     localPatterns: [
+      { pathname: '/**', search: '' },
       { pathname: '/ba-new-1.webp', search: '?v=3' },
       { pathname: '/ba-new-6.webp', search: '?v=4' },
       { pathname: '/hero.webp', search: '?v=2' },

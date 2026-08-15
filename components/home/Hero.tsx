@@ -205,15 +205,16 @@ export default function Hero() {
               />
             </div>
 
-            {/* Main image container */}
-            <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[640px] lg:h-[560px] rounded-[2rem] overflow-hidden shadow-soft-lg">
+            {/* Main image container — shrunk slightly from the original frame,
+                object-contain so the full photo shows with no cropping. */}
+            <div className="relative w-72 h-[22rem] sm:w-[390px] sm:h-[510px] lg:w-[580px] lg:h-[510px] rounded-[2rem] overflow-hidden shadow-soft-lg bg-brand-cream">
               <Image
                 src="/hero.webp?v=2"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
                 fill
                 priority
-                sizes="(max-width: 640px) 320px, (max-width: 1024px) 430px, 540px"
-                className="object-cover object-top scale-105"
+                sizes="(max-width: 640px) 288px, (max-width: 1024px) 390px, 580px"
+                className="object-contain"
               />
               <div
                 className="absolute inset-0 bg-gradient-to-t from-brand-dark/20 to-transparent"

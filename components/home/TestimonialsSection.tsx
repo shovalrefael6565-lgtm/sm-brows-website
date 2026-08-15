@@ -87,7 +87,8 @@ export default function TestimonialsSection() {
     gridColumn: 1,
     gridRow: 1,
     width: '100%',
-    height: 'auto',
+    height: '100%',
+    objectFit: 'contain',
     display: 'block',
     borderRadius: '1rem',
     opacity: isFront ? 1 : 0,
@@ -125,8 +126,10 @@ export default function TestimonialsSection() {
         </div>
 
         <div className="flex flex-col items-center gap-5">
-          {/* Double-buffer: 2 images total, crossfade via CSS opacity transition */}
-          <div className="w-full max-w-sm" style={{ display: 'grid' }}>
+          {/* Double-buffer: 2 images total, crossfade via CSS opacity transition.
+              Fixed height (not auto) so the wildly varying screenshot aspect
+              ratios (279px–1043px tall) don't jump the layout on every slide. */}
+          <div className="w-full max-w-sm h-[420px] sm:h-[480px]" style={{ display: 'grid' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={REVIEWS[slotA]}
