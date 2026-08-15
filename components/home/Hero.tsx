@@ -208,7 +208,7 @@ export default function Hero() {
             {/* Main image container */}
             <div className="relative w-80 h-96 sm:w-[430px] sm:h-[560px] lg:w-[640px] lg:h-[560px] rounded-[2rem] overflow-hidden shadow-soft-lg">
               <Image
-                src="/hero.webp"
+                src="/hero.webp?v=2"
                 alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
                 fill
                 priority

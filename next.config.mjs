@@ -23,6 +23,7 @@ const nextConfig = {
     localPatterns: [
       { pathname: '/ba-new-1.webp', search: '?v=3' },
       { pathname: '/ba-new-6.webp', search: '?v=4' },
+      { pathname: '/hero.webp', search: '?v=2' },
     ],
   },
   compress: true,
