@@ -35,9 +35,13 @@ export default function CustomerPicker({
   // מזהה הבקשה האחרונה: תגובה של חיפוש ישן שמגיעה באיחור לא תדרוס תוצאה חדשה
   const seq = useRef(0)
 
+  // חיפוש עם debounce וסנכרון תגובות (seq.current) — לא ניתן להעביר להתאמה
+  // בזמן ה-render בלי לפצל את ה-fetch לזרימה נפרדת, מה שהיה מסכן את סנכרון
+  // תוצאות הבקשות. disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
     if (value) return
     const q = query.trim()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (q.length < 2) { setItems([]); return }
 
     const mine = ++seq.current

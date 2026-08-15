@@ -214,7 +214,11 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // מסונכרנים בכל רינדור (כאן), וגם באופן סינכרוני ברגע הבחירה (selectService).
   const formRef = useRef(form)
   const stepRef = useRef(step)
+  // הסנכרון בזמן ה-render עצמו הוא מכוון (ראה הערה למעלה) — מעביר ל-effect
+  // היה מחזיר בדיוק את מרוץ ה-stale closure שהתבנית הזו נועדה למנוע.
+  // eslint-disable-next-line react-hooks/refs
   formRef.current = form
+  // eslint-disable-next-line react-hooks/refs
   stepRef.current = step
 
   // אזור בחירת סוג הטיפול — כדי לגלול אליו אם ניסו להמשיך בלי לבחור
@@ -312,7 +316,12 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
         break
       }
     }
+    // מפל שינויי state תלוי-זה-בזה (יום→חודש→שנה, אפשרי קסקדה בין חודשים
+    // רצופים ריקים) על תצוגת היומן החיה בטופס ההזמנות — מעבר לתבנית
+    // "התאמה בזמן ה-render" מסכן שינוי התנהגות בניווט החודשים בלי בדיקה
+    // אינטראקטיבית מלאה. disable נקודתי, לא שינוי התנהגות.
     if (!hasAvailable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedDay(null)
       if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
       else setViewMonth(m => m + 1)
@@ -332,8 +341,12 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // ⚠️ כשהמערכת החדשה כבויה אין OTP ואין אזור אישי, ולכן אין למי לשמור על
   // הכניסה — הבקשה הייתה מיותרת, והיא הייתה הפנייה היחידה שנשארה מ-/booking
   // ל-Supabase במצב כבוי. השרת חוסם אותה ממילא (403), וזה מונע גם את הנסיעה.
+  // הענף ה"כבוי" כאן נגזר טהור מ-newBookingSystemEnabled (primitive יציב),
+  // אך הענף השני מבצע fetch אמיתי ל-session — לא ניתן לפצל בלי לשנות את
+  // זרימת ה-effect המשולבת. disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
     if (!newBookingSystemEnabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession({ loggedIn: false })
       return
     }
@@ -347,8 +360,11 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
 
   // מילוי מוקדם של שם/טלפון מה-session — רק אם השדה עדיין ריק, כדי לא
   // לדרוס הקלדה שכבר התחילה
+  // תלוי ב-session שמגיע מה-effect הקודם (fetch אסינכרוני) — לא state נגזר
+  // טהור בזמן ה-render. disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
     if (!session?.loggedIn) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm(f => ({
       ...f,
       phone: f.phone || (session.phone ? formatPhoneForDisplay(session.phone) : f.phone),
@@ -522,6 +538,9 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     }
     const fresh = window.open(url, '_blank')
     if (fresh) fresh.opener = null
+    // ניווט דפדפן מלא סטנדרטי בתוך event handler (לא render) — לא state/ref
+    // של React. הכלל מזהה זאת כמוטציה על משתנה חיצוני (window) בטעות.
+    // eslint-disable-next-line react-hooks/immutability
     else window.location.href = url
   }
 
@@ -615,6 +634,9 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     const url = `${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`
     const win = window.open(url, '_blank')
     if (win) win.opener = null
+    // ניווט דפדפן מלא סטנדרטי בתוך event handler (לא render) — לא state/ref
+    // של React. הכלל מזהה זאת כמוטציה על משתנה חיצוני (window) בטעות.
+    // eslint-disable-next-line react-hooks/immutability
     else window.location.href = url
   }
 

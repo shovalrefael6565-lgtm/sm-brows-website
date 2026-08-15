@@ -14,7 +14,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * היומן עם claim/reconciliation) חיה ב-lib/appointmentApproval.ts —
  * ה-route רק אוכף הרשאה ומתרגם את התוצאה ל-HTTP.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

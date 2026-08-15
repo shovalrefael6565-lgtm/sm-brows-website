@@ -27,11 +27,12 @@ const STATUS_FILTERS = [
 ] as const
 
 /** כל התורים במערכת, לצפייה בלבד, עם סינון סטטוס ודפדוף */
-export default async function AdminAppointmentsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; status?: string }
-}) {
+export default async function AdminAppointmentsPage(
+  props: {
+    searchParams: Promise<{ page?: string; status?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const page = Math.max(1, Number(searchParams.page) || 1)
   const status = STATUS_FILTERS.some(f => f.value === searchParams.status) ? searchParams.status : undefined
 
@@ -90,9 +91,14 @@ export default async function AdminAppointmentsPage({
                  * ⚠️ זו הסתרה בלבד. ה-RPC (0027) אוכף את שני התנאים בעצמו
                  * ואינו סומך על מה שהוצג במסך.
                  */
+                // Server Component (dynamic = 'force-dynamic' inherited from the (protected)
+                // layout): renders exactly once per request, never re-rendered/memoized
+                // client-side, so the React Compiler's re-render-idempotency concern for
+                // Date.now() does not apply here.
                 const canCancel =
                   appt.status === 'confirmed' &&
                   !appt.reschedule_of_appointment_id &&
+                  // eslint-disable-next-line react-hooks/purity
                   new Date(appt.starts_at).getTime() > Date.now()
 
                 /**
@@ -116,9 +122,12 @@ export default async function AdminAppointmentsPage({
                  * ⚠️ זו הסתרה בלבד. ה-RPC (0029) אוכף את הזכאות בעצמו ואינו
                  * סומך על מה שהוצג במסך — בדיוק כמו canCancel.
                  */
+                // see canCancel above: Server Component, force-dynamic, renders once per
+                // request — Date.now() is safe here.
                 const canMarkNoShow =
                   !appt.reschedule_of_appointment_id &&
                   (appt.status === 'completed' ||
+                    // eslint-disable-next-line react-hooks/purity
                     (appt.status === 'confirmed' && new Date(appt.ends_at).getTime() <= Date.now()))
                 return (
                   <tr key={appt.id} className="border-b border-brand-linen-dark/60">

@@ -45,7 +45,7 @@ const CLAIMS_TS = read('lib', 'auth', 'sessionClaims.ts')
 const STORE_TS = read('lib', 'db', 'sessionStore.ts')
 const LOGOUT_TS = read('app', 'api', 'auth', 'logout', 'route.ts')
 const VERIFY_TS = read('app', 'api', 'auth', 'otp', 'verify', 'route.ts')
-const MIDDLEWARE_TS = read('middleware.ts')
+const MIDDLEWARE_TS = read('proxy.ts')
 const LOGOUT_BUTTON_TSX = read('components', 'account', 'LogoutButton.tsx')
 
 const db = new PGlite({ extensions: { btree_gist } })
@@ -517,10 +517,10 @@ chk('אימות אינו כותב למסד (אין הארכת session שקטה)'
                       STORE_TS.indexOf('export type RevokeOutcome')), /\.update\(|\.insert\(/))
 
 // ── גבולות שהוגדרו לשלב 14 ──────────────────────────────────────────────────
-chk('🔒 בדיקת app_sessions אינה רצה ב-Edge middleware',
+chk('🔒 בדיקת app_sessions אינה רצה ב-proxy (לשעבר middleware)',
   !has(MIDDLEWARE_TS, /app_sessions|isSessionActive|sessionStore/) ||
   /אין להוסיף כאן קריאה ל-app_sessions/.test(MIDDLEWARE_TS))
-chk('middleware אינו מייבא את sessionStore', !has(MIDDLEWARE_TS, /from '@\/lib\/db\/sessionStore'/))
+chk('proxy אינו מייבא את sessionStore', !has(MIDDLEWARE_TS, /from '@\/lib\/db\/sessionStore'/))
 chk('אין React.cache על אימות ה-session',
   !has(SESSION_TS, /from 'react'/) && !has(SESSION_TS, /\bcache\(/))
 // ⚠️ הסוד נקרא בלבד. החלפה בכל logout הייתה מנתקת את כל המשתמשות במערכת

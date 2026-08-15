@@ -67,6 +67,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
   const bookingRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
+  const [prevPathname, setPrevPathname] = useState(pathname)
   const isHome = pathname === '/'
 
   useEffect(() => {
@@ -91,7 +92,13 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
     return () => observers.forEach((o) => o.disconnect())
   }, [isHome])
 
-  useEffect(() => { setMenuOpen(false) }, [pathname])
+  // סגירת התפריט בשינוי נתיב — מותאם בזמן ה-render עצמו (לא ב-effect), כמומלץ
+  // ב-react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  // pathname הוא primitive יציב מ-usePathname, כך שהשוואה כאן בטוחה.
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
+    setMenuOpen(false)
+  }
 
   useEffect(() => {
     if (menuOpen) document.body.style.overflow = 'hidden'

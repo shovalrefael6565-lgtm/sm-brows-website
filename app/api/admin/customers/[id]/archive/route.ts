@@ -35,7 +35,8 @@ function failure(error: string) {
  * ⚠️ חסום כשיש תור פעיל בעתיד: ארכוב לא היה מבטל אותו, והתוצאה הייתה תור
  * חי ביומן ששייך לכרטיס שנעלם מהמסך — כולל תזכורות שממשיכות לצאת.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 
@@ -61,7 +62,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 /** החזרה מהארכיון. idempotent: כרטיס שאינו בארכיון מחזיר 'not_archived'. */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

@@ -33,7 +33,8 @@ const STATUS_BY_ERROR: Record<string, number> = {
  *
  * 🔒 retry על תזכורת שיש עליה worker חי נדחה. מנהלת אינה גוזלת lease פעיל.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

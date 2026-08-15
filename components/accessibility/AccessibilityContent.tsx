@@ -43,8 +43,8 @@ export default function AccessibilityContent() {
           className="bg-brand-gold/10 border border-brand-gold/30 rounded-2xl px-5 py-4 mb-10 text-sm text-brand-medium"
         >
           הצהרה זו עודכנה לאחרונה ב-{LAST_UPDATED}. היא נכתבה בהתאם לחוק שוויון זכויות לאנשים
-          עם מוגבלות, תשנ"ח–1998, תקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות),
-          תשע"ג–2013, ותקן ישראלי 5568 (WCAG 2.0 רמה AA).
+          עם מוגבלות, תשנ&quot;ח–1998, תקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות),
+          תשע&quot;ג–2013, ותקן ישראלי 5568 (WCAG 2.0 רמה AA).
         </motion.div>
 
         {/* Sections */}

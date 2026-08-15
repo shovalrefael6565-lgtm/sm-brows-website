@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:migration && npm run test:pending-expiration && npm run test:booking-core && npm run test:public-booking-core && npm run test:public-booking-db && npm run test:personal-area-booking && npm run test:personal-area-db && npm run test:booking-availability && npm run test:feature-flag-killswitch && npm run test:account-core && npm run test:approval-core && npm run test:reschedule-cancel && npm run test:reschedule-request-db && npm run test:selfservice-core && npm run test:calendar-sync-core && npm run test:calendar-inbound-sync && npm run test:customer-crm && npm run test:admin-booking-core && npm run test:manual-booking && npm run test:reminders && npm run test:reminders-core && npm run test:sms019 && npm run test:message-templates && npm run test:whatsapp-templates && npm run test:notifications-db && npm run test:notifications-core && npm run test:otp-atomic && npm run test:otp-sms019 && npm run test:rpc-permissions && npm run test:session-revocation && npm run test:otp-form-guards && npm run test:15h-core && npm run test:15h-db && npm run test:appointment-completion-db && npm run test:0030-backfill && npm run test:api-hardening",
     "test:migration": "node scripts/test-migration.mjs",
@@ -70,24 +70,23 @@
     "googleapis": "^171.4.0",
     "jose": "^6.2.8",
     "lucide-react": "^0.441.0",
-    "next": "^14.2.29",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "^16.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@types/node": "^22.5.0",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.29",
+    "eslint": "9.39.5",
+    "eslint-config-next": "^16.3.1",
     "postcss": "^8.4.44",
-    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.10",
     "tsx": "^4.23.5",
-    "typescript": "^5.5.4"
+    "typescript": "^5.9.3"
   }
 }

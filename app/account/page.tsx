@@ -83,6 +83,10 @@ function AppointmentCard({ appt, policy, openRequest }: CardProps) {
 
   // כפתורי ניהול עצמי — רק לתור מאושר שטרם התחיל, ורק כשהמדיניות נטענה.
   // pending ממשיך לקבל את כפתור ביטול הבקשה הקיים משלב 4.
+  // Server Component, dynamic = 'force-dynamic': renders exactly once per request, never
+  // re-rendered/memoized client-side, so the React Compiler's re-render-idempotency
+  // concern for Date.now() does not apply here.
+  // eslint-disable-next-line react-hooks/purity
   const isFuture = new Date(appt.starts_at).getTime() > Date.now()
   const canSelfManage = appt.status === 'confirmed' && isFuture && policy !== null
   const capabilities = canSelfManage && policy

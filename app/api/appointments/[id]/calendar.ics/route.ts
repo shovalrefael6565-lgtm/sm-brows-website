@@ -29,7 +29,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * ודאי שאינו כזה — קובץ יומן עבורם היה שותל במכשיר הלקוחה אירוע שלא
  * יתקיים, ושאיש לא ימחק ממנו אחר כך.
  */
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isNewBookingSystemEnabled()) {
     return NextResponse.json({ error: 'feature_disabled' }, { status: 403 })
   }

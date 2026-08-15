@@ -39,7 +39,7 @@ export default function BeforeAfterSection() {
   /* ── Desktop strip (RAF-based) ── */
   const stripRef  = useRef<HTMLDivElement>(null)
   const posRef    = useRef(0)
-  const rafRef    = useRef<number>()
+  const rafRef    = useRef<number | undefined>(undefined)
   const pausedRef = useRef(false)
   const [stripPaused, setStripPaused] = useState(false)
 

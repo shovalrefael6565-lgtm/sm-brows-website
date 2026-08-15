@@ -38,11 +38,12 @@ const STATUS_FILTERS = [
 /** מצבים שמהם retry ידני אפשרי בכלל. תואם ל-retry_reminder ב-0011. */
 const RETRYABLE: ReadonlySet<string> = new Set(['failed', 'delivery_unknown', 'processing'])
 
-export default async function AdminRemindersPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; status?: string }
-}) {
+export default async function AdminRemindersPage(
+  props: {
+    searchParams: Promise<{ page?: string; status?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const page = Math.max(1, Number(searchParams.page) || 1)
   const status = STATUS_FILTERS.some(f => f.value === searchParams.status)
     ? (searchParams.status as ReminderStatus | undefined)
@@ -57,6 +58,10 @@ export default async function AdminRemindersPage({
     getReminderCounts(),
   ])
 
+  // Server Component, dynamic = 'force-dynamic': renders exactly once per request, never
+  // re-rendered/memoized client-side, so the React Compiler's re-render-idempotency
+  // concern for Date.now() does not apply here.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
 
   return (

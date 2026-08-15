@@ -1,6 +1,6 @@
 /**
  * בדיקת session יתום מול פרויקט Supabase האמיתי + שרת dev שרץ מקומית
- * (npx next dev, פורט 3000) — מוודאת ש-middleware.ts + app/login/page.tsx
+ * (npx next dev, פורט 3000) — מוודאת ש-proxy.ts (לשעבר middleware.ts) + app/login/page.tsx
  * מונעים את לולאת ה-/login⇄/account שמתרחשת כש-cookie חתום כדין מצביע
  * לזהות שנמחקה מה-DB.
  *

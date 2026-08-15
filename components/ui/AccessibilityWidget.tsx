@@ -98,11 +98,15 @@ export default function AccessibilityWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [active, setActive] = useState<Record<string, boolean>>({})
 
+  // קריאת localStorage חייבת לקרות אחרי mount (לא ב-lazy initializer של
+  // useState): הקוד הזה רץ גם ב-SSR, ו-localStorage אינו קיים שם — קריאה
+  // אליו מחוץ ל-effect הייתה קורסת ברינדור השרת.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed: Record<string, boolean> = JSON.parse(saved)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActive(parsed)
         Object.entries(parsed).forEach(([id, enabled]) => {
           const opt = A11Y_OPTIONS.find((o) => o.id === id)

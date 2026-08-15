@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import Hero from '@/components/home/Hero'
+import DeferredSections from '@/components/home/DeferredSections'
 
 // סקשנים קרובים — SSR רגיל (טוב ל-SEO + LCP)
 const BeforeAfterSection  = dynamic(() => import('@/components/home/BeforeAfterSection'))
@@ -8,12 +9,6 @@ const TestimonialsSection = dynamic(() => import('@/components/home/Testimonials
 const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
 
 const MicrobladingTeaser  = dynamic(() => import('@/components/home/MicrobladingTeaser'))
-
-// סקשנים רחוקים — ssr:false מקטין את ה-bundle הראשוני
-const WhyChooseUs     = dynamic(() => import('@/components/home/WhyChooseUs'),     { ssr: false })
-const CourseBanner    = dynamic(() => import('@/components/home/CourseBanner'),    { ssr: false })
-const BlogPreview     = dynamic(() => import('@/components/home/BlogPreview'),     { ssr: false })
-const BookingSection  = dynamic(() => import('@/components/home/BookingSection'),  { ssr: false })
 
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
@@ -29,10 +24,7 @@ export default function HomePage() {
       <MicrobladingTeaser />
       <TestimonialsSection />
       <ServicesPreview />
-      <WhyChooseUs />
-      <CourseBanner />
-      <BlogPreview />
-      <BookingSection />
+      <DeferredSections />
     </>
   )
 }

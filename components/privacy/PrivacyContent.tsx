@@ -22,9 +22,9 @@ export default function PrivacyContent() {
       title: '1. כללי',
       content: (
         <p>
-          מדיניות פרטיות זו מתארת את האופן שבו {BUSINESS_NAME}, בבעלות {OWNER_NAME} (להלן: "הקליניקה" או "אני"),
+          מדיניות פרטיות זו מתארת את האופן שבו {BUSINESS_NAME}, בבעלות {OWNER_NAME} (להלן: &quot;הקליניקה&quot; או &quot;אני&quot;),
           אוספת, משתמשת ושומרת על מידע אישי של משתמשי האתר ולקוחות הקליניקה, בהתאם לחוק הגנת הפרטיות,
-          תשמ"א–1981 ותקנות הגנת הפרטיות (אבטחת מידע), תשע"ז–2017.
+          תשמ&quot;א–1981 ותקנות הגנת הפרטיות (אבטחת מידע), תשע&quot;ז–2017.
           השימוש באתר ו/או בטיפולי הקליניקה מהווה הסכמה למדיניות פרטיות זו.
         </p>
       ),
@@ -116,7 +116,7 @@ export default function PrivacyContent() {
       content: (
         <>
           <p className="mb-3">
-            בהתאם לחוק הגנת הפרטיות, תשמ"א–1981, ובכפוף לתנאיו, כל אדם זכאי:
+            בהתאם לחוק הגנת הפרטיות, תשמ&quot;א–1981, ובכפוף לתנאיו, כל אדם זכאי:
           </p>
           <ul className="list-disc list-inside space-y-2 text-brand-medium text-sm">
             <li>לדעת אם מידע אודותיו מצוי במאגר מידע</li>
@@ -195,8 +195,8 @@ export default function PrivacyContent() {
           transition={{ duration: 0.5 }}
           className="bg-brand-gold/10 border border-brand-gold/30 rounded-2xl px-5 py-4 mb-10 text-sm text-brand-medium"
         >
-          מסמך זה עודכן לאחרונה ב-{LAST_UPDATED}. הוא נכתב בהתאם לחוק הגנת הפרטיות, תשמ"א–1981
-          ותקנות הגנת הפרטיות (אבטחת מידע), תשע"ז–2017.
+          מסמך זה עודכן לאחרונה ב-{LAST_UPDATED}. הוא נכתב בהתאם לחוק הגנת הפרטיות, תשמ&quot;א–1981
+          ותקנות הגנת הפרטיות (אבטחת מידע), תשע&quot;ז–2017.
         </motion.div>
 
         <div className="space-y-8">

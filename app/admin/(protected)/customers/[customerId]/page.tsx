@@ -25,13 +25,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * getCrmCustomer מחזירה null גם כשהמזהה אינו קיים וגם כשהוא חשבון מנהל
  * (שובל/רפאל), ושניהם מתורגמים לאותו 404 — כדי לא להסגיר שחשבון מנהל קיים.
  */
-export default async function CustomerProfilePage({
-  params,
-  searchParams,
-}: {
-  params: { customerId: string }
-  searchParams: Record<string, string | undefined>
-}) {
+export default async function CustomerProfilePage(
+  props: {
+    params: Promise<{ customerId: string }>
+    searchParams: Promise<Record<string, string | undefined>>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   if (!UUID_RE.test(params.customerId)) notFound()
 
   const customer = await getCrmCustomer(params.customerId)

@@ -9,8 +9,12 @@ const STORAGE_KEY = 'cookie-notice-accepted'
 export default function CookieNotice() {
   const [visible, setVisible] = useState(false)
 
+  // קריאת localStorage חייבת לקרות אחרי mount (לא ב-lazy initializer של
+  // useState): הקוד הזה רץ גם ב-SSR, ו-localStorage אינו קיים שם — קריאה
+  // אליו מחוץ ל-effect הייתה קורסת ברינדור השרת.
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEY)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisible(true)
     }
   }, [])

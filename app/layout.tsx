@@ -1,20 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 import { Rubik, Dancing_Script, Noto_Serif_Hebrew } from 'next/font/google'
 import './globals.css'
-import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Providers from '@/components/layout/Providers'
+import DeferredWidgets from '@/components/layout/DeferredWidgets'
 import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
-
-// Non-critical UI — loaded after hydration, not part of initial JS bundle
-const WhatsAppButton      = dynamic(() => import('@/components/ui/WhatsAppButton'),      { ssr: false })
-const AccessibilityWidget = dynamic(() => import('@/components/ui/AccessibilityWidget'), { ssr: false })
-const FloatingSocialButtons = dynamic(() => import('@/components/ui/FloatingSocialButtons'), { ssr: false })
-const ScrollToTop         = dynamic(() => import('@/components/ui/ScrollToTop'),         { ssr: false })
-const NavigationProgress  = dynamic(() => import('@/components/ui/NavigationProgress'),  { ssr: false })
-const CookieNotice        = dynamic(() => import('@/components/ui/CookieNotice'),        { ssr: false })
 import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
@@ -154,7 +146,12 @@ const localBusinessJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
+    <html
+      lang="he"
+      dir="rtl"
+      className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}
+      data-scroll-behavior="smooth"
+    >
       <head>
         <script
           type="application/ld+json"
@@ -180,13 +177,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <Footer />
         </Providers>
-        <NavigationProgress />
-        <FloatingSocialButtons />
-        <WhatsAppButton />
-        <ScrollToTop />
-        <AccessibilityWidget />
-        <WhatsAppTracker />
-        <CookieNotice />
+        <DeferredWidgets>
+          <WhatsAppTracker />
+        </DeferredWidgets>
       </body>
     </html>
   )

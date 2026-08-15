@@ -26,7 +26,7 @@ export const config = {
  * token מזויף/פג-תוקף נמחק כאן מיידית — נוחות בלבד, לא שער אבטחה: גם
  * בלעדיו הוא נדחה ב-getSession בכל route.
  */
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = req.cookies.get('sm_session')?.value
   if (!token) return NextResponse.next()
 

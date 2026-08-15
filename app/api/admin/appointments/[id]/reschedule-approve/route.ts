@@ -24,7 +24,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * 🔒 15F — הנוסח של "שינוי המועד אושר" אושר ומוחזר כאן כ-whatsappUrl.
  * ⚠️ הוא נוסח **נפרד** מנוסח אישור התור הרגיל; אין להחליף ביניהם.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

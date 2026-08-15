@@ -21,11 +21,12 @@ export const dynamic = 'force-dynamic'
  * שובל ורפאל מוחרגות ב-DB דרך טבלת admins: הן קיימות ב-customers רק כדי
  * להתחבר, והן אינן לקוחות. ההחרגה אינה לפי טלפון או UUID קשיח.
  */
-export default async function AdminCustomersPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; q?: string; filter?: string; sort?: string; source?: string }
-}) {
+export default async function AdminCustomersPage(
+  props: {
+    searchParams: Promise<{ page?: string; q?: string; filter?: string; sort?: string; source?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   // כל ערך לא תקין נופל לברירת מחדל בטוחה — ה-DB חותך שוב בכל מקרה
   const page = Math.max(1, Number(searchParams.page) || 1)
   const q = (searchParams.q ?? '').trim().slice(0, 100)

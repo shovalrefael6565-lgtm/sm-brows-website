@@ -17,8 +17,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string; noteId: string } },
+  props: { params: Promise<{ id: string; noteId: string }> }
 ) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic'
  * 'processing' עם lease שפג. פריט שכבר 'processed'/'ignored' הוא מצב סופי
  * ומחזיר 409: אין מסלול שמחייה שינוי שכבר הוכרע.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

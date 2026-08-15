@@ -17,11 +17,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * ⚠️ הבחירה המוקדמת היא נוחות בלבד. השרת טוען את הלקוחה מחדש בעת היצירה
  * ואינו סומך על מה שהגיע מהדפדפן.
  */
-export default async function NewAppointmentPage({
-  searchParams,
-}: {
-  searchParams: { customerId?: string }
-}) {
+export default async function NewAppointmentPage(
+  props: {
+    searchParams: Promise<{ customerId?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const requested = searchParams.customerId
   const initialCustomer =
     requested && UUID_RE.test(requested) ? await getBookingCustomer(requested) : null

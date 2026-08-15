@@ -49,17 +49,6 @@ export default function CustomerFilters({
   const [search, setSearch] = useState(q)
   const first = useRef(true)
 
-  useEffect(() => {
-    // לא לדחוף ניווט בטעינה הראשונה, רק על שינוי אמיתי של המשתמשת
-    if (first.current) { first.current = false; return }
-
-    const timer = setTimeout(() => {
-      push({ q: search })
-    }, 350)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search])
-
   const push = (changes: Record<string, string>) => {
     const params = new URLSearchParams()
     const next = { q: search, filter, sort, source: sourceKey, ...changes }
@@ -70,6 +59,17 @@ export default function CustomerFilters({
     const qs = params.toString()
     router.push(qs ? `/admin/customers?${qs}` : '/admin/customers')
   }
+
+  useEffect(() => {
+    // לא לדחוף ניווט בטעינה הראשונה, רק על שינוי אמיתי של המשתמשת
+    if (first.current) { first.current = false; return }
+
+    const timer = setTimeout(() => {
+      push({ q: search })
+    }, 350)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
 
   return (
     <div className="flex flex-wrap items-end gap-3 mb-6">

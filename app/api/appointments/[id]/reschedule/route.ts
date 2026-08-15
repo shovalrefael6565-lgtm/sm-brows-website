@@ -26,7 +26,8 @@ const TIME_RE = /^\d{2}:\d{2}$/
  * כל השאר — מי הלקוחה, איזה תור, משך הטיפול, המחיר, הסטטוס והמדיניות —
  * נטען בשרת.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const customerId = await getCurrentCustomerId()
   if (!customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })

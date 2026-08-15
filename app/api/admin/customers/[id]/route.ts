@@ -27,7 +27,8 @@ function failure(error: string, status?: number) {
  * צורות כתיבה של אותו מספר ("050-1234567" ו-"+972501234567") לא ייחשבו
  * שינוי, ולא ייצרו כרטיס עם מספר בפורמט שהמערכת אינה מזהה בהתחברות.
  */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 
@@ -106,7 +107,8 @@ const ARCHIVE_INSTEAD = 'אפשר להעביר את הכרטיס לארכיון 
  * את המחיקה. ההפסד מחסימה שגויה הוא כרטיס שנשאר; ההפסד ממחיקה שגויה הוא
  * זהות יתומה שאיש לא ידע עליה.
  */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

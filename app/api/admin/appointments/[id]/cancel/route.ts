@@ -19,7 +19,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * כ-actor_id בהיסטוריה. הוא **אינו** מתקבל מהבקשה — גוף הבקשה אינו נקרא
  * כאן כלל, ולכן אין שום דרך לבטל "בשם" מנהלת אחרת.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
 

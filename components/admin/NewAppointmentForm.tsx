@@ -62,7 +62,10 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   const serviceReady = serviceKey === LIFTING_SERVICE || variants.length > 0
 
   // בדיקת זמינות בכל שינוי של הצירוף. תגובה ישנה שמגיעה באיחור לא דורסת חדשה.
+  // לא ניתן להעביר להתאמה בזמן ה-render בלי לפצל את ה-fetch לזרימה נפרדת,
+  // מה שהיה מסכן את סנכרון תוצאות הבקשות. disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAvailability(null)
     setAck(false)
     if (!slotReady || !serviceReady) return

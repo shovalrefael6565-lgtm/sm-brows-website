@@ -7,14 +7,15 @@ import { blogPosts } from '@/lib/data'
 import { WHATSAPP_URL, SITE_URL } from '@/lib/utils'
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 export async function generateStaticParams() {
   return blogPosts.map((post) => ({ slug: post.slug }))
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const post = blogPosts.find((p) => p.slug === params.slug)
   if (!post) return {}
   return {
@@ -38,7 +39,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function BlogPostPage({ params }: Props) {
+export default async function BlogPostPage(props: Props) {
+  const params = await props.params;
   const post = blogPosts.find((p) => p.slug === params.slug)
   if (!post) notFound()
 
@@ -222,11 +224,11 @@ function renderMarkdown(md: string): string {
 }
 
 function inlineFormat(s: string): string {
-  return escape(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  return escape(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 }
 
 function escape(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function WhatsAppIcon({ className }: { className?: string }) {

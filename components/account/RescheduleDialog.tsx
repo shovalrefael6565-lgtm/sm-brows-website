@@ -118,8 +118,13 @@ export default function RescheduleDialog({
     }
   }, [])
 
+  // בחירת יום משנה גם איפוס state וגם מפעילה fetch אמיתי לזמינות מהשרת —
+  // לא ניתן להעביר להתאמה בזמן ה-render בלי לפצל את ה-fetch לזרימה נפרדת,
+  // מה שהיה מסכן את סנכרון תוצאות הבקשות (stale responses) בליבת ההזמנות.
+  // disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
     if (!selected) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTime(null)
     setBusy([])
     fetchBusy(selected.isoDate)

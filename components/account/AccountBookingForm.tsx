@@ -133,15 +133,27 @@ export default function AccountBookingForm() {
     }
   }, [])
 
+  // בחירת יום משנה גם איפוס state וגם מפעילה fetch אמיתי לזמינות מהשרת —
+  // לא ניתן להעביר להתאמה בזמן ה-render (כמו pathname ב-Navbar) בלי לפצל
+  // את ה-fetch לזרימה נפרדת, מה שהיה מסכן את סנכרון תוצאות הבקשות (stale
+  // responses) בליבת ההזמנות. disable נקודתי, לא שינוי התנהגות.
   useEffect(() => {
     if (!selected) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTime(null)
     setBusy([])
     fetchBusy(selected.isoDate)
   }, [selected, fetchBusy])
 
-  // שינוי טיפול משנה את המשך, ולכן גם את רשימת שעות ההתחלה האפשריות
-  useEffect(() => { setTime(null) }, [service])
+  // שינוי טיפול משנה את המשך, ולכן גם את רשימת שעות ההתחלה האפשריות —
+  // מותאם בזמן ה-render עצמו (לא ב-effect), כמומלץ ב-
+  // react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  // service הוא primitive יציב (ServiceKey | null), כך שההשוואה כאן בטוחה.
+  const [prevService, setPrevService] = useState(service)
+  if (service !== prevService) {
+    setPrevService(service)
+    setTime(null)
+  }
 
   const slots = selected && !slotsUnavailable
     ? selectDisplaySlots({

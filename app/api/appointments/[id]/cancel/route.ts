@@ -23,7 +23,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * בשני המסלולים הבעלות נבדקת בתוך ה-RPC (customer_id הוא חלק מתנאי
  * ה-UPDATE), ולכן טעינת התור כאן משמשת לבחירת המסלול בלבד — לא כהרשאה.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const customerId = await getCurrentCustomerId()
   if (!customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
