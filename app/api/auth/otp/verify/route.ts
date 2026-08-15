@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/phone'
 import { verifyOtp } from '@/lib/db/otpStore'
 import { resolveCustomerForLogin } from '@/lib/db/customers'
+import { readJsonWithLimit, DEFAULT_MAX_JSON_BYTES } from '@/lib/http/bodyLimit'
 import { isAdmin } from '@/lib/db/admins'
 import { createSession } from '@/lib/auth/session'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
@@ -54,12 +55,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'feature_disabled' }, { status: 403 })
   }
 
-  let body: { phone?: string; code?: string; purpose?: string; fullName?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+  const parsed = await readJsonWithLimit<{
+    phone?: string
+    code?: string
+    purpose?: string
+    fullName?: string
+  }>(req, DEFAULT_MAX_JSON_BYTES)
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.status === 413 ? 'payload_too_large' : 'bad_request' },
+      { status: parsed.status },
+    )
   }
+  const body = parsed.body
 
   const phone = normalizePhone(body.phone ?? '')
   const code = (body.code ?? '').trim()
@@ -67,6 +75,17 @@ export async function POST(req: NextRequest) {
   if (!phone || !/^\d{6}$/.test(code)) {
     return NextResponse.json(
       { error: 'bad_request', message: 'יש להזין קוד בן 6 ספרות.' },
+      { status: 400 },
+    )
+  }
+
+  // 🔒 שלב 3 — אותה תקרה בדיוק כמו bookings/request (0001: 2–80 תווים).
+  // רלוונטי רק ללקוחה חדשה שנרשמת כאן לראשונה — קיימת אינה מושפעת
+  // (resolveCustomerForLogin אינו דורס שם קיים בשם ריק/undefined).
+  const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
+  if (fullName && (fullName.length < 2 || fullName.length > 80)) {
+    return NextResponse.json(
+      { error: 'invalid_name', message: 'השם שהוזן אינו תקין.' },
       { status: 400 },
     )
   }
@@ -86,7 +105,7 @@ export async function POST(req: NextRequest) {
   // ללקוחה — כולל לקוחה שנוצרה ידנית ב-CRM, שמקבלת כאן את הקישור הראשון
   // שלה ושומרת על כל ההיסטוריה (ראה lib/db/customers.ts). ההפרדה בין
   // לקוחה למנהלת מתבצעת אך ורק לפי הימצאות ב-admins, לא לפי טלפון או קלט.
-  const resolved = await resolveCustomerForLogin(phone, body.fullName)
+  const resolved = await resolveCustomerForLogin(phone, fullName || undefined)
   if (!resolved.ok) {
     console.error('[otp/verify] customer resolution failed', resolved.error)
     // כל הסיבות מוצגות באותו נוסח מסונן: הן מתארות מצב נתונים פנימי

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { destroySession } from '@/lib/auth/session'
+import { isSameOrigin } from '@/lib/auth/originGuard'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,12 +11,16 @@ export const dynamic = 'force-dynamic'
  * ורק אחר כך מוחקת את ה-cookie, וכך גם עותק של ה-token שנלקח לפני
  * ההתנתקות מפסיק לעבוד מיד.
  *
- * ⚠️ אין כאן `isSameOrigin`, כפי שהיה גם קודם. CSRF על logout מטריד
- * (מישהו יכול "להתנתק" בשמך) אך אינו מסלול לגישה, ו-`sameSite=lax` כבר
- * חוסם את ה-cookie בבקשת POST חוצת-אתר. שינוי כזה הוא החלטה נפרדת
- * ולא חלק משלב 14.
+ * 🔒 שלב 3 (הקשחת API) — נוסף `isSameOrigin`, עקבי עם כל שאר מסלולי
+ * ה-cookie/session. עד כאן ההגנה היחידה הייתה `sameSite=lax` בלבד; זו
+ * שכבה שנייה בלתי תלויה, באותו עלות-אפס על הזרימה התקינה כמו בכל route
+ * אחר (דפדפן שולח Origin בכל POST).
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
+  }
+
   const outcome = await destroySession()
 
   /*

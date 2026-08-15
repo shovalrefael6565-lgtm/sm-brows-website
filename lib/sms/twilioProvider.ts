@@ -57,8 +57,10 @@ export class TwilioSmsProvider implements SmsProvider {
       }
 
       return { ok: true, providerMessageId: data?.sid }
-    } catch (err) {
-      console.error('[sms:twilio] network error', err)
+    } catch {
+      // ⚠️ קונטקסט ושם ספק קבועים בלבד. לא message/stack/cause — fetch
+      // שנכשל עלול לשאת hostname/URL בתוכן השגיאה עצמה.
+      console.error('[sms:twilio] network error', 'provider=twilio')
       return { ok: false, error: 'network_error' }
     }
   }

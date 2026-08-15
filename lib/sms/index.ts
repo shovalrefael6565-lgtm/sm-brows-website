@@ -89,11 +89,14 @@ export function getSmsProvider(): SmsProvider {
  * והפעולה העסקית ממשיכה. היוצא מן הכלל הוא OTP, שם הקורא כן בודק את ok.
  */
 export async function sendSms(message: SmsMessage): Promise<SmsResult> {
+  const provider = getSmsProvider()
   try {
-    return await getSmsProvider().send(message)
-  } catch (err) {
-    // ⚠️ err בלבד. גוף ההודעה אינו נרשם — הוא מכיל את קוד ה-OTP.
-    console.error('[sms] provider threw', err)
+    return await provider.send(message)
+  } catch {
+    // ⚠️ שם הספק בלבד — קבוע, נשלט על ידינו (provider.name). לא
+    // message/stack/cause: גוף ההודעה מכיל את קוד ה-OTP ואסור שיזלוג
+    // דרך שגיאה גולמית של הספק.
+    console.error('[sms] provider threw', `provider=${provider.name}`)
     return { ok: false, error: 'provider_error' }
   }
 }

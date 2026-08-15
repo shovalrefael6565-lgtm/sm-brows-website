@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
+import { isSameOrigin } from '@/lib/auth/originGuard'
 import { approveAndSyncAppointment } from '@/lib/appointmentApproval'
 import { dispatchNow } from '@/lib/notifications/dispatch'
 
@@ -16,6 +17,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await requireAdminApi()
   if (!guard.ok) return guard.response
+
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
+  }
 
   const { id } = params
   if (!UUID_RE.test(id)) {

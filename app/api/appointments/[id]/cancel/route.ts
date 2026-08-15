@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
+import { isSameOrigin } from '@/lib/auth/originGuard'
 import { cancelPendingAppointment, getAppointmentForCustomer } from '@/lib/db/appointments'
 import { cancelConfirmedForCustomer } from '@/lib/appointmentSelfService'
 import { dispatchNow } from '@/lib/notifications/dispatch'
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const customerId = await getCurrentCustomerId()
   if (!customerId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
   }
 
   const { id } = params

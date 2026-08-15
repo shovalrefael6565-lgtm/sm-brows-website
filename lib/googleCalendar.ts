@@ -183,6 +183,19 @@ export function googleErrorStatus(err: unknown): number | undefined {
   return undefined
 }
 
+/**
+ * שלב 3 (תיקון לוגים) — לוג בטוח לכשל בקריאה ליומן Google.
+ *
+ * שומר אך ורק: קונטקסט קבוע שנכתב בקוד הקורא, שם ספק קבוע, ו-status
+ * מספרי אם קיים (googleErrorStatus, כבר מסונן). לעולם לא message, stack,
+ * cause, config, request, response, headers או תוכן מהשגיאה עצמה — אלה
+ * עלולים לשאת URL, פרטי בקשה או תוכן payload.
+ */
+export function logGoogleCalendarError(context: string, err: unknown): void {
+  const status = googleErrorStatus(err)
+  console.error(context, 'provider=google_calendar', `status=${status ?? 'unknown'}`)
+}
+
 /** הודעת שגיאה קצרה ובטוחה לשמירה ב-DB — לעולם לא JSON מלא/tokens/headers */
 export function sanitizeGoogleError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err)

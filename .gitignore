@@ -13,8 +13,9 @@ build/
 # misc
 .DS_Store
 *.pem
-.env
-.env*.local
+.env*
+!.env.example
+*.tsbuildinfo
 
 # debug
 npm-debug.log*

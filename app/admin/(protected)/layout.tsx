@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+// 🔒 שלב 2 (מידע פרטי) — מוצהר במפורש, במקום המרכזי היחיד שדרכו עוברים
+// כל דפי /admin/* המוגנים: אסור שדף כאן ייהפך פעם ל-static (ומטמון) בלי
+// שמישהו ישים לב. cookies() ב-requireAdminPage כבר מכריחה דינמיות בפועל —
+// זה כאן כדי שזה יהיה מפורש ולא תלוי בזיהוי אוטומטי.
+export const dynamic = 'force-dynamic'
+
 /**
  * כל דף מתחת ל-(protected) עובר קודם דרך requireAdminPage — שער הגישה
  * היחיד לאזור הניהול. /admin/login נמצא מחוץ ל-route group הזה בכוונה,

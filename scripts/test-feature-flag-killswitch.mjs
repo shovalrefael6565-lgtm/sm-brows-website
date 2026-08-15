@@ -114,8 +114,10 @@ section('POST /api/bookings/request — המסלול הציבורי (15B)')
     `gate@${gateAt} await@${firstAwait}`)
 
   // 🔒 השער גם לפני חילוץ ה-IP ולפני קריאת הגוף
+  // ⚠️ שלב 3: req.json() הוחלף ב-readJsonWithLimit (מגבלת גודל לפני parse) —
+  // אותה נקודת קריאה בדיוק, תבנית חדשה.
   const ipAt = code.search(/resolveClientIp\(/)
-  const jsonAt = code.search(/req\.json\(\)/)
+  const jsonAt = code.search(/readJsonWithLimit\s*[<(]/)
   chk('🔒 השער לפני חילוץ ה-IP ולפני קריאת גוף הבקשה',
     gateAt < ipAt && gateAt < jsonAt, `gate@${gateAt} ip@${ipAt} json@${jsonAt}`)
 
@@ -187,7 +189,7 @@ const flagGate = /isNewBookingSystemEnabled\(\)/
 for (const [path, sideEffect, label] of [
   ['app/api/auth/otp/send/route.ts', /await\s+issueOtp\(/, 'issueOtp'],
   ['app/api/auth/otp/send/route.ts', /await\s+sendSms\(/, 'sendSms'],
-  ['app/api/auth/otp/send/route.ts', /await\s+req\.json\(\)/, 'req.json'],
+  ['app/api/auth/otp/send/route.ts', /readJsonWithLimit\s*[<(]/, 'readJsonWithLimit'],
   ['app/api/auth/otp/verify/route.ts', /await\s+verifyOtp\(/, 'verifyOtp'],
   ['app/api/auth/otp/verify/route.ts', /await\s+createSession\(/, 'createSession'],
   ['app/api/auth/session/route.ts', /await\s+getCurrentCustomerId\(/, 'getCurrentCustomerId'],
@@ -212,7 +214,7 @@ for (const path of ['app/login/page.tsx', 'app/account/page.tsx']) {
   const code = stripComments(src('app/api/auth/otp/send/route.ts'))
   const gateAt = code.search(flagGate)
   const firstEffect = Math.min(
-    ...[/await\s+req\.json\(\)/, /await\s+issueOtp\(/, /await\s+sendSms\(/]
+    ...[/readJsonWithLimit\s*[<(]/, /await\s+issueOtp\(/, /await\s+sendSms\(/]
       .map(re => code.search(re)).filter(i => i !== -1),
   )
   chk('🔒 ⚠️ ב-otp/send השער קודם ל**כל** תופעת לוואי, לא רק לאחת',

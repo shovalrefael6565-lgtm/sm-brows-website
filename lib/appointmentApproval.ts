@@ -18,6 +18,7 @@ import {
   deleteAppointmentEvent,
   findConflictingCalendarEvent,
   sanitizeGoogleError,
+  logGoogleCalendarError,
 } from '@/lib/googleCalendar'
 import { loadAppointmentPolicy, loadBuildingEntryCode } from '@/lib/db/businessSettings'
 import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
@@ -746,7 +747,7 @@ export async function cancelConfirmedByAdmin(
       const sync = await retryCalendarSync(appointmentId)
       calendarRemoved = sync.ok
     } catch (err) {
-      console.error('[approval] admin cancel calendar delete threw', err)
+      logGoogleCalendarError('[approval] admin cancel calendar delete threw', err)
       calendarRemoved = false
     }
   }

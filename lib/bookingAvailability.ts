@@ -75,7 +75,10 @@ export async function resolveAvailability(
   isoDate: string,
   sources: AvailabilitySources,
 ): Promise<AvailabilityResult> {
-  const log = sources.log ?? ((message, err) => console.error(message, err))
+  // ⚠️ ברירת המחדל אינה מדפיסה את err: המקור עשוי להיות גם Google וגם
+  // Supabase (Promise.all למטה), ואי אפשר לדעת כאן איזה מהם בבטחה. ה-
+  // message שנשלח בכל קריאה כבר קונטקסט קבוע שנכתב בקוד — זה כל מה שנשמר.
+  const log = sources.log ?? ((message) => console.error(message))
 
   if (!sources.newBookingSystemEnabled()) {
     // ═══ מסלול ישן — מקור אחד, בלי שום נגיעה ב-Supabase ═══

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizePhone, maskPhone } from '@/lib/phone'
 import { issueOtp, discardOtp } from '@/lib/db/otpStore'
+import { resolveClientIp } from '@/lib/clientIp'
+import { readJsonWithLimit, DEFAULT_MAX_JSON_BYTES } from '@/lib/http/bodyLimit'
 import { sendSms } from '@/lib/sms'
 import { otpMessage } from '@/lib/sms/templates'
 import { OTP_TTL_MINUTES } from '@/lib/otp'
@@ -36,12 +38,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'feature_disabled' }, { status: 403 })
   }
 
-  let body: { phone?: string; purpose?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+  const parsed = await readJsonWithLimit<{ phone?: string; purpose?: string }>(
+    req,
+    DEFAULT_MAX_JSON_BYTES,
+  )
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.status === 413 ? 'payload_too_large' : 'bad_request' },
+      { status: parsed.status },
+    )
   }
+  const body = parsed.body
 
   const phone = normalizePhone(body.phone ?? '')
   if (!phone) {
@@ -53,13 +60,25 @@ export async function POST(req: NextRequest) {
 
   const purpose = body.purpose === 'booking' ? 'booking' : 'login'
 
-  // ה-IP משמש להגבלת קצב בלבד ואינו נשמר בשום מקום אחר
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    req.headers.get('x-real-ip') ??
-    null
+  /*
+   * 🔒 שלב 3 (הקשחת API) — כמו bookings/request: x-forwarded-for/x-real-ip
+   * לבדם ניתנים לזיוף מלא ע"י הקורא, ומגבלת הקצב לפי IP הייתה תפאורה.
+   * resolveClientIp (lib/clientIp.ts) קורא רק x-vercel-forwarded-for
+   * בפרודקשן — כותרת שנכתבת ע"י ה-edge של Vercel ולא ע"י הלקוח.
+   *
+   * ⚠️ fail-closed: בפרודקשן בלי IP מהימן אין שליחת SMS בתשלום. מקומי/בדיקות
+   * ממשיכים עם loopback (ראה resolveClientIp).
+   */
+  const ipResult = resolveClientIp(req.headers)
+  if (!ipResult.ok) {
+    console.error('[otp/send] no trusted client ip —', ipResult.reason)
+    return NextResponse.json(
+      { error: 'server_error', message: 'לא הצלחנו לשלוח את הקוד. נסי שוב בעוד רגע.' },
+      { status: 503 },
+    )
+  }
 
-  const result = await issueOtp(phone, purpose, ip)
+  const result = await issueOtp(phone, purpose, ipResult.ip)
 
   if (!result.ok) {
     if (result.limit) {

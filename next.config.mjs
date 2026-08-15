@@ -33,6 +33,21 @@ const nextConfig = {
         source: '/_next/static/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
+      // 🔒 שלב 2 (מידע פרטי) — מידע אישי/ניהולי, לעולם לא במטמון משותף.
+      // מוחל ברמת next.config כדי לכסות גם תגובות שגיאה בלי לגעת בכל route
+      // בנפרד. אינו נוגע ב-/api/bookings/slots או ב-/api/shabbat (ציבוריים).
+      {
+        source: '/api/auth/:path*',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
+      {
+        source: '/api/appointments/:path*',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
     ]
   },
 }

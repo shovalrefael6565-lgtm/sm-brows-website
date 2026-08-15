@@ -9,7 +9,7 @@ import {
 import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
 import { canCancel, canRequestReschedule, type AppointmentPolicy, type PolicyDecision } from '@/lib/appointmentPolicy'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
-import { findConflictingCalendarEvent } from '@/lib/googleCalendar'
+import { findConflictingCalendarEvent, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { retryCalendarSync } from '@/lib/appointmentApproval'
 import { israelDateStr, israelWallTimeToUtc } from '@/lib/israelTime'
 import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime } from '@/lib/bookingWindow'
@@ -320,7 +320,7 @@ export async function requestRescheduleForCustomer(
     )
     if (conflict) return fail('slot_taken')
   } catch (err) {
-    console.error('[selfService] calendar pre-check failed', err)
+    logGoogleCalendarError('[selfService] calendar pre-check failed', err)
   }
 
   // אותו כלל תפוגה בדיוק כמו כל בקשת pending אחרת (15B): 3 שעות עם
@@ -439,7 +439,7 @@ async function syncQuietly(appointmentId: string): Promise<boolean> {
     const sync = await retryCalendarSync(appointmentId)
     return sync.ok
   } catch (err) {
-    console.error('[selfService] calendar sync threw', err)
+    logGoogleCalendarError('[selfService] calendar sync threw', err)
     return false
   }
 }

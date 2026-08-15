@@ -5,8 +5,6 @@ import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Providers from '@/components/layout/Providers'
-import MetaPixel from '@/components/analytics/MetaPixel'
-import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 
@@ -158,7 +156,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}>
       <head>
-        <GoogleAnalytics />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
@@ -188,7 +185,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WhatsAppButton />
         <ScrollToTop />
         <AccessibilityWidget />
-        <MetaPixel />
         <WhatsAppTracker />
         <CookieNotice />
       </body>

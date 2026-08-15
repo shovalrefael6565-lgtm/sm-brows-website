@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+// 🔒 שלב 2 (מידע פרטי) — מוצהר במפורש, בלי תלות בזיהוי אוטומטי של cookies().
+export const dynamic = 'force-dynamic'
+
 /**
  * תוויות הסטטוסים בעברית — תואמות ל-appointment_status ב-DB
  * (supabase/migrations/0001_customer_accounts.sql, + 'expired' ב-0002,

@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+// 🔒 שלב 2 (מידע פרטי) — מחוץ ל-(protected), אז לא מכוסה ע"י ה-layout שם.
+export const dynamic = 'force-dynamic'
+
 /**
  * כניסת מנהלים — אותה תשתית OTP בדיוק כמו /login. אין כאן שדה סיסמה
  * ואין ניתוב שונה בטופס עצמו: ה-role נקבע בשרת לפי טבלת admins

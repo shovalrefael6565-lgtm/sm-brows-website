@@ -1,7 +1,7 @@
 import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { israelWallTimeToUtc, israelDateStr, israelMinutes, BUSINESS_START_MIN, BUSINESS_END_MIN } from '@/lib/israelTime'
-import { findConflictingCalendarEvent } from '@/lib/googleCalendar'
+import { findConflictingCalendarEvent, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { retryCalendarSync } from '@/lib/appointmentApproval'
 import { POLICY_VERSION } from '@/lib/bookingPolicy'
 import { isFridayOrSaturday } from '@/lib/bookingWindow'
@@ -172,7 +172,7 @@ export async function checkManualSlotAvailability(
     // ⚠️ בניגוד למסלול הלקוחה, כאן **חוסמים** כשהיומן אינו זמין. מנהלת
     // קובעת תור מחוץ לשעות הפעילות, שם הסיכוי לאירוע ידני חופף גבוה
     // דווקא, ותור שנקבע על אירוע קיים גורר טלפון ללקוחה.
-    console.error('[adminBooking] calendar availability check failed', err)
+    logGoogleCalendarError('[adminBooking] calendar availability check failed', err)
     return { available: false, reason: 'calendar_unavailable' }
   }
 

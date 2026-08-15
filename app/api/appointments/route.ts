@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { dispatchNow } from '@/lib/notifications/dispatch'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
+import { isSameOrigin } from '@/lib/auth/originGuard'
 import { getCustomerById } from '@/lib/db/customers'
 import { createPersonalAreaBookingRequest } from '@/lib/db/appointments'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
-import { getBusyRanges } from '@/lib/googleCalendar'
+import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
@@ -73,6 +74,10 @@ export async function POST(req: NextRequest) {
       { error: 'unauthorized', message: 'יש לאמת את מספר הטלפון לפני שמירת הבקשה.' },
       { status: 401 },
     )
+  }
+
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
   }
 
   let body: {
@@ -166,7 +171,7 @@ export async function POST(req: NextRequest) {
       )
     }
   } catch (err) {
-    console.error('[appointments] calendar pre-check failed', err)
+    logGoogleCalendarError('[appointments] calendar pre-check failed', err)
   }
 
   const customer = await getCustomerById(customerId)

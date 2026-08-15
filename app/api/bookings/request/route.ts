@@ -3,10 +3,11 @@ import { waitUntil } from '@vercel/functions'
 import { dispatchNow } from '@/lib/notifications/dispatch'
 import { normalizePhone } from '@/lib/phone'
 import { resolveClientIp } from '@/lib/clientIp'
+import { readJsonWithLimit, DEFAULT_MAX_JSON_BYTES } from '@/lib/http/bodyLimit'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { bookingRateLimitMessage } from '@/lib/bookingRateLimit'
 import { createPublicBookingRequest } from '@/lib/db/appointments'
-import { getBusyRanges } from '@/lib/googleCalendar'
+import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  let body: {
+  const parsed = await readJsonWithLimit<{
     serviceKey?: string
     variants?: unknown
     isoDate?: string
@@ -112,12 +113,13 @@ export async function POST(req: NextRequest) {
     notes?: unknown
     fullName?: string
     phone?: string
+  }>(req, DEFAULT_MAX_JSON_BYTES)
+  if (!parsed.ok) {
+    return parsed.status === 413
+      ? fail({ status: 413, error: 'payload_too_large', message: 'הבקשה גדולה מדי.' })
+      : fail({ status: 400, error: 'bad_request', message: 'בקשה לא תקינה.' })
   }
-  try {
-    body = await req.json()
-  } catch {
-    return fail({ status: 400, error: 'bad_request', message: 'בקשה לא תקינה.' })
-  }
+  const body = parsed.body
 
   // ── זהות הלקוחה ────────────────────────────────────────────────────────
   const phone = normalizePhone(body.phone ?? '')
@@ -211,7 +213,7 @@ export async function POST(req: NextRequest) {
       return fail({ status: 409, error: 'slot_taken', message: 'השעה שנבחרה נתפסה. יש לבחור שעה אחרת.' })
     }
   } catch (err) {
-    console.error('[bookings/request] calendar pre-check failed', err)
+    logGoogleCalendarError('[bookings/request] calendar pre-check failed', err)
   }
 
   const notes =
