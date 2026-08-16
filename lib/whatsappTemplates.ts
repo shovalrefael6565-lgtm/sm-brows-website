@@ -110,7 +110,7 @@ export function buildBookingRequestMessage(p: BookingRequestMessageParams): stri
 export const STUDIO_DETAILS = {
   address: 'הכורמים 14, קומה 4, דירה 16',
   addressNote: '(הבניין על הכיכר)',
-  paymentMethods: 'מזומן / Bit / PayBox',
+  paymentMethods: 'מזומן / Bit / PayBox / כרטיס אשראי',
   paymentPhone: '054-7261564',
 } as const
 
