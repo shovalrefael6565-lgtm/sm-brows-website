@@ -1,36 +1,58 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
+import { usePathname } from 'next/navigation'
+import { useConsent } from '@/lib/consentContext'
+import { isTrackingExcludedPath, setMetaConsent } from '@/lib/consent'
 
-const PIXEL_ID = '1524910039137149'
-
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void
-  }
-}
-
-/** מאזין גלובלי: כל קליק על קישור וואטסאפ שולח אירוע Contact לפיקסל */
-function isWhatsAppLink(href: string) {
-  return href.includes('wa.me') || href.includes('api.whatsapp.com')
-}
+/**
+ * אין hardcode למזהה: אם NEXT_PUBLIC_META_PIXEL_ID לא מוגדר, Meta Pixel פשוט
+ * לא נטען — בלי fallback ובלי קריסה. (לא היה קודם env var ייעודי ל-Pixel —
+ * המזהה היה שרוף בקוד. זה שם המשתנה החדש שמחליף אותו, לפי אותה מוסכמה
+ * שכבר קיימת ל-NEXT_PUBLIC_GA_ID.)
+ */
+const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID
 
 export default function MetaPixel() {
+  const { ready, marketing } = useConsent()
+  const pathname = usePathname() ?? '/'
+  const excluded = isTrackingExcludedPath(pathname)
+  const granted = ready && marketing && !excluded
+
+  // אותו דפוס scriptLoaded (state, לרינדור) + loadedRef (ref, לוגיקת האפקט)
+  // כמו ב-GoogleAnalytics.tsx — ראה שם את ההסבר המלא למה זה מונע init כפול.
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const loadedRef = useRef(false)
+  const prevGrantedRef = useRef(false)
+
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement | null)?.closest?.('a')
-      if (anchor?.href && isWhatsAppLink(anchor.href)) {
-        window.fbq?.('track', 'Contact')
-      }
+    if (!META_PIXEL_ID) return
+
+    if (granted && !loadedRef.current) {
+      loadedRef.current = true
+      prevGrantedRef.current = true
+      setScriptLoaded(true)
+      return
     }
-    document.addEventListener('click', onClick, true)
-    return () => document.removeEventListener('click', onClick, true)
-  }, [])
+
+    if (!loadedRef.current) return // fbq עדיין לא קיים — אין consent command לפני שהוא נטען
+
+    if (granted !== prevGrantedRef.current) {
+      // מעבר מפורש: אישור/ביטול, או ציבורי/נתיב מוחרג. אין init כפול.
+      setMetaConsent(granted ? 'grant' : 'revoke')
+      if (granted) window.fbq?.('track', 'PageView')
+    } else if (granted) {
+      window.fbq?.('track', 'PageView')
+    }
+    prevGrantedRef.current = granted
+  }, [granted, pathname])
+
+  if (!scriptLoaded) return null
 
   return (
     <>
-      <Script id="meta-pixel" strategy="afterInteractive">
+      <Script id="meta-pixel-init" strategy="afterInteractive">
         {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -39,7 +61,8 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${PIXEL_ID}');
+fbq('init', '${META_PIXEL_ID}');
+fbq('consent', 'grant');
 fbq('track', 'PageView');`}
       </Script>
       <noscript>
@@ -49,7 +72,7 @@ fbq('track', 'PageView');`}
           width="1"
           style={{ display: 'none' }}
           alt=""
-          src={`https://www.facebook.com/tr?id=${PIXEL_ID}&ev=PageView&noscript=1`}
+          src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
         />
       </noscript>
     </>

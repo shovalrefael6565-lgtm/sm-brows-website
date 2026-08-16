@@ -1,62 +1,76 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useRef } from 'react'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useConsent } from '@/lib/consentContext'
 
-const STORAGE_KEY = 'cookie-notice-accepted'
-
+/**
+ * באנר ההסכמה הראשוני. שלוש הפעולות (אישור הכול / דחייה / התאמה אישית)
+ * מוצגות באותה שכבה, באותו גודל כפתור — אין דגש חזותי שדוחף לכיוון "אישור".
+ * דחייה אינה חוסמת את השימוש באתר: הבאנר נסגר בדיוק כמו אישור.
+ */
 export default function CookieNotice() {
-  const [visible, setVisible] = useState(false)
+  const { ready, bannerOpen, acceptAll, rejectAll, openPreferences } = useConsent()
+  const customizeBtnRef = useRef<HTMLButtonElement>(null)
 
-  // קריאת localStorage חייבת לקרות אחרי mount (לא ב-lazy initializer של
-  // useState): הקוד הזה רץ גם ב-SSR, ו-localStorage אינו קיים שם — קריאה
-  // אליו מחוץ ל-effect הייתה קורסת ברינדור השרת.
-  useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisible(true)
-    }
-  }, [])
+  const visible = ready && bannerOpen
 
-  const accept = () => {
-    localStorage.setItem(STORAGE_KEY, '1')
-    setVisible(false)
-  }
+  // 🔒 בלי AnimatePresence: ראה ההערה המפורטת ב-ConsentPreferencesModal.tsx —
+  // exit animation לפעמים לא משלים unmount ב-framer-motion 11 + React 19.
+  // רינדור מותנה רגיל מבטיח שהבאנר באמת יורד מה-DOM (ולא רק visually) ברגע
+  // שההחלטה נשמרת.
+  if (!visible) return null
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
+        <motion.section
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          role="region"
-          aria-label="הודעת עוגיות"
+          aria-labelledby="cookie-consent-heading"
           className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4"
         >
-          <div className="max-w-3xl mx-auto bg-brand-cream border border-brand-linen rounded-2xl shadow-soft-lg px-5 py-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
-            <p className="text-sm text-brand-muted flex-1 text-center sm:text-right leading-relaxed">
-              כדי לשפר את חוויית הגלישה ולמדוד את ביצועי האתר, אנו משתמשים בקובצי Cookies.
-            </p>
-            <div className="flex items-center gap-3 shrink-0">
-              <Link
-                href="/privacy"
-                className="text-sm text-brand-muted underline underline-offset-2 hover:text-brand-dark transition-colors whitespace-nowrap"
-              >
-                מדיניות פרטיות
-              </Link>
+          <div className="max-w-3xl mx-auto bg-brand-cream border border-brand-linen rounded-2xl shadow-soft-lg px-5 py-4 flex flex-col gap-4">
+            <div>
+              <h2 id="cookie-consent-heading" className="sr-only">הסכמה לשימוש בעוגיות</h2>
+              <p className="text-sm text-brand-muted text-center sm:text-right leading-relaxed">
+                אנחנו משתמשים בעוגיות חיוניות לתפעול האתר, ובעוגיות מדידה ושיווק רק אם תאשרי זאת.
+                אפשר לשנות את הבחירה בכל עת דרך{' '}
+                <Link href="/privacy" className="underline underline-offset-2 hover:text-brand-dark transition-colors">
+                  מדיניות הפרטיות
+                </Link>
+                {' '}או קישור &quot;הגדרות פרטיות ועוגיות&quot; בפוטר.
+              </p>
+            </div>
+            {/*
+              🔒 שלושת הכפתורים באותו גודל, אותו משקל גופן ואותו סגנון מסגרת
+              בכוונה — אין כפתור "מודגש" ואין dark pattern שמנווט לכיוון אחד.
+            */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5">
               <button
-                onClick={accept}
-                className="text-sm font-semibold bg-brand-gold text-brand-dark px-5 py-2 rounded-full hover:bg-brand-gold-dark hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 whitespace-nowrap cursor-pointer"
+                type="button"
+                onClick={rejectAll}
+                className="text-sm font-semibold bg-white border border-brand-dark/30 text-brand-dark px-5 py-2.5 rounded-full hover:bg-brand-linen transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 whitespace-nowrap cursor-pointer"
               >
-                הבנתי
+                דחיית עוגיות לא חיוניות
+              </button>
+              <button
+                ref={customizeBtnRef}
+                type="button"
+                onClick={() => openPreferences(customizeBtnRef.current)}
+                className="text-sm font-semibold bg-white border border-brand-dark/30 text-brand-dark px-5 py-2.5 rounded-full hover:bg-brand-linen transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 whitespace-nowrap cursor-pointer"
+              >
+                התאמה אישית
+              </button>
+              <button
+                type="button"
+                onClick={acceptAll}
+                className="text-sm font-semibold bg-white border border-brand-dark/30 text-brand-dark px-5 py-2.5 rounded-full hover:bg-brand-linen transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 whitespace-nowrap cursor-pointer"
+              >
+                אישור הכול
               </button>
             </div>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </motion.section>
   )
 }

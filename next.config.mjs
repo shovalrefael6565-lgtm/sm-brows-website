@@ -7,8 +7,16 @@ const isProd = process.env.NODE_ENV === 'production'
  * חיצונית (התמונות ב-lib/data.ts דרך images.unsplash.com עוברות דרך
  * /_next/image בצד שרת — הדפדפן עצמו תמיד פונה ל-'self'), הגופנים דרך
  * next/font/google מתארחים עצמאית בבנייה, ווידאו/מדיה מקומיים בלבד.
- * GoogleAnalytics.tsx ו-MetaPixel.tsx קיימים בקוד אך אינם מיובאים משום מקום
- * (מושבתים) — לכן אין googletagmanager.com / facebook.net / facebook.com ב-CSP.
+ *
+ * שלב 6 (הסכמה) — GoogleAnalytics.tsx ו-MetaPixel.tsx נטענים כעת בפועל,
+ * אבל אך ורק אחרי הסכמה מפורשת של המבקרת (lib/consentContext.tsx) ואף פעם
+ * לא ב-/admin, /account או /login. ה-CSP הוא header סטטי לכל בקשה ולא יכול
+ * להיות תלוי בבחירת ההסכמה בזמן ריצה — לכן המקורות המדויקים הבאים מותרים
+ * תמיד ברמת ה-header, וזה בלבד *לא* טוען אותם: הטעינה בפועל מותנית בקוד
+ * הלקוח בהסכמה. אין wildcard ואין דומיינים נוספים מעבר לארבעה הבאים:
+ *   script-src  — googletagmanager.com (Google Tag) + connect.facebook.net (Meta Pixel script)
+ *   connect-src — google-analytics.com (GA collect)
+ *   img-src     — facebook.com (Meta collect/pixel — <noscript><img>)
  *
  * 'unsafe-inline' ב-script-src: Next.js 16 מזריק JS מוטבע ל-hydration/RSC
  * streaming (למשל self.__next_f.push(...)) בלי מנגנון nonce/hash זמין לרינדור
@@ -16,17 +24,19 @@ const isProd = process.env.NODE_ENV === 'production'
  * מה שנאסר במפורש כדי לשמר SSG/ISR ומטמון CDN קיים. תגית ה-JSON-LD
  * (dangerouslySetInnerHTML, type="application/ld+json") אינה "מוכנה" ע"י
  * הדפדפן כ-script בכלל ואינה כפופה ל-script-src, כך שאינה תלויה בהתרה הזו.
+ * (אותה 'unsafe-inline' גם מכסה את הסקריפטים המוטבעים של GA/Meta עצמם —
+ * gtag/fbq מוזרקים כ-dangerouslySetInnerHTML, בדיוק כמו JSON-LD.)
  * 'unsafe-inline' ב-style-src: תכונת ה-style המוטבעת של React (style={{...}})
  * וגיליונות סגנון קריטיים שמזריק Next עצמו — ללא מקבילה תואמת-סטטי.
  */
 const cspDirectives = [
   `default-src 'self'`,
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : ` 'unsafe-eval'`}`,
+  `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://connect.facebook.net${isProd ? '' : ` 'unsafe-eval'`}`,
   `script-src-attr 'none'`,
   `style-src 'self' 'unsafe-inline'`,
-  `img-src 'self'`,
+  `img-src 'self' https://www.facebook.com`,
   `font-src 'self'`,
-  `connect-src 'self'`,
+  `connect-src 'self' https://www.google-analytics.com`,
   `media-src 'self'`,
   `worker-src 'self'`,
   `manifest-src 'self'`,

@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer'
 import Providers from '@/components/layout/Providers'
 import DeferredWidgets from '@/components/layout/DeferredWidgets'
 import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
+import { ConsentProvider } from '@/lib/consentContext'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
@@ -165,6 +166,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           דלגי לתוכן הראשי
         </a>
+        <ConsentProvider>
         <Providers>
         {/*
           🔒 שלב 15D — הדגל נקרא כאן, בשרת, ומועבר כ-prop. lib/featureFlags
@@ -180,6 +182,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DeferredWidgets>
           <WhatsAppTracker />
         </DeferredWidgets>
+        </ConsentProvider>
       </body>
     </html>
   )

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Phone, Mail, MapPin } from 'lucide-react'
 import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
 import GoogleIcon from '@/components/ui/GoogleIcon'
+import PrivacySettingsFooterLink from '@/components/ui/PrivacySettingsFooterLink'
 
 const col2Links = [
   { href: '/contact', label: 'יצירת קשר', external: false },
@@ -115,6 +116,9 @@ export default function Footer() {
                   )}
                 </li>
               ))}
+              <li>
+                <PrivacySettingsFooterLink />
+              </li>
             </ul>
           </div>
 

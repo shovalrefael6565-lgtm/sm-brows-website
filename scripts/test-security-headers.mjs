@@ -1,9 +1,11 @@
 /**
  * שלב 5 — CSP וכותרות אבטחה (next.config.mjs).
+ * שלב 6 — עודכן: GA/Meta מותרים ב-CSP במקורות המדויקים בלבד (הטעינה עצמה
+ * מותנית בהסכמה בקוד הלקוח, לא ב-CSP — ראה lib/consentContext.tsx).
  *
  * מכסה:
  *   1. ה-CSP המחושב לפרוד: אין wildcard/https: כללי, אין 'unsafe-eval',
- *      GA/Meta לא מורשים (מושבתים בקוד), frame-ancestors 'none',
+ *      GA/Meta מורשים אך ורק במקורות המדויקים הנדרשים, frame-ancestors 'none',
  *      object-src 'none', base-uri 'self', script-src-attr 'none'.
  *   2. ה-CSP לפיתוח כן כולל 'unsafe-eval' (HMR) ולא כולל upgrade-insecure-requests.
  *   3. כותרות האבטחה הנוספות: HSTS בלי preload, X-Content-Type-Options,
@@ -69,10 +71,18 @@ chk('🔒 אין wildcard כללי (*) בשום directive', !prodCsp.includes('*
 chk('🔒 אין https: כללי (סכימה גורפת) כמקור',
   !/(^|[\s'])https:(?=\s|;|$)/.test(prodCsp))
 chk("🔒 אין 'unsafe-eval' בפרוד", !prodCsp.includes('unsafe-eval'))
-chk('🔒 GA (googletagmanager/google-analytics) לא מורשה — מושבת בקוד',
-  !/googletagmanager\.com|google-analytics\.com/.test(prodCsp))
-chk('🔒 Meta Pixel (facebook.net/facebook.com) לא מורשה — מושבת בקוד',
-  !/facebook\.net|facebook\.com/.test(prodCsp))
+chk('🔒 script-src מתיר את googletagmanager.com (Google Tag) — ולא יותר מזה',
+  /script-src[^;]*\bhttps:\/\/www\.googletagmanager\.com\b/.test(prodCsp))
+chk('🔒 script-src מתיר את connect.facebook.net (Meta Pixel script) — ולא יותר מזה',
+  /script-src[^;]*\bhttps:\/\/connect\.facebook\.net\b/.test(prodCsp))
+chk('🔒 connect-src מתיר את google-analytics.com (GA collect) — ולא יותר מזה',
+  /connect-src[^;]*\bhttps:\/\/www\.google-analytics\.com\b/.test(prodCsp))
+chk('🔒 img-src מתיר את facebook.com (Meta collect/pixel) — ולא יותר מזה',
+  /img-src[^;]*\bhttps:\/\/www\.facebook\.com\b/.test(prodCsp))
+chk('🔒 אין דומיין Google/Meta נוסף מעבר לארבעה המדויקים הנדרשים',
+  (prodCsp.match(/googletagmanager\.com|google-analytics\.com|facebook\.net|facebook\.com|analytics\.google\.com|doubleclick\.net|googlesyndication/g) ?? []).length === 4)
+chk('🔒 אין subdomain wildcard (*.google-analytics.com וכו\') בשום מקור',
+  !/\*\.[a-z-]+\.(com|net)/.test(prodCsp))
 chk("frame-ancestors 'none'", /(^|;)\s*frame-ancestors 'none'(;|$)/.test(prodCsp))
 chk("object-src 'none'", /(^|;)\s*object-src 'none'(;|$)/.test(prodCsp))
 chk("base-uri 'self'", /(^|;)\s*base-uri 'self'(;|$)/.test(prodCsp))
@@ -81,7 +91,8 @@ chk("script-src-attr 'none'", /(^|;)\s*script-src-attr 'none'(;|$)/.test(prodCsp
 chk("frame-src 'none' (אין iframe אמיתי שנמצא במיפוי)",
   /(^|;)\s*frame-src 'none'(;|$)/.test(prodCsp))
 chk('upgrade-insecure-requests בפרוד', /upgrade-insecure-requests/.test(prodCsp))
-chk('script-src מוגדר וללא unsafe-eval', /script-src 'self' 'unsafe-inline'(;|$)/.test(prodCsp))
+chk('script-src מוגדר וללא unsafe-eval',
+  /script-src 'self' 'unsafe-inline' https:\/\/www\.googletagmanager\.com https:\/\/connect\.facebook\.net(;|$)/.test(prodCsp))
 
 // ─── CSP לפיתוח ──────────────────────────────────────────────────────────
 section('CSP מחושב — NODE_ENV=development')

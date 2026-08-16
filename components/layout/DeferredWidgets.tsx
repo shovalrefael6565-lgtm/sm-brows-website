@@ -11,6 +11,9 @@ const FloatingSocialButtons = dynamic(() => import('@/components/ui/FloatingSoci
 const ScrollToTop = dynamic(() => import('@/components/ui/ScrollToTop'), { ssr: false })
 const NavigationProgress = dynamic(() => import('@/components/ui/NavigationProgress'), { ssr: false })
 const CookieNotice = dynamic(() => import('@/components/ui/CookieNotice'), { ssr: false })
+const ConsentPreferencesModal = dynamic(() => import('@/components/ui/ConsentPreferencesModal'), { ssr: false })
+const GoogleAnalytics = dynamic(() => import('@/components/analytics/GoogleAnalytics'), { ssr: false })
+const MetaPixel = dynamic(() => import('@/components/analytics/MetaPixel'), { ssr: false })
 
 export default function DeferredWidgets({ children }: { children?: React.ReactNode }) {
   return (
@@ -21,7 +24,10 @@ export default function DeferredWidgets({ children }: { children?: React.ReactNo
       <ScrollToTop />
       <AccessibilityWidget />
       {children}
+      <GoogleAnalytics />
+      <MetaPixel />
       <CookieNotice />
+      <ConsentPreferencesModal />
     </>
   )
 }
