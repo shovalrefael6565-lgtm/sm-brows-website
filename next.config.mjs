@@ -1,3 +1,64 @@
+const isProd = process.env.NODE_ENV === 'production'
+
+/**
+ * שלב 5 (CSP וכותרות אבטחה) — מקורות מבוססי מיפוי בפועל של הקוד (ראה דוח
+ * שלב 5): אין fetch/XHR/WebSocket/EventSource לצד שלישי (כל קריאות ה-fetch
+ * בצד לקוח הן ל-/api/* של האתר עצמו), אין iframe אמיתי, אין תמונת <img>
+ * חיצונית (התמונות ב-lib/data.ts דרך images.unsplash.com עוברות דרך
+ * /_next/image בצד שרת — הדפדפן עצמו תמיד פונה ל-'self'), הגופנים דרך
+ * next/font/google מתארחים עצמאית בבנייה, ווידאו/מדיה מקומיים בלבד.
+ * GoogleAnalytics.tsx ו-MetaPixel.tsx קיימים בקוד אך אינם מיובאים משום מקום
+ * (מושבתים) — לכן אין googletagmanager.com / facebook.net / facebook.com ב-CSP.
+ *
+ * 'unsafe-inline' ב-script-src: Next.js 16 מזריק JS מוטבע ל-hydration/RSC
+ * streaming (למשל self.__next_f.push(...)) בלי מנגנון nonce/hash זמין לרינדור
+ * סטטי — nonce תקין ידרוש הזרקה דינמית per-request (proxy.ts / רינדור דינמי),
+ * מה שנאסר במפורש כדי לשמר SSG/ISR ומטמון CDN קיים. תגית ה-JSON-LD
+ * (dangerouslySetInnerHTML, type="application/ld+json") אינה "מוכנה" ע"י
+ * הדפדפן כ-script בכלל ואינה כפופה ל-script-src, כך שאינה תלויה בהתרה הזו.
+ * 'unsafe-inline' ב-style-src: תכונת ה-style המוטבעת של React (style={{...}})
+ * וגיליונות סגנון קריטיים שמזריק Next עצמו — ללא מקבילה תואמת-סטטי.
+ */
+const cspDirectives = [
+  `default-src 'self'`,
+  `script-src 'self' 'unsafe-inline'${isProd ? '' : ` 'unsafe-eval'`}`,
+  `script-src-attr 'none'`,
+  `style-src 'self' 'unsafe-inline'`,
+  `img-src 'self'`,
+  `font-src 'self'`,
+  `connect-src 'self'`,
+  `media-src 'self'`,
+  `worker-src 'self'`,
+  `manifest-src 'self'`,
+  `object-src 'none'`,
+  `base-uri 'self'`,
+  `form-action 'self'`,
+  `frame-ancestors 'none'`,
+  `frame-src 'none'`,
+  ...(isProd ? [`upgrade-insecure-requests`] : []),
+]
+const contentSecurityPolicy = cspDirectives.join('; ')
+
+const permissionsPolicy = [
+  'camera=()', 'microphone=()', 'geolocation=()', 'gyroscope=()',
+  'magnetometer=()', 'accelerometer=()', 'payment=()', 'usb=()',
+  'midi=()', 'fullscreen=()', 'picture-in-picture=()', 'display-capture=()',
+  'publickey-credentials-get=()', 'screen-wake-lock=()',
+  'xr-spatial-tracking=()', 'interest-cohort=()',
+].join(', ')
+
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Permissions-Policy', value: permissionsPolicy },
+  { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
+  { key: 'X-XSS-Protection', value: '0' },
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
+]
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Host canonicalisation (www / vercel.app → smbrows.co.il) is configured in
@@ -41,6 +102,13 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // CSP + security headers on every route — additive only (different
+      // header keys than the Cache-Control rules below), so it doesn't
+      // touch existing static/SSG caching behavior.
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
       // Static assets — 1 year immutable cache
       {
         source: '/:path*\\.(jpg|jpeg|png|webp|avif|svg|ico|woff|woff2)',
