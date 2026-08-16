@@ -57,12 +57,13 @@ const all = async (sql, params) => (await db.query(sql, params)).rows
 const future = (hours) => new Date(Date.now() + hours * 3600_000).toISOString()
 
 async function book({ phone, name = 'לקוחת בדיקה', startsAt, ip = '203.0.113.5',
-                      expires = future(3), duration = 20 }) {
+                      expires = future(3), duration = 20,
+                      privacyVersion = 'p1', privacyAcknowledged = true }) {
   return one(
     `select * from public.create_public_booking_request(
        $1, $2, 'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-       $3::timestamptz, $4, null, 'v1', $5::timestamptz, $6::inet, 5)`,
-    [phone, name, startsAt, duration, expires, ip],
+       $3::timestamptz, $4, null, 'v1', $5::timestamptz, $6::inet, 5, $7, $8)`,
+    [phone, name, startsAt, duration, expires, ip, privacyVersion, privacyAcknowledged],
   )
 }
 const tryBook = async (args) => {
@@ -240,7 +241,7 @@ chk('🔒 auth_user_id קושר לשורה הקיימת',
 // ── 9. הרשאות ───────────────────────────────────────────────────────────────
 section('9. הרשאות ה-RPC החדש')
 
-const SIG = 'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer)'
+const SIG = 'public.create_public_booking_request(text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer, text, boolean)'
 const perms = await one(`select
   has_function_privilege('anon',          '${SIG}', 'execute') as anon_can,
   has_function_privilege('authenticated', '${SIG}', 'execute') as auth_can,
@@ -278,7 +279,7 @@ chk('מועד תור בעבר נדחה',
   try {
     await one(`select * from public.create_public_booking_request(
       '+972543110099','לקוחה','עיצוב גבות טבעיות',array['עיצוב גבות טבעי']::text[],70,
-      $1::timestamptz,20,null,'v1',$2::timestamptz,$3::inet,1000000)`,
+      $1::timestamptz,20,null,'v1',$2::timestamptz,$3::inet,1000000,'p1',true)`,
       [future(170), future(3), IP3])
   } catch (e) { held = e.message.includes('RATE_LIMITED') }
   chk('🔒 קורא שמעביר מגבלה ענקית עדיין נחסם ב-5', held)
@@ -313,6 +314,44 @@ const manual = await one(
 const manualRow = await one(`select * from public.appointments where id = $1`, [manual.result.appointment_id])
 chk('תור ידני מתויג admin_manual', manualRow.booking_source === 'admin_manual')
 chk('תור ידני נוצר כ-confirmed מיד', manualRow.status === 'confirmed')
+chk('🔒 שלב 8: תור ידני לא מקבל אישור פרטיות מזויף — privacy_notice_version הוא null',
+  manualRow.privacy_notice_version === null)
+chk('🔒 שלב 8: תור ידני — privacy_notice_acknowledged_at הוא null', manualRow.privacy_notice_acknowledged_at === null)
+
+// ── שלב 8 — אישור מדיניות פרטיות ──────────────────────────────────────────────
+section('שלב 8 — אישור מדיניות פרטיות נאכף ב-RPC')
+
+{
+  const before = await counts()
+  const noAck = await tryBook({ phone: '+972541110100', startsAt: future(210), privacyAcknowledged: false })
+  const after = await counts()
+  chk('🔒 privacyAcknowledged=false → PRIVACY_NOT_ACKNOWLEDGED', !noAck.ok && noAck.msg.includes('PRIVACY_NOT_ACKNOWLEDGED'))
+  chk('🔒 לא נוצרה לקוחה', after.customers === before.customers)
+  chk('🔒 לא נוצר תור', after.appointments === before.appointments)
+}
+{
+  const emptyVersion = await tryBook({ phone: '+972541110101', startsAt: future(212), privacyVersion: '' })
+  chk('🔒 גרסת מדיניות ריקה → PRIVACY_NOT_ACKNOWLEDGED', !emptyVersion.ok && emptyVersion.msg.includes('PRIVACY_NOT_ACKNOWLEDGED'))
+
+  const nullVersion = await tryBook({ phone: '+972541110102', startsAt: future(214), privacyVersion: null })
+  chk('🔒 גרסת מדיניות null → PRIVACY_NOT_ACKNOWLEDGED', !nullVersion.ok && nullVersion.msg.includes('PRIVACY_NOT_ACKNOWLEDGED'))
+}
+{
+  const ok = await book({ phone: '+972541110103', startsAt: future(216), privacyVersion: '1.0', privacyAcknowledged: true })
+  chk('נשמר privacy_notice_version שנשלח', ok.privacy_notice_version === '1.0')
+  chk('privacy_notice_acknowledged_at נקבע (לא null)', ok.privacy_notice_acknowledged_at !== null)
+  chk('🔒 privacy_notice_acknowledged_at הוא זמן שרת סביר (בתוך הדקה האחרונה), לא ערך שרירותי',
+    Math.abs(new Date(ok.privacy_notice_acknowledged_at) - Date.now()) < 60_000)
+}
+{
+  // 🔒 אין backfill: תורים שנוצרו לפני 0031 (למשל בבדיקות שלמעלה, שאם
+  // הרצנו מיגרציה חדשה על סכימה קיימת לא היו מקבלים ערך) יישארו null.
+  // כאן מוודאים רק שהעמודה עצמה nullable ואין ברירת מחדל שמזייפת אישור.
+  const col = await one(
+    `select is_nullable, column_default from information_schema.columns
+     where table_schema='public' and table_name='appointments' and column_name='privacy_notice_version'`)
+  chk('🔒 privacy_notice_version הוא nullable ובלי default', col.is_nullable === 'YES' && col.column_default === null)
+}
 
 // ── סיכום ───────────────────────────────────────────────────────────────────
 const passed = results.filter(Boolean).length

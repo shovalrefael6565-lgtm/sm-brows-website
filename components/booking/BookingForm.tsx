@@ -9,6 +9,11 @@ import {
 import Link from 'next/link'
 import { cn, WHATSAPP_BASE, WHATSAPP_URL } from '@/lib/utils'
 import { POLICY_PATH } from '@/lib/bookingPolicy'
+import {
+  PRIVACY_PATH, PRIVACY_NOTICE_VERSION, BOOKING_PRIVACY_NOTICE,
+  NOTES_SENSITIVE_INFO_NOTICE, PRIVACY_ACK_ERROR, PRIVACY_ACK_LABEL,
+  splitPrivacyLink, splitNoticeLinks,
+} from '@/lib/privacyNotice'
 import { isSpecialDay } from '@/lib/specialAvailability'
 import {
   getIsraelToday, selectVisibleSlots, filterLiftingStarts,
@@ -76,13 +81,14 @@ interface FormData {
   time: string
   notes: string
   policyAccepted: boolean
+  privacyNoticeAcknowledged: boolean
 }
 
 type FieldErrors = Partial<Record<keyof FormData, string>>
 
 const EMPTY_FORM: FormData = {
   name: '', phone: '', service: '', variants: [], date: '', isoDate: '', time: '', notes: '',
-  policyAccepted: false,
+  policyAccepted: false, privacyNoticeAcknowledged: false,
 }
 
 /**
@@ -485,6 +491,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     // נשארים בהתנהגות הקיימת — כל שדה לא ריק מתקבל.
     else if (isCal && !isValidIsraeliMobile(f.phone)) e.phone = 'יש להזין מספר נייד ישראלי תקין'
     if (!f.policyAccepted) e.policyAccepted = 'יש לאשר את מדיניות התורים והביטולים כדי להמשיך'
+    if (!f.privacyNoticeAcknowledged) e.privacyNoticeAcknowledged = PRIVACY_ACK_ERROR
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -496,6 +503,10 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
    * ⚠️ אין כאן שורת אישור מדיניות: האישור הוא תנאי חוסם ב-validateFinal,
    * ולכן הוא תמיד נכון ואינו מוסיף מידע. `policy_version` ממשיך להישמר
    * על שורת התור ב-DB.
+   *
+   * 🔒 שלב 8 — ההערות החופשיות (form.notes) אינן נשלחות להודעת הוואטסאפ.
+   * הצמצום חל על כל הודעת WhatsApp שהקוד בונה, לא רק על אלה ששובל שולחת —
+   * ראה lib/whatsappTemplates.ts.
    */
   const buildWhatsAppMessage = () =>
     encodeURIComponent(
@@ -507,7 +518,6 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
         priceIsSum: isNatural,
         dateLabel: form.date || undefined,
         timeLabel: form.time ? (isLifting ? liftingRange : form.time) : undefined,
-        notes: form.notes,
       }),
     )
 
@@ -570,6 +580,8 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
           notes: f.notes,
           fullName: f.name,
           phone: f.phone,
+          privacyNoticeAcknowledged: f.privacyNoticeAcknowledged,
+          privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -1276,7 +1288,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 <label htmlFor="booking-notes" className="block text-sm font-semibold text-brand-dark mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <MessageSquare className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                    הערות נוספות
+                    בקשות לתיאום התור
                     <span className="text-brand-muted text-xs font-normal">(אופציונלי)</span>
                   </span>
                 </label>
@@ -1284,10 +1296,96 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   id="booking-notes"
                   value={form.notes}
                   onChange={setField('notes')}
-                  placeholder="רגישויות, בקשות מיוחדות, שאלות..."
+                  placeholder="לדוגמה: בקשה בנוגע לשעת ההגעה או לתיאום התור"
                   rows={3}
+                  aria-describedby="booking-notes-sensitive"
                   className="w-full px-4 py-3 rounded-2xl border border-brand-cream-dark bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold hover:border-brand-gold/50 resize-none"
                 />
+                <p id="booking-notes-sensitive" className="text-brand-muted text-xs mt-1.5 leading-relaxed">
+                  {NOTES_SENSITIVE_INFO_NOTICE}
+                </p>
+              </div>
+
+              {/* יידוע פרטיות קצר — לפני כפתור השליחה */}
+              <p className="text-brand-muted text-xs leading-relaxed">
+                {splitNoticeLinks(BOOKING_PRIVACY_NOTICE).map((seg, i) =>
+                  seg.href ? (
+                    <Link
+                      key={i}
+                      href={seg.href}
+                      target="_blank"
+                      className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                    >
+                      {seg.text}
+                    </Link>
+                  ) : (
+                    <span key={i}>{seg.text}</span>
+                  ),
+                )}
+              </p>
+
+              {/* אישור מדיניות פרטיות — חובה לפני שליחת הבקשה */}
+              <div>
+                <label
+                  htmlFor="booking-privacy"
+                  className={cn(
+                    'flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-colors',
+                    errors.privacyNoticeAcknowledged
+                      ? 'border-red-300 bg-red-50'
+                      : form.privacyNoticeAcknowledged
+                      ? 'border-brand-rose bg-brand-rose-bg'
+                      : 'border-brand-cream-dark bg-white hover:border-brand-rose/40',
+                  )}
+                >
+                  <input
+                    id="booking-privacy"
+                    type="checkbox"
+                    checked={form.privacyNoticeAcknowledged}
+                    onChange={(ev) => {
+                      const checked = ev.target.checked
+                      setForm((f) => ({ ...f, privacyNoticeAcknowledged: checked }))
+                      setErrors((e) => ({ ...e, privacyNoticeAcknowledged: undefined }))
+                    }}
+                    aria-required="true"
+                    aria-invalid={!!errors.privacyNoticeAcknowledged}
+                    aria-describedby={errors.privacyNoticeAcknowledged ? 'err-privacy' : undefined}
+                    className="sr-only peer"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold peer-focus-visible:ring-offset-2',
+                      form.privacyNoticeAcknowledged
+                        ? 'border-brand-rose bg-brand-rose'
+                        : 'border-brand-cream-dark bg-white',
+                    )}
+                  >
+                    {form.privacyNoticeAcknowledged && <Check className="w-3 h-3 text-white" />}
+                  </span>
+                  <span className="text-sm text-brand-dark leading-relaxed">
+                    {(() => {
+                      const { before, linkText, after } = splitPrivacyLink(PRIVACY_ACK_LABEL)
+                      return (
+                        <>
+                          {before}
+                          <Link
+                            href={PRIVACY_PATH}
+                            target="_blank"
+                            onClick={(ev) => ev.stopPropagation()}
+                            className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                          >
+                            {linkText}
+                          </Link>
+                          {after}
+                        </>
+                      )
+                    })()}
+                    <span className="text-brand-rose ms-0.5" aria-hidden="true">*</span>
+                  </span>
+                </label>
+                {errors.privacyNoticeAcknowledged && (
+                  <p id="err-privacy" className="text-red-500 text-xs mt-2">{errors.privacyNoticeAcknowledged}</p>
+                )}
               </div>
 
               {/* אישור מדיניות התורים — חובה לפני שליחת הבקשה */}

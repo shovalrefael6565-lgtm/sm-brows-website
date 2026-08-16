@@ -203,6 +203,9 @@ const { buildBookingRequestMessage } = await import('../lib/whatsappTemplates.ts
 // ⚠️ שורת "אישרה את מדיניות התורים" הוסרה במכוון: האישור הוא תנאי חוסם
 // לשליחה, ולכן שורה שמצהירה עליו תמיד נכונה ואינה מוסיפה מידע.
 // policy_version ממשיך להישמר על שורת התור ב-DB.
+//
+// 🔒 שלב 8 — אין שדה notes בממשק/בנוסח בכלל: ההערות החופשיות שהלקוחה
+// מזינה בטופס אינן נכנסות להודעת הוואטסאפ (ראה lib/whatsappTemplates.ts).
 const EXPECTED = [
   'היי שובל 🤍',
   '',
@@ -215,8 +218,6 @@ const EXPECTED = [
   '💰 סה"כ ₪110',
   '📅 24 אוגוסט 2026',
   '⏰ 17:00',
-  '',
-  '📝 רגישות בעור',
 ].join('\n')
 
 const actual = buildBookingRequestMessage({
@@ -227,7 +228,6 @@ const actual = buildBookingRequestMessage({
   priceIsSum: true,
   dateLabel: '24 אוגוסט 2026',
   timeLabel: '17:00',
-  notes: 'רגישות בעור',
 })
 chk('הנוסח זהה ל-snapshot תו-בתו', actual === EXPECTED)
 if (actual !== EXPECTED) {
@@ -237,7 +237,7 @@ if (actual !== EXPECTED) {
 chk('🔒 אין שורת אישור מדיניות בשום וריאציה', (() => {
   const variants = [
     { customerName: 'א', phone: '05', treatment: 'ט' },
-    { customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה', priceTotal: 70 },
+    { customerName: 'א', phone: '05', treatment: 'ט', priceTotal: 70 },
     { customerName: 'א', phone: '05', treatment: 'ט',
       dateLabel: 'ד', timeLabel: '17:00' },
   ]
@@ -248,12 +248,19 @@ chk('🔒 אין שורת אישור מדיניות בשום וריאציה', ((
 })())
 
 chk('ההודעה אינה מסתיימת בשורה ריקה', (() => {
-  const withNotes = buildBookingRequestMessage({
-    customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה' })
-  const without = buildBookingRequestMessage({
-    customerName: 'א', phone: '05', treatment: 'ט', timeLabel: '17:00' })
-  return !/\n$/.test(withNotes) && !/\n$/.test(without)
-    && withNotes.endsWith('📝 הערה') && without.endsWith('⏰ 17:00')
+  const withTime = buildBookingRequestMessage({
+    customerName: 'א', phone: '05', treatment: 'ט', dateLabel: 'ד', timeLabel: '17:00' })
+  const withoutTime = buildBookingRequestMessage({
+    customerName: 'א', phone: '05', treatment: 'ט' })
+  return !/\n$/.test(withTime) && !/\n$/.test(withoutTime)
+    && withTime.endsWith('⏰ 17:00') && withoutTime.endsWith('💆 ט')
+})())
+
+chk('🔒 שלב 8: notes שנשלח בטעות (קורא ישן) אינו מופיע בהודעה', (() => {
+  const m = buildBookingRequestMessage({
+    customerName: 'א', phone: '05', treatment: 'ט', notes: 'רגישות בעור',
+  })
+  return !m.includes('📝') && !m.includes('רגישות בעור')
 })())
 
 // 🔒 15F — שורת המשך הוסרה מהנוסח.
@@ -266,7 +273,7 @@ chk('🔒 אין שורת משך בשום וריאציה', (() => {
   const variants = [
     { customerName: 'א', phone: '0541234567', treatment: 'הרמת גבות',
       priceTotal: 250, dateLabel: 'ד', timeLabel: '17:00–17:40' },
-    { customerName: 'א', phone: '05', treatment: 'ט', notes: 'הערה' },
+    { customerName: 'א', phone: '05', treatment: 'ט' },
   ]
   return variants.every(v => {
     const m = buildBookingRequestMessage(v)
@@ -285,11 +292,6 @@ chk('בלי מחיר — שורת המחיר מושמטת',
   !buildBookingRequestMessage({
     customerName: 'א', phone: '0541234567', treatment: 'ט', priceTotal: 0,
   }).includes('💰'))
-
-chk('בלי הערות — שורת ההערות מושמטת',
-  !buildBookingRequestMessage({
-    customerName: 'א', phone: '0541234567', treatment: 'ט', notes: '   ',
-  }).includes('📝'))
 
 // ─── קבועי מגבלת הקצב ───────────────────────────────────────────────────────
 section('מגבלת קצב — התאמה בין TS ל-SQL')

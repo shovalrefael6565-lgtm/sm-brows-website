@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Loader2, UserRound } from 'lucide-react'
 import { buildFullName, NAME_ERROR_MESSAGES } from '@/lib/customerProfile'
+import { PROFILE_PRIVACY_NOTICE, splitNoticeLinks } from '@/lib/privacyNotice'
 
 /**
  * שלב 15H — שער השלמת השם באזור האישי.
@@ -114,6 +116,23 @@ export default function CompleteProfileForm() {
             {error}
           </p>
         )}
+
+        <p className="text-xs text-brand-muted mt-3 leading-relaxed">
+          {splitNoticeLinks(PROFILE_PRIVACY_NOTICE).map((seg, i) =>
+            seg.href ? (
+              <Link
+                key={i}
+                href={seg.href}
+                target="_blank"
+                className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+              >
+                {seg.text}
+              </Link>
+            ) : (
+              <span key={i}>{seg.text}</span>
+            ),
+          )}
+        </p>
 
         <button
           type="submit"

@@ -88,14 +88,20 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
   return ranges
 }
 
-/** Creates a calendar event for a new booking */
+/**
+ * Creates a calendar event for a new booking.
+ *
+ * ⚠️ שלב 8 — קוד מת: אין קריאה אליה מ-app/ או lib/ (המסלול הפעיל הוא
+ * createAppointmentEvent למטה). הוסרו כאן הזרמת `params.notes` וגם
+ * `params.phone` לתיאור האירוע — לא הערות חופשיות ולא מספר טלפון אמורים
+ * להגיע ל-Google Calendar בשום מסלול, כולל זה שאינו מחווט כרגע. לא נגעו
+ * במנגנון הסנכרון הפעיל עצמו.
+ */
 export async function createBookingEvent(params: {
   name: string
-  phone: string
   service: string
   date: string   // e.g. "16 מאי 2026"
   time: string   // e.g. "10:20"
-  notes?: string
 }) {
   const auth = getAuth()
   const calendar = google.calendar({ version: 'v3', auth })
@@ -110,16 +116,10 @@ export async function createBookingEvent(params: {
   const startDate = israelWallTimeToUtc(isoDate, params.time)
   const endDate   = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
 
-  const description = [
-    `📞 טלפון: ${params.phone}`,
-    params.notes ? `📝 הערות: ${params.notes}` : '',
-  ].filter(Boolean).join('\n')
-
   await calendar.events.insert({
     calendarId,
     requestBody: {
       summary: `🌸 ${params.service} — ${params.name}`,
-      description,
       start: { dateTime: startDate.toISOString(), timeZone: 'Asia/Jerusalem' },
       end:   { dateTime: endDate.toISOString(),   timeZone: 'Asia/Jerusalem' },
     },
@@ -316,7 +316,6 @@ export async function findExistingAppointmentEvent(appointmentId: string): Promi
 export interface CreateAppointmentEventParams {
   appointmentId: string
   customerName: string
-  phone: string
   treatment: string
   isoDate: string
   startHHMM: string
@@ -343,7 +342,6 @@ export async function createAppointmentEvent(
   const endDate = new Date(startDate.getTime() + params.durationMin * 60 * 1000)
 
   const description = [
-    `טלפון: ${params.phone}`,
     `טיפול: ${params.treatment}`,
     `מזהה תור: ${params.appointmentId}`,
     'נקבע דרך אתר SM Brows',

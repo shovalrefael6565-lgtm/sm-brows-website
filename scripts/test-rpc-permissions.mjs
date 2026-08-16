@@ -314,6 +314,17 @@ const ASSERTION_MIGRATIONS = {
     'complete_past_confirmed_appointments()',
     'mark_appointment_no_show(uuid,uuid)',
   ],
+  /**
+   * שלב 8 — אישור מדיניות פרטיות. שתי פונקציות היצירה של הלקוחה הוחלפו
+   * (DROP + CREATE, ולכן חתימה חדשה — ראה 0031) כדי לקבל
+   * p_privacy_notice_version ו-p_privacy_notice_acknowledged ולדחות בקשה בלי
+   * אישור מתועד. אותה רגישות בדיוק כמו החתימות הישנות שלהן ב-0018/0020
+   * (יוצרות לקוחה/תור, נגישות ל-endpoint לא-מאומת או מאומת-session בלבד).
+   */
+  '0031_privacy_notice_ack.sql': [
+    'create_public_booking_request(text,text,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer,text,boolean)',
+    'create_personal_area_booking_request(uuid,text,text[],integer,timestamptz,integer,text,text,timestamptz,text,boolean)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

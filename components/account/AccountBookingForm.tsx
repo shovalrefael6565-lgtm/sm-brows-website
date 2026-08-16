@@ -9,6 +9,11 @@ import { isBookableDate } from '@/lib/bookingWindow'
 import { selectDisplaySlots, getIsraelToday, type BusyRange } from '@/lib/slotSelection'
 import { POLICY_PATH } from '@/lib/bookingPolicy'
 import {
+  PRIVACY_PATH, PRIVACY_NOTICE_VERSION, BOOKING_PRIVACY_NOTICE,
+  NOTES_SENSITIVE_INFO_NOTICE, PRIVACY_ACK_LABEL,
+  splitPrivacyLink, splitNoticeLinks,
+} from '@/lib/privacyNotice'
+import {
   NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS,
   LIFTING_PRICE, LIFTING_DURATION_MIN, NATURAL_DURATION_MIN,
 } from '@/lib/services'
@@ -102,6 +107,7 @@ export default function AccountBookingForm() {
   const [time, setTime] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [policyAccepted, setPolicyAccepted] = useState(false)
+  const [privacyNoticeAcknowledged, setPrivacyNoticeAcknowledged] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
@@ -169,7 +175,7 @@ export default function AccountBookingForm() {
 
   const reset = () => {
     setService(null); setVariants([]); setSelected(null); setBusy([])
-    setTime(null); setNotes(''); setPolicyAccepted(false)
+    setTime(null); setNotes(''); setPolicyAccepted(false); setPrivacyNoticeAcknowledged(false)
     setError(null); setShowWhatsApp(false); setSlotsUnavailable(false)
   }
 
@@ -178,7 +184,8 @@ export default function AccountBookingForm() {
     (service === LIFTING_SERVICE || variants.length > 0) &&
     selected !== null &&
     time !== null &&
-    policyAccepted
+    policyAccepted &&
+    privacyNoticeAcknowledged
 
   const submit = async () => {
     if (saving || !canSubmit || !selected || !time || !service) return
@@ -195,6 +202,8 @@ export default function AccountBookingForm() {
           isoDate: selected.isoDate,
           time,
           notes: notes.trim() || undefined,
+          privacyNoticeAcknowledged,
+          privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         }),
       })
       const data = await res.json()
@@ -409,7 +418,7 @@ export default function AccountBookingForm() {
               <label htmlFor="account-booking-notes" className="block text-sm font-bold text-brand-dark mb-1.5">
                 <span className="flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                  הערות נוספות
+                  בקשות לתיאום התור
                   <span className="text-brand-muted text-xs font-normal">(אופציונלי)</span>
                 </span>
               </label>
@@ -417,12 +426,33 @@ export default function AccountBookingForm() {
                 id="account-booking-notes"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="רגישויות, בקשות מיוחדות, שאלות..."
+                placeholder="לדוגמה: בקשה בנוגע לשעת ההגעה או לתיאום התור"
                 rows={3}
                 maxLength={1000}
+                aria-describedby="account-booking-notes-sensitive"
                 className="w-full px-4 py-3 rounded-xl border border-brand-linen-dark bg-white text-brand-dark placeholder:text-brand-muted text-sm outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold resize-none"
               />
+              <p id="account-booking-notes-sensitive" className="text-brand-muted text-xs mt-1.5 leading-relaxed">
+                {NOTES_SENSITIVE_INFO_NOTICE}
+              </p>
             </div>
+
+            <p className="text-brand-muted text-xs leading-relaxed">
+              {splitNoticeLinks(BOOKING_PRIVACY_NOTICE).map((seg, i) =>
+                seg.href ? (
+                  <Link
+                    key={i}
+                    href={seg.href}
+                    target="_blank"
+                    className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                  >
+                    {seg.text}
+                  </Link>
+                ) : (
+                  <span key={i}>{seg.text}</span>
+                ),
+              )}
+            </p>
 
             <label
               className={cn(
@@ -457,6 +487,51 @@ export default function AccountBookingForm() {
                   מדיניות קביעת התורים, השינויים והביטולים
                 </Link>{' '}
                 של S.M BROWS
+              </span>
+            </label>
+
+            <label
+              htmlFor="account-booking-privacy"
+              className={cn(
+                'flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors',
+                privacyNoticeAcknowledged ? 'border-brand-rose bg-brand-rose-bg' : 'border-brand-linen-dark bg-white hover:border-brand-rose/40',
+              )}
+            >
+              <input
+                id="account-booking-privacy"
+                type="checkbox"
+                checked={privacyNoticeAcknowledged}
+                onChange={e => { setPrivacyNoticeAcknowledged(e.target.checked); setError(null) }}
+                aria-required="true"
+                className="sr-only peer"
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold peer-focus-visible:ring-offset-2',
+                  privacyNoticeAcknowledged ? 'border-brand-rose bg-brand-rose' : 'border-brand-cream-dark bg-white',
+                )}
+              >
+                {privacyNoticeAcknowledged && <Check className="w-3 h-3 text-white" />}
+              </span>
+              <span className="text-sm text-brand-dark leading-relaxed">
+                {(() => {
+                  const { before, linkText, after } = splitPrivacyLink(PRIVACY_ACK_LABEL)
+                  return (
+                    <>
+                      {before}
+                      <Link
+                        href={PRIVACY_PATH}
+                        target="_blank"
+                        onClick={e => e.stopPropagation()}
+                        className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                      >
+                        {linkText}
+                      </Link>
+                      {after}
+                    </>
+                  )
+                })()}
               </span>
             </label>
 

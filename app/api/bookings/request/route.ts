@@ -16,6 +16,7 @@ import {
 } from '@/lib/services'
 import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime } from '@/lib/bookingWindow'
 import { POLICY_VERSION } from '@/lib/bookingPolicy'
+import { PRIVACY_NOTICE_VERSION } from '@/lib/privacyNotice'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,6 +114,8 @@ export async function POST(req: NextRequest) {
     notes?: unknown
     fullName?: string
     phone?: string
+    privacyNoticeAcknowledged?: unknown
+    privacyNoticeVersion?: unknown
   }>(req, DEFAULT_MAX_JSON_BYTES)
   if (!parsed.ok) {
     return parsed.status === 413
@@ -134,6 +137,21 @@ export async function POST(req: NextRequest) {
   const fullName = (body.fullName ?? '').trim()
   if (fullName.length < 2 || fullName.length > 80) {
     return fail({ status: 400, error: 'invalid_name', message: 'יש להזין שם מלא.' })
+  }
+
+  /*
+   * 🔒 שלב 8 — אישור מדיניות פרטיות. חובה, ונאכף כאן וגם ב-RPC (0031).
+   *
+   * ⚠️ הגרסה נבדקת מול הקבוע הנוכחי ולא רק "לא ריקה": בקשה שמעבירה גרסה
+   * ישנה או מזויפת נדחית, כדי שלא יירשם אישור לנוסח שאינו הנוסח שפורסם
+   * בפועל ב-/privacy.
+   */
+  if (body.privacyNoticeAcknowledged !== true || body.privacyNoticeVersion !== PRIVACY_NOTICE_VERSION) {
+    return fail({
+      status: 400,
+      error: 'privacy_not_acknowledged',
+      message: 'יש לאשר את מדיניות הפרטיות כדי לשלוח בקשת תור.',
+    })
   }
 
   // ── הטיפול והמועד ──────────────────────────────────────────────────────
@@ -237,8 +255,20 @@ export async function POST(req: NextRequest) {
     policyVersion: POLICY_VERSION,
     ip: ipResult.ip,
     expiresAt: computePendingExpiresAt(),
+    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyAcknowledged: true,
   })
 
+  if (result.error === 'privacy_not_acknowledged') {
+    // ⚠️ ה-route כבר בדק זאת למעלה — הגעה לכאן היא אנומליה (למשל מרוץ עם
+    // שינוי הגרסה בקוד עצמו), לא קלט לקוחה רגיל. נרשם ללוג לצורך בירור.
+    console.error('[bookings/request] RPC rejected privacy acknowledgement despite route-level check')
+    return fail({
+      status: 400,
+      error: 'privacy_not_acknowledged',
+      message: 'יש לאשר את מדיניות הפרטיות כדי לשלוח בקשת תור.',
+    })
+  }
   if (result.error === 'rate_limited') {
     return fail({ status: 429, error: 'rate_limited', message: bookingRateLimitMessage(), fallback: true })
   }

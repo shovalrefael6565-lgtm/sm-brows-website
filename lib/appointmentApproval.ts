@@ -262,7 +262,6 @@ async function runCalendarUpsert(row: AdminAppointmentRow): Promise<SyncOutcome>
       appointmentId: row.id,
       googleEventId: row.google_event_id,
       customerName: row.customer_full_name,
-      phone: row.customer_phone_e164,
       treatment: treatmentLabel(row),
       isoDate,
       startHHMM: fmtIsrael(startsAt),
@@ -544,10 +543,11 @@ export async function approveRescheduleAndSync(
    *
    * ⚠️ הסיבה קונקרטית: ה-RPC מחזיר to_jsonb(appointments_row) — כלומר את
    * שורת הטבלה **בלבד**, בלי ה-join ל-customers. runCalendarUpsert בונה
-   * את אירוע היומן מ-customer_full_name ומ-customer_phone_e164, ששניהם
-   * מגיעים אך ורק מה-join (ADMIN_APPOINTMENT_COLUMNS). שימוש ישיר בשורת
-   * ה-RPC היה יוצר ביומן אירוע עם שם וטלפון undefined — תקלה שקטה שנראית
-   * כהצלחה מלאה.
+   * את אירוע היומן מ-customer_full_name (ראה שלב 8 — הטלפון הוסר מאירועי
+   * היומן), שמגיע אך ורק מה-join (ADMIN_APPOINTMENT_COLUMNS); customer_
+   * phone_e164 עדיין נדרש מאותו join עבור קישורי WhatsApp ללקוחה. שימוש
+   * ישיר בשורת ה-RPC היה יוצר ביומן אירוע עם שם undefined — תקלה שקטה
+   * שנראית כהצלחה מלאה.
    */
   const [freshRequest, freshOriginal] = await Promise.all([
     getAppointmentForAdmin(approved.requestId),

@@ -62,11 +62,11 @@ const future = (hours) => new Date(Date.now() + hours * 3600_000).toISOString()
 /** בקשה מהאזור האישי — אותם ארגומנטים שה-wrapper ב-lib/db שולח */
 const bookPA = ({ customerId, startsAt, expires = future(3), duration = 20,
                   service = 'עיצוב גבות טבעיות', variants = ['עיצוב גבות טבעי'],
-                  price = 70, notes = null }) =>
+                  price = 70, notes = null, privacyVersion = 'p1', privacyAcknowledged = true }) =>
   one(
     `select * from public.create_personal_area_booking_request(
-       $1::uuid, $2, $3::text[], $4, $5::timestamptz, $6, $7, 'v1', $8::timestamptz)`,
-    [customerId, service, variants, price, startsAt, duration, notes, expires],
+       $1::uuid, $2, $3::text[], $4, $5::timestamptz, $6, $7, 'v1', $8::timestamptz, $9, $10)`,
+    [customerId, service, variants, price, startsAt, duration, notes, expires, privacyVersion, privacyAcknowledged],
   )
 
 const tryPA = async (args) => {
@@ -76,12 +76,13 @@ const tryPA = async (args) => {
 
 /** בקשה מהמסלול הציבורי — לשם ההשוואה ולמקרה הקריטי */
 const bookPublic = ({ phone, name = 'לקוחת בדיקה', startsAt, ip = '203.0.113.5',
-                      expires = future(3), duration = 20 }) =>
+                      expires = future(3), duration = 20,
+                      privacyVersion = 'p1', privacyAcknowledged = true }) =>
   one(
     `select * from public.create_public_booking_request(
        $1, $2, 'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-       $3::timestamptz, $4, null, 'v1', $5::timestamptz, $6::inet, 5)`,
-    [phone, name, startsAt, duration, expires, ip],
+       $3::timestamptz, $4, null, 'v1', $5::timestamptz, $6::inet, 5, $7, $8)`,
+    [phone, name, startsAt, duration, expires, ip, privacyVersion, privacyAcknowledged],
   )
 
 const counts = async () => one(`select
@@ -309,6 +310,32 @@ section('8. מגבלת pending ונעילת namespace 5')
 
   await db.query(`update public.business_settings set value = '99'::jsonb
                   where key = 'max_active_pending_per_customer'`)
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+section('8ב. שלב 8 — אישור מדיניות פרטיות נאכף גם באזור האישי')
+
+{
+  const c = await makeCustomer('+972541220070', 'בדיקת פרטיות')
+  const before = await counts()
+
+  const noAck = await tryPA({ customerId: c.id, startsAt: future(90), privacyAcknowledged: false })
+  chk('🔒 privacyAcknowledged=false → PRIVACY_NOT_ACKNOWLEDGED',
+    !noAck.ok && noAck.msg.includes('PRIVACY_NOT_ACKNOWLEDGED'))
+
+  const emptyVersion = await tryPA({ customerId: c.id, startsAt: future(92), privacyVersion: '' })
+  chk('🔒 גרסה ריקה → PRIVACY_NOT_ACKNOWLEDGED',
+    !emptyVersion.ok && emptyVersion.msg.includes('PRIVACY_NOT_ACKNOWLEDGED'))
+
+  const after = await counts()
+  chk('🔒 אף בקשה לא נכתבה', after.appointments === before.appointments)
+
+  const ok = await bookPA({ customerId: c.id, startsAt: future(94), privacyVersion: '1.0', privacyAcknowledged: true })
+  chk('נשמר privacy_notice_version שנשלח', ok.privacy_notice_version === '1.0')
+  chk('privacy_notice_acknowledged_at נקבע בשרת (לא null, סביר בזמן)',
+    ok.privacy_notice_acknowledged_at !== null &&
+    Math.abs(new Date(ok.privacy_notice_acknowledged_at) - Date.now()) < 60_000)
 }
 
 

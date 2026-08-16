@@ -19,11 +19,21 @@
  * המילה "כתובת") קיבל תווית טקסט מפורשת במקומו, ולא נשאר שקוף — אחרת
  * ההודעה הייתה מאבדת מידע, לא רק אייקון.
  *
- * ⚠️ **customer→business נשאר כפי שהוא** — `buildBookingRequestMessage`
+ * ⚠️ **customer→business נשאר כפי שהוא** מבחינת אמוג'י — `buildBookingRequestMessage`
  * ו-`buildLateChangeMessage`. אלה הודעות שהלקוחה עצמה כותבת/שולחת
  * מהטלפון שלה ב-WhatsApp הרגיל (לא WhatsApp Business), ואין בהן את
  * הבאג. ⚠️ SMS (lib/messageTemplates.ts, lib/sms/templates.ts) גם הוא
  * ללא שינוי — הוא כבר היה ללא אמוג'י מטעמים אחרים לגמרי (מגבלת מקטע).
+ *
+ * ═══ 🔒 שלב 8 — אין שדה notes בשום הודעת WhatsApp שהקוד בונה ═══
+ *
+ * ⚠️ זה כולל את `buildBookingRequestMessage` (customer→business): גם הודעה
+ * שהלקוחה כותבת/שולחת בעצמה נבנית כאן מתוך קלט שהיא הזינה בטופס, ואין
+ * הבדל לעניין צמצום מידע בין הודעה שהקוד שולח ישירות לבין הודעה שהקוד
+ * מנסח מראש והלקוחה רק לוחצת "שליחה". ההערות החופשיות (notes) עלולות
+ * להכיל מידע רפואי או רגיש שהלקוחה הזינה בטעות (ראה NOTES_SENSITIVE_INFO_NOTICE
+ * ב-lib/privacyNotice.ts) — צמצום המידע חייב לחול על כל נתיב שההערה עוברת
+ * בו, כולל וואטסאפ, ולא רק על היומן ועל ה-DB.
  */
 
 /**
@@ -72,7 +82,6 @@ export interface BookingRequestMessageParams {
   dateLabel?: string
   /** שעה או טווח שעות, למשל '17:00' או '17:00–17:40' */
   timeLabel?: string
-  notes?: string
 }
 
 export function buildBookingRequestMessage(p: BookingRequestMessageParams): string {
@@ -88,7 +97,6 @@ export function buildBookingRequestMessage(p: BookingRequestMessageParams): stri
     ...(p.priceTotal ? [`💰 ${p.priceIsSum ? 'סה"כ ' : ''}₪${p.priceTotal}`] : []),
     ...(p.dateLabel ? [`📅 ${p.dateLabel}`] : []),
     ...(p.timeLabel ? [`⏰ ${p.timeLabel}`] : []),
-    ...(p.notes?.trim() ? ['', `📝 ${p.notes}`] : []),
   ]
   return lines.join('\n')
 }

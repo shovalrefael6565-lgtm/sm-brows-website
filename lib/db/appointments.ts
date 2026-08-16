@@ -37,6 +37,7 @@ export type AppointmentCreateError =
   | 'slot_taken'
   | 'pending_limit_reached'
   | 'blocked'
+  | 'privacy_not_acknowledged'
   | 'db_error'
 
 export interface CreateAppointmentInput {
@@ -55,6 +56,14 @@ export interface CreateAppointmentInput {
   policyVersion: string
   /** מחושב ב-lib/pendingExpiry.ts — אותו כלל בדיוק כמו במסלול הציבורי */
   expiresAt: Date
+  /**
+   * 🔒 שלב 8 — גרסת מדיניות הפרטיות (lib/privacyNotice.ts) שהלקוחה אישרה,
+   * ו-checkbox האישור עצמו. ה-RPC דוחה בקשה שבה privacyAcknowledged אינו
+   * true או שהגרסה ריקה — ראה supabase/migrations/0031_privacy_notice_ack.sql.
+   * זמן האישור עצמו נקבע בשרת (now() בתוך ה-RPC), לא כאן ולא בדפדפן.
+   */
+  privacyNoticeVersion: string
+  privacyAcknowledged: boolean
 }
 
 export interface AppointmentSummary {
@@ -97,12 +106,17 @@ export async function createPersonalAreaBookingRequest(
     p_notes: input.notes,
     p_policy_version: input.policyVersion,
     p_expires_at: input.expiresAt.toISOString(),
+    p_privacy_notice_version: input.privacyNoticeVersion,
+    p_privacy_notice_acknowledged: input.privacyAcknowledged,
   })
 
   if (error) {
     // 23P01 = exclusion_violation — התנגשות עם תור פעיל אחר על אותו טווח זמן
     if (error.code === '23P01') return { error: 'slot_taken' }
     if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
+    // 🔒 שלב 8 — checkbox האישור לא נשלח/סומן, או גרסה ריקה. ה-route כבר
+    // ולידט את זה, אבל ה-RPC הוא האוכף הסופי — ראה 0031.
+    if (error.message?.includes('PRIVACY_NOT_ACKNOWLEDGED')) return { error: 'privacy_not_acknowledged' }
     /*
      * הלקוחה נחסמה בין אימות ה-session לכתיבה. ה-route בודק חסימה גם
      * בעצמו — הבדיקה כאן היא זו שרצה בתוך הטרנזקציה, ולכן היא הקובעת.
@@ -136,6 +150,7 @@ export type PublicBookingError =
   | 'rate_limited'
   | 'blocked'
   | 'invalid_details'
+  | 'privacy_not_acknowledged'
   | 'db_error'
 
 export interface CreatePublicBookingInput {
@@ -154,6 +169,9 @@ export interface CreatePublicBookingInput {
   ip: string
   /** מחושב ב-lib/pendingExpiry.ts. ה-RPC אוכף שהוא סביר, לא משכפל את הכלל. */
   expiresAt: Date
+  /** 🔒 שלב 8 — ראה ההערה המקבילה ב-CreateAppointmentInput. */
+  privacyNoticeVersion: string
+  privacyAcknowledged: boolean
 }
 
 /**
@@ -186,6 +204,8 @@ export async function createPublicBookingRequest(
     p_expires_at: input.expiresAt.toISOString(),
     p_ip: input.ip,
     p_max_per_ip_per_hour: PUBLIC_BOOKING_MAX_PER_IP_PER_HOUR,
+    p_privacy_notice_version: input.privacyNoticeVersion,
+    p_privacy_notice_acknowledged: input.privacyAcknowledged,
   })
 
   if (error) {
@@ -193,6 +213,8 @@ export async function createPublicBookingRequest(
     if (error.code === '23P01') return { error: 'slot_taken' }
     if (error.message?.includes('RATE_LIMITED')) return { error: 'rate_limited' }
     if (error.message?.includes('PENDING_LIMIT_REACHED')) return { error: 'pending_limit_reached' }
+    // 🔒 שלב 8 — ראה ההערה המקבילה ב-createPersonalAreaBookingRequest.
+    if (error.message?.includes('PRIVACY_NOT_ACKNOWLEDGED')) return { error: 'privacy_not_acknowledged' }
     /*
      * ⚠️ לקוחה חסומה. הקוד הזה קיים כדי שהשרת יידע מה קרה — ה-route
      * **חייב** להחזיר עליו תשובה גנרית, זהה לכשל שרת. ראה שם.

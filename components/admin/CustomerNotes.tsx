@@ -127,8 +127,12 @@ export default function CustomerNotes({
   return (
     <section>
       <h2 className="font-serif text-xl font-bold text-brand-dark mb-1">הערות פנימיות</h2>
-      <p className="text-xs text-brand-muted mb-4">
+      <p className="text-xs text-brand-muted mb-2">
         גלויות להנהלה בלבד. אינן מוצגות ללקוחה ואינן נשלחות בשום הודעה.
+      </p>
+      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+        אין לתעד כאן מידע רפואי, רגישויות, אלרגיות או מידע אישי רגיש אחר. בירור התאמה לטיפול נעשה
+        בטלפון או בפגישה בלבד.
       </p>
 
       <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 mb-4">

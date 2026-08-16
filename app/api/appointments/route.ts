@@ -15,6 +15,7 @@ import {
 } from '@/lib/services'
 import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime, MIN_LEAD_MINUTES } from '@/lib/bookingWindow'
 import { POLICY_VERSION } from '@/lib/bookingPolicy'
+import { PRIVACY_NOTICE_VERSION } from '@/lib/privacyNotice'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,11 +87,24 @@ export async function POST(req: NextRequest) {
     isoDate?: string
     time?: string
     notes?: unknown
+    privacyNoticeAcknowledged?: unknown
+    privacyNoticeVersion?: unknown
   }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+  }
+
+  /*
+   * 🔒 שלב 8 — אישור מדיניות פרטיות. חובה גם בטופס ההזמנה של האזור האישי,
+   * ונאכף כאן וגם ב-RPC (0031). ראה ההערה המקבילה ב-bookings/request.
+   */
+  if (body.privacyNoticeAcknowledged !== true || body.privacyNoticeVersion !== PRIVACY_NOTICE_VERSION) {
+    return NextResponse.json(
+      { error: 'privacy_not_acknowledged', message: 'יש לאשר את מדיניות הפרטיות כדי לשלוח בקשת תור.' },
+      { status: 400 },
+    )
   }
 
   const { serviceKey, isoDate, time } = body
@@ -200,7 +214,18 @@ export async function POST(req: NextRequest) {
     policyVersion: POLICY_VERSION,
     // 🔒 אותה פונקציה בדיוק שהמסלול הציבורי משתמש בה. אין כאן כלל שני.
     expiresAt: computePendingExpiresAt(),
+    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyAcknowledged: true,
   })
+
+  if (result.error === 'privacy_not_acknowledged') {
+    // ⚠️ ה-route כבר בדק זאת למעלה — הגעה לכאן היא אנומליה, לא קלט לקוחה רגיל.
+    console.error('[appointments] RPC rejected privacy acknowledgement despite route-level check')
+    return NextResponse.json(
+      { error: 'privacy_not_acknowledged', message: 'יש לאשר את מדיניות הפרטיות כדי לשלוח בקשת תור.' },
+      { status: 400 },
+    )
+  }
 
   /*
    * ⚠️ הלקוחה נחסמה בין הבדיקה למעלה לבין הכתיבה. נוסח זהה לבדיקה

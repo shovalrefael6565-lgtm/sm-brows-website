@@ -663,7 +663,6 @@ async function revertGoogleToDb(
       appointmentId: appt.id,
       googleEventId: appt.google_event_id,
       customerName: appt.customer_full_name,
-      phone: appt.customer_phone_e164,
       treatment: treatmentLabel(appt),
       isoDate: israelDateStr(dbStart),
       startHHMM: fmtIsrael(dbStart),

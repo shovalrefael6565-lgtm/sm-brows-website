@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Phone, KeyRound, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 import { isValidIsraeliMobile } from '@/lib/phone'
 import { createInFlightGuard, createOtpAutoSubmitGate } from '@/lib/otpFormGuards'
+import { OTP_PRIVACY_NOTICE, splitNoticeLinks } from '@/lib/privacyNotice'
 
 /**
  * התחברות בשני שלבים: מספר טלפון → קוד אימות.
@@ -216,6 +218,22 @@ export default function LoginForm() {
 
             <p className="text-xs text-brand-muted mt-3 leading-relaxed">
               נשלח לך קוד אימות חד־פעמי ב־SMS. אין צורך בסיסמה.
+            </p>
+            <p className="text-xs text-brand-muted mt-1.5 leading-relaxed">
+              {splitNoticeLinks(OTP_PRIVACY_NOTICE).map((seg, i) =>
+                seg.href ? (
+                  <Link
+                    key={i}
+                    href={seg.href}
+                    target="_blank"
+                    className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                  >
+                    {seg.text}
+                  </Link>
+                ) : (
+                  <span key={i}>{seg.text}</span>
+                ),
+              )}
             </p>
 
             <SubmitButton loading={loading} label="שליחת קוד" loadingLabel="שולחים קוד…" />

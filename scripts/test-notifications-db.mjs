@@ -150,7 +150,7 @@ const cOff = await makeCustomer()
 const reqOff = await one(
   `select * from public.create_personal_area_booking_request(
      $1,'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-     $2::timestamptz, 20, null, 'v1', $3::timestamptz)`,
+     $2::timestamptz, 20, null, 'v1', $3::timestamptz, 'p1', true)`,
   [cOff.id, hours(30), hours(3)],
 )
 chk('🔒 מתג כבוי → אפס שורות התראה (אין backlog)',
@@ -166,7 +166,7 @@ const cBad = await makeCustomer()
 const reqBad = await one(
   `select * from public.create_personal_area_booking_request(
      $1,'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-     $2::timestamptz, 20, null, 'v1', $3::timestamptz)`,
+     $2::timestamptz, 20, null, 'v1', $3::timestamptz, 'p1', true)`,
   [cBad.id, hours(31), hours(3)],
 )
 chk('🔒 ערך פסול במתג = כבוי (fail-closed)',
@@ -187,7 +187,7 @@ section('1. בקשת תור → שובל')
 const req1 = await one(
   `select * from public.create_public_booking_request(
      $1,'לקוחה ציבורית','עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-     $2::timestamptz, 20, null, 'v1', $3::timestamptz, '1.2.3.4'::inet, 5)`,
+     $2::timestamptz, 20, null, 'v1', $3::timestamptz, '1.2.3.4'::inet, 5, 'p1', true)`,
   [nextPhone(), hours(48), hours(3)],
 )
 const c1 = { id: req1.customer_id }
@@ -199,7 +199,7 @@ const c2 = await makeCustomer()
 const req2 = await one(
   `select * from public.create_personal_area_booking_request(
      $1,'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-     $2::timestamptz, 20, null, 'v1', $3::timestamptz)`,
+     $2::timestamptz, 20, null, 'v1', $3::timestamptz, 'p1', true)`,
   [c2.id, hours(50), hours(3)],
 )
 chk('🔒 בקשה מהאזור האישי מייצרת בדיוק את אותה התראה (טריגר אחד לשני המסלולים)',
@@ -332,7 +332,7 @@ const c7 = await makeCustomer()
 const req7 = await one(
   `select * from public.create_personal_area_booking_request(
      $1,'עיצוב גבות טבעיות', array['עיצוב גבות טבעי']::text[], 70,
-     $2::timestamptz, 20, null, 'v1', $3::timestamptz)`,
+     $2::timestamptz, 20, null, 'v1', $3::timestamptz, 'p1', true)`,
   [c7.id, hours(220), hours(3)],
 )
 await db.query(`update public.appointments set status = 'expired' where id = $1`, [req7.id])

@@ -51,9 +51,12 @@ export class TwilioSmsProvider implements SmsProvider {
 
       const data = await res.json()
       if (!res.ok) {
-        // לא מדליפים את גוף ההודעה או את המספר ללוג השגיאות
-        console.error('[sms:twilio] send failed', res.status, data?.code, data?.message)
-        return { ok: false, error: data?.message ?? `http_${res.status}` }
+        // 🔒 לא מדליפים את גוף ההודעה, את המספר או את data.message הגולמי
+        // ללוג השגיאות — הודעת השגיאה של Twilio עלולה להכיל את מספר היעד
+        // (למשל "The 'To' number +9725... is not valid"). קונטקסט קבוע +
+        // status + code בלבד, כמו logGoogleCalendarError.
+        console.error('[sms:twilio] send failed', 'provider=twilio', `status=${res.status}`, `code=${data?.code ?? 'unknown'}`)
+        return { ok: false, error: typeof data?.code === 'string' || typeof data?.code === 'number' ? `twilio_${data.code}` : `http_${res.status}` }
       }
 
       return { ok: true, providerMessageId: data?.sid }
