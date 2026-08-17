@@ -916,6 +916,77 @@ section('🔒 אין PII/UUID/notes/phone בתוצאות')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('9E.1 — 0031 ו-0032 ניתנות להרצה חוזרת בלי לאבד נתונים')
+// ════════════════════════════════════════════════════════════════════════════
+//
+// 🔒 ה-runbook (docs/privacy-production-rollout.md, סעיף 2א) מבטיח למפעילה
+// שהרצה חוזרת בטוחה — למשל אחרי כשל שגולגל אחורה. הבטחה כזו חייבת בדיקה
+// שתיפול אם מישהו יחזיר `create function` (במקום `create or replace`) או
+// `add column` (בלי `if not exists`), או יוסיף backfill.
+//
+// ⚠️ הבדיקה רצה **בסוף** הקובץ בכוונה: היא מריצה מחדש את שתי המיגרציות
+// על אותו מסד, ולכן חייבת לבוא אחרי שכל שאר הבדיקות סיימו להשתמש בו.
+
+{
+  // נתון חי שאסור שייעלם/יאופס בהרצה החוזרת.
+  const SENTINEL_UID = '9e100000-0000-4000-8000-000000000031'
+  await db.exec(`insert into auth.users(id) values ('${SENTINEL_UID}')`)
+  await db.exec(`
+    insert into public.customers (id, auth_user_id, phone_e164, full_name)
+    values ('${SENTINEL_UID}', '${SENTINEL_UID}', '+972500000931', 'SYNTHETIC 9E.1')
+  `)
+  await db.exec(`
+    insert into public.appointments
+      (customer_id, service_key, variants, price_total, starts_at, duration_min, status,
+       policy_version, privacy_notice_version, privacy_notice_acknowledged_at)
+    values ('${SENTINEL_UID}', 'natural', '{}', 100, now() + interval '400 days', 20, 'pending',
+            'p-9e1', 'v-SENTINEL-9E1', '2026-01-01T00:00:00Z')
+  `)
+  await db.exec(`update public.customers set retention_hold = true where id = '${SENTINEL_UID}'`)
+
+  let rerunOk = true
+  for (const f of ['0031_privacy_notice_ack.sql', '0032_privacy_retention.sql']) {
+    try {
+      await db.exec(readFileSync(new URL(f, `file://${MIGRATIONS_DIR}/`), 'utf8'))
+      chk(`הרצה שנייה מלאה של ${f} מצליחה`)
+    } catch (e) {
+      rerunOk = false
+      chk(`הרצה שנייה מלאה של ${f} מצליחה`, false, `\n   ${e.message}`)
+    }
+  }
+
+  if (rerunOk) {
+    const appt = await db.query(`
+      select privacy_notice_version, privacy_notice_acknowledged_at
+      from public.appointments where customer_id = '${SENTINEL_UID}'
+    `)
+    const cust = await db.query(`
+      select retention_hold from public.customers where id = '${SENTINEL_UID}'
+    `)
+    chk('🔒 privacy_notice_version שרד את ההרצה החוזרת (אין backfill/דריסה)',
+      appt.rows[0]?.privacy_notice_version === 'v-SENTINEL-9E1')
+    chk('🔒 privacy_notice_acknowledged_at שרד ולא אופס',
+      appt.rows[0]?.privacy_notice_acknowledged_at !== null &&
+      appt.rows[0]?.privacy_notice_acknowledged_at !== undefined)
+    chk('🔒 retention_hold שרד את ההרצה החוזרת',
+      cust.rows[0]?.retention_hold === true)
+  }
+
+  // 🔒 בדיוק חתימה אחת לכל פונקציה — החתימה הישנה (12/9 פרמטרים) נעלמה
+  // ולא נוצר overload. אילו הישנה הייתה שורדת, PostgREST היה מתאים אליה
+  // גוף בקשה ישן ויוצר תור **בלי privacy acknowledgement**.
+  for (const fn of ['create_public_booking_request', 'create_personal_area_booking_request']) {
+    const r = await db.query(`
+      select count(*)::int as n from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = '${fn}'
+    `)
+    chk(`🔒 ${fn} — בדיוק חתימה אחת (הישנה נעלמה, אין overload)`,
+      r.rows[0]?.n === 1, `נמצאו ${r.rows[0]?.n}`)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 const failed = results.filter(r => !r).length
 console.log(`\n${failed === 0 ? '✅' : '⛔'} ${results.length - failed}/${results.length} עברו`)
 process.exit(failed === 0 ? 0 : 1)

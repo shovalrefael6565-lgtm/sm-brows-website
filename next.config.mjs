@@ -156,6 +156,20 @@ const nextConfig = {
         source: '/api/internal/:path*',
         headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
       },
+      // 🔒 9E.1 — בקשת תור מהמסלול הציבורי. **התאמה מדויקת בלבד**, ולא
+      // /api/bookings/:path*, כי /api/bookings/slots הוא ציבורי במכוון
+      // ומוגש עם `public, s-maxage=30, stale-while-revalidate=60` — כלל
+      // רחב היה מבטל את מטמון ה-CDN שלו.
+      //
+      // ⚠️ עד 9E.1 ל-route הזה לא הייתה שום כותרת Cache-Control: לא ברמת
+      // ה-route ולא כאן. `export const dynamic = 'force-dynamic'` שולט
+      // ברינדור ולא במטמון ביניים. המשמעות המעשית בחלון התחזוקה: תגובת
+      // 403 של השער הסגור עלולה הייתה להישמר במטמון ולהמשיך להיות מוגשת
+      // גם *אחרי* פתיחת השער מחדש — כלומר הזמנות חסומות בלי שנדע.
+      {
+        source: '/api/bookings/request',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
     ]
   },
 }

@@ -135,6 +135,105 @@ section('POST /api/bookings/request — המסלול הציבורי (15B)')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('POST /api/appointments — האזור האישי (9E.1)')
+//
+// 🔴 עד 9E.1 הנתיב הזה **לא נבדק כאן כלל**, למרות שהוא המסלול השני שכותב
+// תור ל-DB ושקורא לאותו RPC שחתימתו משתנה ב-0031. חלון התחזוקה נשען על
+// כך ששני המסלולים חסומים — בדיקה של אחד מהם בלבד אינה מוכיחה זאת.
+//
+// ⚠️ גם כאן הבדיקה טקסטואלית על המקור: ה-route מייבא את lib/shabbat.ts
+// (@hebcal/core) שאין לו export לתנאי react-server. אותה מגבלת סביבה
+// בדיוק כמו bookings/request למעלה.
+
+{
+  const code = stripComments(src('app/api/appointments/route.ts'))
+
+  chk('appointments — מחזיר 403 feature_disabled',
+    /feature_disabled/.test(code) && /status:\s*403/.test(code))
+
+  const gateAt = code.search(/isNewBookingSystemEnabled\(\)/)
+  const firstAwait = code.search(/\bawait\b/)
+  chk('🔒 השער לפני ה-await הראשון בקובץ',
+    gateAt !== -1 && firstAwait !== -1 && gateAt < firstAwait,
+    `gate@${gateAt} await@${firstAwait}`)
+
+  // 🔒 השער לפני זיהוי הלקוחה, לפני קריאת הגוף, ולפני כל נגיעה ב-DB.
+  // ⚠️ ה-route הזה קורא `await req.json()` ישירות (ולא readJsonWithLimit
+  // כמו המסלול הציבורי) — הוא מאומת-session, ולכן אינו חשוף לגוף ענק
+  // אנונימי. הבדיקה מכוונת לנקודת הקריאה שקיימת בפועל, לא לזו שהיינו
+  // מצפים לה, כדי שלא "תעבור" על regex שאינו מתאים לכלום.
+  for (const [re, label] of [
+    [/await\s+req\.json\s*\(/, 'קריאת גוף הבקשה'],
+    [/getCurrentCustomerId\s*\(/, 'זיהוי הלקוחה מה-session'],
+    [/createPersonalAreaBookingRequest\s*\(/, 'כתיבת התור ל-DB'],
+  ]) {
+    const at = code.search(re)
+    chk(`🔒 השער לפני ${label}`, at !== -1 && gateAt < at, `gate@${gateAt} effect@${at}`)
+  }
+
+  // 🔒 השער לפני ה-RPC שחתימתו משתנה ב-0031 — זה מה שמאפשר לפרוס את
+  // הקוד החדש מול schema ישן בלי 500.
+  chk('🔒 ה-route אינו קורא ל-RPC ישירות (רק דרך lib/db/appointments.ts)',
+    !/\.rpc\(/.test(code))
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('🔒 9E.1 — הטפסים מציגים fallback ל-WhatsApp כשהשער סגור')
+//
+// שער שמחזיר 403 נכון אך משאיר את הלקוחה בלי דרך פעולה הוא כשל מוצר.
+// שני הטפסים חייבים להציג מסלול חלופי מפורש.
+
+{
+  const code = stripComments(src('components/booking/BookingForm.tsx'))
+  // ה-route מחזיר whatsappFallback: true על 403 (fallback: true ב-fail()).
+  chk('BookingForm — קורא את whatsappFallback מהתשובה',
+    /whatsappFallback/.test(code))
+  chk('BookingForm — מציג קישור WhatsApp כשה-fallback דלוק',
+    /saveError\.fallback/.test(code) && /WHATSAPP_BASE/.test(code))
+  chk('🔒 BookingForm — אומר במפורש שהבקשה לא נשמרה (לא "אולי")',
+    /לא נשמרה/.test(src('components/booking/BookingForm.tsx')))
+}
+
+{
+  const code = stripComments(src('components/account/AccountBookingForm.tsx'))
+  chk('AccountBookingForm — feature_disabled מפעיל את מסלול ה-WhatsApp',
+    /feature_disabled/.test(code) && /setShowWhatsApp/.test(code))
+  chk('AccountBookingForm — קישור WhatsApp קיים', /WHATSAPP_BASE/.test(code))
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('🔒 9E.1 — הדגל fail-closed: רק המחרוזת המדויקת "true" פותחת')
+//
+// ⚠️ נבדק על **המקור** של lib/featureFlags.ts ולא רק התנהגותית, כדי
+// שהשוואה רופפת (== , toLowerCase, Boolean(), !== 'false') לא תיכנס בעתיד
+// בלי שהבדיקה תיפול. `!== 'false'` היה הופך ערך שגוי/ריק ל"פתוח" — בדיוק
+// ההפך מ-fail-closed.
+
+{
+  const code = stripComments(src('lib/featureFlags.ts'))
+  chk('🔒 isNewBookingSystemEnabled משתמש בהשוואה קשיחה ל-\'true\'',
+    /process\.env\.NEW_BOOKING_SYSTEM_ENABLED\s*===\s*'true'/.test(code))
+  chk('🔒 אין השוואה מתירנית (!== \'false\' / toLowerCase / Boolean)',
+    !/NEW_BOOKING_SYSTEM_ENABLED\s*!==\s*'false'/.test(code) &&
+    !/NEW_BOOKING_SYSTEM_ENABLED[^\n]*toLowerCase/.test(code) &&
+    !/Boolean\(\s*process\.env\.NEW_BOOKING_SYSTEM_ENABLED/.test(code))
+}
+
+for (const [value, label] of [
+  ['', 'מחרוזת ריקה'],
+  [' true', 'רווח מוביל'],
+  ['true ', 'רווח נגרר'],
+  ['True', 'רישיות שונה'],
+  ['yes', 'ערך לא תקין'],
+  ['0', 'אפס'],
+]) {
+  process.env.NEW_BOOKING_SYSTEM_ENABLED = value
+  chk(`🔒 ${JSON.stringify(value)} (${label}) → כבוי`, isNewBookingSystemEnabled() === false)
+}
+if (savedFlag === undefined) delete process.env.NEW_BOOKING_SYSTEM_ENABLED
+else process.env.NEW_BOOKING_SYSTEM_ENABLED = savedFlag
+
+// ════════════════════════════════════════════════════════════════════════════
 section('verify ו-session — בדיקה מבנית')
 //
 // ⚠️ שני ה-routes האלה **אינם ניתנים לייבוא בהרנס הזה**: הם מגיעים דרך

@@ -162,13 +162,23 @@ chk("🔒 /api/internal/:path* — private, no-store",
   headerMap(prodRules, '/api/internal/:path*')['Cache-Control'] === 'private, no-store')
 
 /**
- * התאמת נתיב אמיתי לתבנית `source` בסגנון Next (`/prefix/:path*`).
+ * התאמת נתיב אמיתי לתבנית `source` בסגנון Next.
  * בדיקה על התבנית בלבד לא הייתה מוכיחה שהנתיבים הקונקרטיים באמת נתפסים.
+ *
+ * שתי צורות נתמכות:
+ *   • `/prefix/:path*`  — קידומת. ⚠️ `:path*` מתיר **אפס** מקטעים, ולכן
+ *     `/api/appointments/:path*` תופס גם את `/api/appointments` עצמו
+ *     (בלי לוכסן נגרר) — ולא רק נתיבי בן.
+ *   • `/exact/path`     — התאמה מדויקת (הכלל של 9E.1).
+ * תבניות regex (נכסים סטטיים) אינן נתמכות כאן ומוחזרות כ-false.
  */
 function sourceMatches(source, pathname) {
+  if (source.includes('\\.')) return false // תבנית סיומות — לא רלוונטית לנתיבי API
+  if (!source.includes(':')) return source === pathname
   if (!source.includes(':path*')) return false
   const prefix = source.slice(0, source.indexOf(':path*'))
-  return pathname.startsWith(prefix)
+  const prefixNoSlash = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix
+  return pathname === prefixNoSlash || pathname.startsWith(prefix)
 }
 
 /** כל כללי ה-Cache-Control מסוג private, no-store שחלים על נתיב נתון. */
@@ -186,10 +196,34 @@ for (const route of [
   chk(`🔒 ${route} מכוסה ע"י כלל no-store`, noStoreRulesFor(route).length > 0)
 }
 
+// ─── 9E.1 — תגובות שער ההזמנות אינן נשמרות במטמון ────────────────────────
+//
+// 🔴 עד 9E.1 ל-/api/bookings/request לא הייתה שום כותרת Cache-Control:
+// לא ברמת ה-route ולא ב-next.config (הכללים הגלובליים מכסים auth /
+// appointments / admin / internal — ולא bookings). `force-dynamic` שולט
+// ברינדור, לא במטמון ביניים.
+//
+// ⚠️ למה זה קריטי דווקא לחלון התחזוקה: תגובת 403 של השער הסגור שנשמרת
+// במטמון עלולה להמשיך להיות מוגשת גם *אחרי* פתיחת השער — כלומר הזמנות
+// חסומות בלי שנדע, ובלי דרך לזהות זאת מהשרת.
+section('9E.1 — /api/bookings/request לא נשמר במטמון')
+
+chk("🔒 /api/bookings/request — private, no-store",
+  headerMap(prodRules, '/api/bookings/request')['Cache-Control'] === 'private, no-store')
+chk('🔒 /api/bookings/request מכוסה ע"י כלל no-store',
+  noStoreRulesFor('/api/bookings/request').length > 0)
+
+// 🔒 שני נתיבי השער — הציבורי והאזור האישי — מכוסים שניהם.
+chk('🔒 /api/appointments (שער האזור האישי) מכוסה ע"י כלל no-store',
+  noStoreRulesFor('/api/appointments').length > 0)
+
 // ─── הנתיבים הציבוריים לא השתנו ──────────────────────────────────────────
 //
 // 🔒 /api/bookings/slots ו-/api/shabbat ציבוריים בכוונה ואסור שכלל
-// no-store כלשהו יתפוס אותם — כולל הכלל החדש של 9D.2.
+// no-store כלשהו יתפוס אותם — כולל הכללים החדשים של 9D.2 ו-9E.1.
+// ⚠️ slots מוגש עם `public, s-maxage=30, stale-while-revalidate=60`;
+// כלל רחב מסוג /api/bookings/:path* היה מבטל את מטמון ה-CDN שלו, ולכן
+// הכלל של 9E.1 הוא התאמה מדויקת ל-/api/bookings/request בלבד.
 for (const publicRoute of ['/api/bookings/slots', '/api/shabbat']) {
   chk(`${publicRoute} — ללא כלל no-store (נשאר ציבורי)`, noStoreRulesFor(publicRoute).length === 0)
 }
@@ -203,15 +237,21 @@ chk('עמודים ציבוריים (/, /booking, /privacy) — ללא כלל no-
 {
   const cacheRules = prodRules.filter(r =>
     (r.headers ?? []).some(h => h.key === 'Cache-Control'))
-  chk('סה"כ 5 כללי Cache-Control (static + 4 קבוצות פרטיות)', cacheRules.length === 5)
+  chk('סה"כ 6 כללי Cache-Control (static + 5 כללי no-store)', cacheRules.length === 6)
   const noStoreSources = cacheRules
     .filter(r => r.headers.some(h => h.value === 'private, no-store'))
     .map(r => r.source).sort()
-  chk('ארבע קבוצות no-store בדיוק: auth, appointments, admin, internal',
+  // ⚠️ רשימה סגורה ומדויקת: כל תוספת/שינוי מפיל את הבדיקה בכוונה, כדי
+  // שהרחבה רחבה מדי (למשל /api/bookings/:path* שהיה תופס גם את slots)
+  // לא תיכנס בשקט.
+  chk('חמישה כללי no-store בדיוק: auth, appointments, admin, internal, bookings/request',
     noStoreSources.join(',') === [
       '/api/admin/:path*', '/api/appointments/:path*',
       '/api/auth/:path*', '/api/internal/:path*',
+      '/api/bookings/request',
     ].sort().join(','))
+  chk('🔒 אין כלל no-store רחב על /api/bookings/:path* (היה מבטל את מטמון slots)',
+    !noStoreSources.includes('/api/bookings/:path*'))
 }
 
 // ─── פילוח static/dynamic לא השתנה ───────────────────────────────────────

@@ -35,15 +35,25 @@
 -- (lib/privacyNotice.ts) — ה-RPC אינו מכיר מחרוזות גרסה ספציפיות, בדיוק
 -- כמו שהוא לא מכיר את POLICY_VERSION.
 --
--- ─── למה DROP + CREATE ולא CREATE OR REPLACE ───────────────────────────────
+-- ─── למה DROP לחתימה הישנה, ולמה CREATE OR REPLACE לחדשה ──────────────────
 --
 -- הוספת פרמטרים חדשים משנה את חתימת הפונקציה (name + arg types הם מה
 -- שמזהה אותה ב-Postgres). CREATE OR REPLACE עם רשימת פרמטרים שונה אינו
 -- מחליף את הקיימת — הוא יוצר **עוד** overload, ומשאיר את הישנה (בלי אכיפת
--- פרטיות) חיה וניתנת לקריאה. DROP מפורש הוא הדרך היחידה להבטיח שרק הגרסה
--- החדשה, האוכפת, קיימת אחרי המיגרציה. זו מיגרציה מקומית בלבד (ר' checkpoint
--- שלב 7) ואין כאן דרישת zero-downtime כמו ב-0018/0020/0021 — קוד ומיגרציה
--- מתעדכנים יחד באותו commit.
+-- פרטיות) חיה וניתנת לקריאה. לכן ה-DROP המפורש **לחתימה הישנה** הוא הדרך
+-- היחידה להבטיח שרק הגרסה החדשה, האוכפת, קיימת אחרי המיגרציה.
+--
+-- 🔒 9E.1 — הקשחה להרצה חוזרת בטוחה (re-runnable):
+--   • `add column if not exists` על שתי העמודות.
+--   • `drop function if exists` — ממוקד **אך ורק** לחתימות הישנות (12 ו-9).
+--   • `create or replace function` לחתימות החדשות (14 ו-11) — מותר, כי
+--     החתימה וה-return type (`public.appointments`) זהים בין ההרצות.
+-- הרצה שנייה מלאה של הקובץ מצליחה, ואינה מוחקת או משנה שום נתון: אין
+-- backfill, אין UPDATE, ואין DELETE בקובץ הזה בכלל. תור שנוצר לפני 0031
+-- נשאר עם שני השדות null — הוא באמת לא אישר דבר, וזיוף ערך היה שקר בנתונים.
+--
+-- ⚠️ מה שהרצה חוזרת **כן** עושה: מחזירה את הפונקציות לגוף שבקובץ. אם מישהו
+-- שינה אותן ידנית ב-DB, השינוי הידני יידרס. זו התנהגות רצויה למיגרציה.
 -- ============================================================================
 
 
@@ -51,9 +61,12 @@
 -- חלק 1 — עמודות חדשות ב-appointments
 -- ============================================================================
 
+-- 🔒 9E.1 — `if not exists` כדי שהרצה חוזרת של הקובץ כולו תצליח.
+-- הן nullable וללא default, ולכן ההוספה אינה כותבת/משנה שום נתון קיים,
+-- והרצה שנייה היא no-op גמור (לא מאפסת ערכים שכבר נכתבו).
 alter table public.appointments
-  add column privacy_notice_version         text,
-  add column privacy_notice_acknowledged_at timestamptz;
+  add column if not exists privacy_notice_version         text,
+  add column if not exists privacy_notice_acknowledged_at timestamptz;
 
 comment on column public.appointments.privacy_notice_version is
   'גרסת מדיניות הפרטיות (lib/privacyNotice.ts, PRIVACY_NOTICE_VERSION) שהלקוחה אישרה. null = תור ידני של אדמין, ללא אישור בשם הלקוחה.';
@@ -65,11 +78,19 @@ comment on column public.appointments.privacy_notice_acknowledged_at is
 -- חלק 2 — המסלול הציבורי: create_public_booking_request
 -- ============================================================================
 
+-- 🔒 9E.1 — ה-DROP מכוון **אך ורק לחתימה הישנה בת 12 הפרמטרים**, ולא
+-- לחתימה החדשה שנוצרת מיד אחריו (14). PostgreSQL מזהה פונקציה לפי שם +
+-- טיפוסי פרמטרים, ולכן זו פעולה על אובייקט אחר לגמרי.
+-- `if exists` → הרצה חוזרת (כשהישנה כבר נמחקה) אינה נכשלת.
 drop function if exists public.create_public_booking_request(
   text, text, text, text[], integer, timestamptz, integer, text, text, timestamptz, inet, integer
 );
 
-create function public.create_public_booking_request(
+-- 🔒 9E.1 — `create or replace` במקום `create`: הרצה חוזרת מחליפה את
+-- הגוף באותה חתימה בדיוק ובאותו return type (`public.appointments`),
+-- וזה מותר. ה-ACL של הפונקציה נשמר בהחלפה, ובכל מקרה מוצהר שוב בסוף
+-- הקובץ (revoke מ-public/anon/authenticated + grant ל-service_role).
+create or replace function public.create_public_booking_request(
   p_phone_e164              text,
   p_full_name               text,
   p_service_key             text,
@@ -214,11 +235,13 @@ comment on function public.create_public_booking_request(text, text, text, text[
 -- חלק 3 — האזור האישי: create_personal_area_booking_request
 -- ============================================================================
 
+-- 🔒 9E.1 — כמו במסלול הציבורי: DROP לחתימה הישנה בת 9 הפרמטרים בלבד,
+-- ו-CREATE OR REPLACE לחדשה (11), כדי שהרצה חוזרת של הקובץ תצליח.
 drop function if exists public.create_personal_area_booking_request(
   uuid, text, text[], integer, timestamptz, integer, text, text, timestamptz
 );
 
-create function public.create_personal_area_booking_request(
+create or replace function public.create_personal_area_booking_request(
   p_customer_id             uuid,
   p_service_key             text,
   p_variants                text[],
@@ -373,6 +396,26 @@ begin
         'p_customer_id uuid, p_service_key text, p_variants text[], p_price_total integer, p_starts_at timestamp with time zone, p_duration_min integer, p_notes text, p_policy_version text, p_expires_at timestamp with time zone, p_privacy_notice_version text, p_privacy_notice_acknowledged boolean'
   ) then
     raise exception '0031: create_personal_area_booking_request לא נוצרה עם החתימה החדשה' using errcode = 'P0103';
+  end if;
+
+  -- ── 🔒 9E.1 — החתימה הישנה **נעלמה**, ואין overload נוסף ────────────────
+  --
+  -- זו האסרציה שסוגרת את דרך ה-bypass היחידה: אילו החתימה הישנה (12/9
+  -- פרמטרים, בלי אכיפת אישור) הייתה שורדת לצד החדשה, PostgREST היה מתאים
+  -- אליה גוף בקשה ישן ויוצר תור **בלי privacy acknowledgement** — בשקט,
+  -- בלי שגיאה, ובלי שנדע. בדיקת "החדשה קיימת" לבדה אינה מספיקה לכך.
+  --
+  -- הספירה חייבת להיות בדיוק 1 לכל שם: לא 0 (לא נוצרה) ולא 2+ (הישנה
+  -- שרדה, או נוצר overload בטעות).
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'create_public_booking_request') <> 1 then
+    raise exception '0031: create_public_booking_request — חייבת להתקיים בדיוק חתימה אחת (החתימה הישנה שרדה?)'
+      using errcode = 'P0103';
+  end if;
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'create_personal_area_booking_request') <> 1 then
+    raise exception '0031: create_personal_area_booking_request — חייבת להתקיים בדיוק חתימה אחת (החתימה הישנה שרדה?)'
+      using errcode = 'P0103';
   end if;
 
   -- 🔒 שתיהן חייבות להישאר INVOKER.
