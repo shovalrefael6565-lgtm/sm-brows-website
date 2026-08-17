@@ -325,6 +325,40 @@ const ASSERTION_MIGRATIONS = {
     'create_public_booking_request(text,text,text,text[],integer,timestamptz,integer,text,text,timestamptz,inet,integer,text,boolean)',
     'create_personal_area_booking_request(uuid,text,text[],integer,timestamptz,integer,text,text,timestamptz,text,boolean)',
   ],
+  /**
+   * שלב 9B/9B.2 — retention hold וניקוי retention.
+   *
+   * 🔴 שש הפונקציות רגישות מסיבות שונות:
+   *
+   *   notification_is_terminal — טהורה (בוליאני על קלט enum), ובכל זאת
+   *     סגורה: אותו עיקרון כמו reminder_scheduled_for/reminder_expires_at
+   *     ב-0011 — אין סיבה שפונקציה תהיה זמינה כ-RPC לאף תפקיד מלבד
+   *     service_role רק כי היא "נראית תמימה".
+   *   set_customer_retention_hold — משנה מצב הגנה על נתוני לקוחה. חשיפה
+   *     ל-anon/authenticated הייתה מאפשרת לכל מי שמחזיק מפתח כזה לבטל
+   *     הגנה על לקוחה (או להפעילה על לקוחה שרירותית) בלי אימות אדמין אמיתי.
+   *   privacy_retention_dry_run — אינה כותבת, אך מחזירה ספירות תפעוליות
+   *     על כלל בסיס הנתונים (otp/sessions/notes/לקוחות לא פעילות) —
+   *     אין סיבה שתהיה זמינה כ-RPC לאף תפקיד מלבד service_role.
+   *   privacy_retention_purge_otp_sessions /
+   *   privacy_retention_purge_notification_attempts /
+   *   privacy_retention_reset_old_notes — מוחקות/משנות נתונים בהיקף
+   *     רחב (batch, לא שורה בודדת). כמו כל RPC כותב אחר בפרויקט הזה,
+   *     service_role בלבד.
+   *
+   * ⚠️ get_crm_customer אינה כאן: היא מ-0009/0010, כבר ברשימה תחת
+   * המיגרציה שהגדירה אותה, ו-0032 רק מחליפה את גופה (מוסיפה שני שדות
+   * לתוצאה) — מקבלת revoke/grant חוזר שם כדי שההרשאות לא ייפתחו בהחלפה,
+   * אותו דפוס בדיוק כמו list_crm_customers ב-0009/0010/0028.
+   */
+  '0032_privacy_retention.sql': [
+    'notification_is_terminal(notification_status)',
+    'set_customer_retention_hold(uuid,uuid,boolean)',
+    'privacy_retention_dry_run(timestamptz,integer)',
+    'privacy_retention_purge_otp_sessions(timestamptz,integer)',
+    'privacy_retention_purge_notification_attempts(timestamptz,integer)',
+    'privacy_retention_reset_old_notes(timestamptz,integer)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()
@@ -374,8 +408,16 @@ function parseArgs(argList, mode = 'declared') {
 const sigKey = (name, types) => `${name}(${types.join(',')})`
 
 // ── כל הפונקציות שנוצרות ─────────────────────────────────────────────────────
-
-const CREATE_RE = /create\s+(?:or\s+replace\s+)?function\s+public\.(\w+)\s*\(([^)]*)\)([\s\S]{0,120})/gi
+//
+// ⚠️ 9B — תוקן: `[^)]*` היה קורס על `default now()` (0032), כי הוא עוצר
+// ב-")" *הראשון* שנמצא — זה שסוגר את now(), לא זה שסוגר את רשימת הפרמטרים.
+// התוצאה הייתה חתימה חתוכה (פרמטר יחיד במקום שניים) שאף בדיקה מולה לא
+// באמת בדקה כלום. התבנית למטה תומכת ברמת קינון אחת של סוגריים בתוך
+// ברירת מחדל — מספיק ל-now() ולכל קריאת פונקציה חסרת-פרמטרים דומה, בלי
+// לשנות התנהגות עבור אף אחת מ-75 החתימות הקיימות (שאין להן סוגריים
+// מקוננים כלל, ולכן מצטמצמות לאותה תוצאה כמו קודם).
+const CREATE_RE =
+  /create\s+(?:or\s+replace\s+)?function\s+public\.(\w+)\s*\(((?:[^()]|\([^()]*\))*)\)([\s\S]{0,120})/gi
 
 const defined = new Map()   // sigKey → { name, types, files:Set, isTrigger }
 for (const { file, sql } of sources) {

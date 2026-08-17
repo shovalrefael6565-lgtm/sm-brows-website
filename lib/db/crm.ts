@@ -85,6 +85,13 @@ export interface CrmCustomerRow extends CrmMetrics {
 export interface CrmCustomerProfile extends CrmCustomerRow {
   crm_status_changed_at: string | null
   source_changed_at: string | null
+  /**
+   * 🔒 9B.1 — true = איפוס appointments.notes (privacy_retention_reset_old_notes)
+   * חסום עבור לקוחה זו, **ורק זה**. אינו חוסם ניקוי OTP/sessions/notification_
+   * attempts (טכניים גרידא), ואינו מסתיר אותה מדוחות ה-report-only. ראה 0032.
+   */
+  retention_hold: boolean
+  retention_hold_updated_at: string | null
 }
 
 export interface CrmNote {
@@ -315,6 +322,8 @@ export type CrmMutationError =
   | 'missing_request_id' | 'unknown'
   // ── 15H ──
   | 'bad_name' | 'bad_phone' | 'phone_taken' | 'has_login_account' | 'not_a_customer'
+  // ── 9B ──
+  | 'bad_hold'
 
 function toMutationError(message: string): CrmMutationError {
   const m = message.toUpperCase()
@@ -322,6 +331,7 @@ function toMutationError(message: string): CrmMutationError {
   // משמעותי בכל זוג שבו אחד הוא תת-מחרוזת של השני.
   if (m.includes('NOT_A_CUSTOMER'))          return 'not_a_customer'
   if (m.includes('HAS_LOGIN_ACCOUNT'))       return 'has_login_account'
+  if (m.includes('BAD_HOLD'))                return 'bad_hold'
   if (m.includes('PHONE_TAKEN'))             return 'phone_taken'
   if (m.includes('BAD_PHONE'))               return 'bad_phone'
   if (m.includes('BAD_NAME'))                return 'bad_name'
@@ -461,5 +471,27 @@ export function deleteCustomerIfSafe(customerId: string, adminUserId: string) {
   return callCrmRpc<{ outcome: DeleteOutcome; appointment_count?: number | null }>(
     'delete_customer_if_safe',
     { p_customer_id: customerId, p_admin_user_id: adminUserId },
+  )
+}
+
+// ─── 9B.1 — retention hold (השהיית איפוס הערות תורים) ──────────────────────
+
+export type RetentionHoldOutcome = 'updated' | 'unchanged'
+
+/**
+ * הפעלה/ביטול של השהיית איפוס appointments.notes ללקוחה (0032).
+ *
+ * 🔒 היקף מדויק: חוסמת **רק** את privacy_retention_reset_old_notes. אינה
+ * עוצרת ניקוי OTP/sessions/notification_attempts (טכניים גרידא, ללא קשר
+ * אמין ללקוחה ספציפית), ואינה מסתירה את הלקוחה מדוחות ה-report-only —
+ * ראה comment על customers.retention_hold ב-0032.
+ *
+ * ⚠️ idempotent: ערך זהה לקיים מוחזר כ-'unchanged' בלי כתיבה נוספת.
+ * אין שדה סיבה — הפעולה עצמה (true/false) היא כל מה שנרשם ב-activity.
+ */
+export function setCustomerRetentionHold(customerId: string, adminUserId: string, hold: boolean) {
+  return callCrmRpc<{ outcome: RetentionHoldOutcome; retention_hold: boolean }>(
+    'set_customer_retention_hold',
+    { p_customer_id: customerId, p_admin_user_id: adminUserId, p_hold: hold },
   )
 }

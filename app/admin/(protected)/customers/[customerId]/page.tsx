@@ -148,6 +148,7 @@ export default async function CustomerProfilePage(
           phone={customer.phone_e164}
           hasLoginAccount={customer.has_login_account}
           archivedAt={customer.archived_at}
+          retentionHold={customer.retention_hold}
         />
       </section>
 

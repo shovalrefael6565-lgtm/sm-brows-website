@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Archive, ArchiveRestore, Trash2, ShieldOff, Shield } from 'lucide-react'
 
 interface Props {
   customerId: string
@@ -11,9 +11,16 @@ interface Props {
   /** לקוחה עם חשבון התחברות — הטלפון שלה נעול לעריכה. ראה 0028. */
   hasLoginAccount: boolean
   archivedAt: string | null
+  /**
+   * 🔒 9B.1 — השהיית ניקוי הערות תורים (0032). היקף מדויק: חוסמת רק את
+   * איפוס appointments.notes האוטומטי. אינה עוצרת ניקוי OTP/sessions/
+   * notification_attempts, ואינה מסתירה את הלקוחה מדוחות אי-פעילות —
+   * ראה ההסבר הקבוע ליד המתג למטה.
+   */
+  retentionHold: boolean
 }
 
-type Busy = 'save' | 'archive' | 'delete' | null
+type Busy = 'save' | 'archive' | 'delete' | 'hold' | null
 
 /**
  * שלב 15H — ניהול כרטיס הלקוחה: עריכת פרטים, ארכיון ומחיקה.
@@ -29,7 +36,7 @@ type Busy = 'save' | 'archive' | 'delete' | null
  * על שדה שנראה עריך ומחזיר שגיאה אחרי הקלדה.
  */
 export default function CustomerAdminControls({
-  customerId, fullName, phone, hasLoginAccount, archivedAt,
+  customerId, fullName, phone, hasLoginAccount, archivedAt, retentionHold,
 }: Props) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -106,6 +113,36 @@ export default function CustomerAdminControls({
     router.refresh()
   }
 
+  /**
+   * 🔒 9B.1 — הפעלה מיידית; ביטול דורש אישור מפורש. הכיוון המסוכן הוא ביטול
+   * ה-hold (מחזיר את הערות התור הישנות של הלקוחה למסלול הניקוי הרגיל),
+   * לא הפעלתו.
+   *
+   * ⚠️ אין עדכון אופטימי: התצוגה נגזרת אך ורק מ-retentionHold (prop
+   * מהשרת), ומתעדכנת רק אחרי router.refresh() בעקבות הצלחה אמיתית. כשל
+   * ב-API לא "מזיז" את המתג בכלל — אין ממה לחזור, כי הוא מעולם לא זז —
+   * וההודעה המסוננת מוצגת דרך {error} למטה (role="alert").
+   */
+  const handleRetentionHoldToggle = async () => {
+    if (retentionHold) {
+      const ok = window.confirm(
+        `לבטל את השהיית ניקוי הערות עבור ${fullName}?\n\n` +
+          'הערות תור ישנות שלה יחזרו להתאפס לפי המדיניות הרגילה (90 יום ממועד התור).',
+      )
+      if (!ok) return
+    }
+
+    const res = await call('hold', `/api/admin/customers/${customerId}/retention-hold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hold: !retentionHold }),
+    })
+    if (!res.ok) return
+
+    setBusy(null)
+    router.refresh()
+  }
+
   const handleDelete = async () => {
     // ⚠️ הקלדת השם ולא window.confirm: מחיקה אינה הפיכה, ולחיצה על "אישור"
     // מתוך הרגל היא בדיוק הטעות שהמסך הזה אמור למנוע.
@@ -143,6 +180,14 @@ export default function CustomerAdminControls({
       {isArchived && (
         <p className="mt-3 text-xs text-brand-gold-text bg-brand-gold/10 border border-brand-gold/40 rounded-xl p-3">
           הכרטיס נמצא בארכיון ואינו מופיע ברשימת הלקוחות. כל הנתונים נשמרו.
+        </p>
+      )}
+
+      {retentionHold && (
+        <p className="mt-3 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl p-3">
+          ניקוי הערות תורים מושהה עבור לקוחה זו: הערות תור ישנות אינן מתאפסות אוטומטית.
+          מידע טכני (כגון קודי כניסה וסשנים שפג תוקפם) עדיין עשוי להימחק כרגיל — ההשהיה
+          אינה חלה עליו.
         </p>
       )}
 
@@ -215,6 +260,34 @@ export default function CustomerAdminControls({
       )}
 
       <div className="mt-5 pt-4 border-t border-brand-linen-dark flex flex-wrap gap-2">
+        {/*
+          🔒 9B.1 — role="switch" + aria-checked + aria-busy, כדי שמצב
+          ה-hold ופעולת השמירה יוכרזו נכון לקורא מסך, לא רק דרך הטקסט/
+          האייקון. הפעלה (false→true) מיידית; ביטול (true→false) דורש
+          אישור מפורש — ראה handleRetentionHoldToggle.
+        */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={retentionHold}
+          aria-busy={busy === 'hold'}
+          onClick={handleRetentionHoldToggle}
+          disabled={busy !== null}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-dark
+                     border border-brand-linen-dark hover:border-brand-rose px-3.5 py-1.5 rounded-full
+                     disabled:opacity-60 cursor-pointer transition-colors focus-visible:outline-none
+                     focus-visible:ring-2 focus-visible:ring-brand-gold"
+        >
+          {busy === 'hold' ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+          ) : retentionHold ? (
+            <Shield className="w-3.5 h-3.5" aria-hidden="true" />
+          ) : (
+            <ShieldOff className="w-3.5 h-3.5" aria-hidden="true" />
+          )}
+          {retentionHold ? 'ביטול השהיית ניקוי הערות' : 'השהיית ניקוי הערות תורים'}
+        </button>
+
         <button
           type="button"
           onClick={handleArchiveToggle}
@@ -256,6 +329,12 @@ export default function CustomerAdminControls({
           </button>
         )}
       </div>
+
+      <p className="mt-3 text-[11px] text-brand-muted leading-relaxed">
+        השהיית ניקוי הערות תורים מונעת אך ורק את איפוס ההערות הישנות בכרטיס הזה. מידע טכני
+        (קודי כניסה, סשנים שפג תוקפם) ממשיך להימחק כרגיל, וההשהיה אינה משפיעה על דוחות
+        אי-פעילות.
+      </p>
 
       {hasLoginAccount && (
         <p className="mt-3 text-[11px] text-brand-muted leading-relaxed">
