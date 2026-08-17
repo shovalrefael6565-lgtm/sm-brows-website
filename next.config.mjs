@@ -146,6 +146,16 @@ const nextConfig = {
         source: '/api/admin/:path*',
         headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
       },
+      // 🔒 9D.2 — נתיבים פנימיים (server-to-server, מוגני secret ייעודי):
+      // reminders, calendar-sync ו-privacy-retention. עד כאן רק
+      // privacy-retention הגדיר no-store בעצמו, ושני האחרים לא היו מכוסים
+      // כלל — לא ברמת ה-route ולא כאן. הכלל המרכזי סוגר את הפער בלי לגעת
+      // בשום route בנפרד, ומכסה גם תגובות 401/404/405/500 שאינן עוברות
+      // בקוד ה-handler. אינו נוגע ב-/api/bookings/slots ו-/api/shabbat.
+      {
+        source: '/api/internal/:path*',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
     ]
   },
 }
