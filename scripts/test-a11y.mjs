@@ -112,6 +112,47 @@ section('3. שכבות נפתחות נסגרות במקלדת')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('3.5 שכבות fixed לא נשארות תקועות אחרי סגירה')
+{
+  /*
+    🔴 התקלה, ארבע פעמים באותו קוד: exit animation של framer-motion 11 עם
+    React 19 לא תמיד משלים unmount. השכבה נשארת ב-DOM עם opacity:0 אבל
+    pointer-events:auto — בלתי נראית, ובולעת נגיעות.
+
+    שוחזר ב-hit-test:
+      • תפריט הנגישות — בלע כל לחיצה ב-~365×460 בפינה, בכל עמוד באתר.
+      • הלייטבוקס של "לפני ואחרי" — fixed inset-0 z-[9999], בלע את כל דף הבית.
+      • מגירת הניווט בנייד — שוחזר בפרודקשן על smbrows.co.il: המסך נראה
+        תקין, ו-elementFromPoint החזיר קישור מתוך מגירה סגורה.
+
+    ⚠️ לכן: שום שכבת overlay מסוג `fixed inset-0` לא תסתמך על exit
+    animation. רינדור מותנה מסיר את האלמנט מיידית ואמין.
+  */
+  const OVERLAY_OWNERS = [
+    join('components', 'ui', 'AccessibilityWidget.tsx'),
+    join('components', 'ui', 'ConsentPreferencesModal.tsx'),
+    join('components', 'home', 'BeforeAfterSection.tsx'),
+    join('components', 'gallery', 'Lightbox.tsx'),
+    join('components', 'layout', 'Navbar.tsx'),
+  ]
+  /*
+   * ⚠️ הבדיקה מכוונת ל**שכבות** בלבד — אלמנט motion שהוא position:fixed.
+   * תפריטים נפתחים קטנים בתוך ה-navbar (absolute top-full, רוחב 180-288)
+   * ממשיכים להשתמש ב-exit בלגיטימיות: גם אם אחד מהם ייתקע הוא יושב בתוך
+   * אזור הכותרת ואינו מסוגל לבלוע את הדף. שער גורף על כל exit בקובץ היה
+   * מכריח להסיר גם אותם בלי שום סיבה.
+   */
+  for (const f of OVERLAY_OWNERS) {
+    const clean = stripComments(src(f))
+    const openTags = clean.match(/<motion\.[a-zA-Z]+[\s\S]*?>/g) || []
+    const stuckable = openTags.filter((t) => /className=(?:"|\{`|\{cn\()?[^>]*\bfixed\b/.test(t) && /\bexit=/.test(t))
+    chk(`${f.split('/').pop()} — שום שכבת fixed לא נשענת על exit animation`,
+      stuckable.length === 0,
+      stuckable.map((t) => t.slice(0, 60).replace(/\s+/g, ' ')).join(' | '))
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 section('4. ניגודיות — טוקנים נגישים, לא הגוון הדקורטיבי')
 {
   /*

@@ -578,15 +578,33 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
         </div>
       </header>
 
-      {/* Mobile Menu */}
-      <AnimatePresence mode="wait">
-        {menuOpen && (
+      {/*
+        Mobile Menu
+
+        🔴 בלי AnimatePresence — באג פרודקשן אמיתי, שוחזר על smbrows.co.il.
+
+        ⚠️ exit animation של framer-motion 11 עם React 19 לא תמיד משלים
+        unmount, ולא באופן עקבי: לפעמים המגירה נעלמת כשורה, ולפעמים היא
+        והשכבה שמתחתיה **נשארות ב-DOM** אחרי הסגירה — בלתי נראות, אבל עם
+        pointer-events פעילים. אומת ב-hit-test בפרודקשן במובייל: המסך נראה
+        תקין לחלוטין, אבל elementFromPoint(350,300) החזיר קישור מתוך
+        המגירה הסגורה, ו-elementFromPoint(195,500) החזיר את ה-overlay.
+        כלומר נגיעות באמצע הדף נבלעו בשקט אחרי פתיחה וסגירה של התפריט —
+        וזו הניווט הראשי בנייד, שדרכו מגיעה רוב התנועה.
+
+        ⚠️ אלמנט תקוע עם role="dialog" aria-modal="true" גם נשאר חשוף
+        לקורא מסך כדיאלוג פתוח.
+
+        ⚠️ אותה החלטה בדיוק כבר תועדה ב-ConsentPreferencesModal,
+        ב-AccessibilityWidget וב-BeforeAfterSection. אנימציית הכניסה
+        (initial/animate) נשמרת; רק ה-exit יורד.
+      */}
+      {menuOpen && (
           <>
             <motion.div
               key="menu-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
               className="fixed inset-0 bg-black/40 z-40 lg:hidden"
               onClick={() => setMenuOpen(false)}
@@ -612,7 +630,6 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               }}
               initial="hidden"
               animate="visible"
-              exit="hidden"
               /*
                 ⚠️ המגירה הכריזה aria-modal="true" בלי ללכוד focus: Tab מתוכה
                 המשיך אל הקישורים של הדף שמתחת ל-overlay — גלויים לסדר ה-Tab
@@ -776,7 +793,6 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             </motion.div>
           </>
         )}
-      </AnimatePresence>
     </>
   )
 }
