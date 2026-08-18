@@ -35,7 +35,23 @@ const section = title => console.log(`\n── ${title} ${'─'.repeat(Math.max(
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = join(HERE, '..', 'supabase', 'migrations')
-const MIGRATIONS = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort()
+const ALL_MIGRATIONS = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort()
+
+/*
+ * ⚠️ הבדיקה רצה בכוונה על **סכמת הפרודקשן בפועל** — עד 0030 ועד בכלל.
+ *
+ * לפני המיזוג זה קרה מאליו, כי 0031/0032 פשוט לא היו בענף. אחרי המיזוג הן
+ * כאן, ולכן ההגבלה חייבת להיות מפורשת: 0031/0032 **טרם הופעלו על שום מסד
+ * נתונים** (docs/privacy-production-rollout.md, סעיף 0), והקוד הזה ייפרס
+ * לפרודקשן מול schema ≤0030. אם התיקון של מסירת התזכורות יסתמך בשקט על
+ * טבלה או עמודה מ-0031/0032, הבדיקה הייתה ירוקה והפרודקשן היה נשבר.
+ *
+ * ⚠️ יש להסיר את ההגבלה רק אחרי ש-0031 ו-0032 הופעלו בפועל על הפרודקשן
+ * (סעיף 3, צעדים 7–12) — ולא לפני.
+ */
+const PROD_SCHEMA_MAX = 30
+const migNum = f => Number(f.slice(0, 4))
+const MIGRATIONS = ALL_MIGRATIONS.filter(f => migNum(f) <= PROD_SCHEMA_MAX)
 
 // ════════════════════════════════════════════════════════════════════════════
 section('הקמת Postgres אמיתי בזיכרון + המיגרציות')
@@ -79,11 +95,21 @@ for (const name of MIGRATIONS) {
 }
 chk(`כל ${MIGRATIONS.length} המיגרציות רצו`, true)
 
-// ⚠️ 0031/0032 המקומיות **אינן** ב-origin/main, ולכן הבדיקה הזו מוכיחה
-// במפורש שהתיקון אינו תלוי בהן: היא רצה על מה שיש עד 0030 בלבד.
-chk('⚠️ הבדיקה רצה על הסכמה שקיימת ב-origin/main (עד 0030, בלי 0031/0032)',
-  MIGRATIONS.every(m => !m.startsWith('0031') && !m.startsWith('0032')),
+// ⚠️ ההגבלה מוכיחה שהתיקון אינו תלוי ב-0031/0032, שטרם הופעלו בפרודקשן.
+chk('⚠️ הבדיקה רצה על סכמת הפרודקשן בפועל (עד 0030, בלי 0031/0032)',
+  MIGRATIONS.every(m => migNum(m) <= PROD_SCHEMA_MAX),
   MIGRATIONS[MIGRATIONS.length - 1])
+
+/*
+ * 🔒 ההגבלה למעלה חייבת להיות הגבלה אמיתית ולא no-op. אם 0031/0032 ייעלמו
+ * מהעץ (או יקבלו מספור אחר), הסינון היה מפסיק לסנן דבר והבדיקה הייתה
+ * ממשיכה להיות ירוקה בזמן שהיא כבר אינה בודקת כלום.
+ */
+chk('🔒 ההגבלה אכן פעילה — 0031/0032 קיימות בעץ והוחרגו במפורש',
+  ALL_MIGRATIONS.length > MIGRATIONS.length
+    && ALL_MIGRATIONS.some(m => m.startsWith('0031'))
+    && ALL_MIGRATIONS.some(m => m.startsWith('0032')),
+  `הורצו ${MIGRATIONS.length} מתוך ${ALL_MIGRATIONS.length}`)
 
 // ════════════════════════════════════════════════════════════════════════════
 // גשר: ה-RPCs של 0011 בחתימה של lib/db/reminders.ts
