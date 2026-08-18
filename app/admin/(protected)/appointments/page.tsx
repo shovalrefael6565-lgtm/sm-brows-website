@@ -173,8 +173,8 @@ export default async function AdminAppointmentsPage(
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#25D366]
-                                       border border-[#25D366]/30 hover:bg-[#25D366]/10 px-3.5 py-1.5
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-whatsapp-dark
+                                       border border-brand-whatsapp-dark/30 hover:bg-brand-whatsapp-dark/10 px-3.5 py-1.5
                                        rounded-full cursor-pointer transition-colors focus-visible:outline-none
                                        focus-visible:ring-2 focus-visible:ring-brand-gold"
                           >

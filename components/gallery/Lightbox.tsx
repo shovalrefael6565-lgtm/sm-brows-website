@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { X, ChevronRight, ChevronLeft } from 'lucide-react'
 
 interface LightboxImage {
@@ -22,6 +23,14 @@ interface Props {
 export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: Props) {
   const isOpen = currentIndex !== null
   const current = currentIndex !== null ? images[currentIndex] : null
+
+  /*
+   * ⚠️ ה-ESC כאן כבר טופל ב-handleKey למטה, ולכן ההוק מקבל onClose=undefined:
+   * שני מטפלים היו קוראים ל-onClose פעמיים. מה שההוק מוסיף זה מה שחסר —
+   * לכידת Tab בתוך הלייטבוקס והחזרת focus לתמונה הממוזערת שנפתחה ממנה.
+   * נעילת הגלילה נשארת ב-effect הקיים שכבר עושה בדיוק את זה.
+   */
+  const dialogRef = useDialogA11y<HTMLDivElement>({ open: isOpen })
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -50,15 +59,23 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
   }, [isOpen])
 
   return (
-    <AnimatePresence>
+    /*
+      ⚠️ בלי AnimatePresence, מאותה סיבה שמתועדת ב-ConsentPreferencesModal,
+      ב-AccessibilityWidget וב-BeforeAfterSection: exit animation של
+      framer-motion 11 עם React 19 לא תמיד משלים unmount, והשכבה הזו היא
+      `fixed inset-0 z-[100]` — כלומר אלמנט תקוע היה בולע כל לחיצה בדף.
+      (הרכיב הזה אינו מחווט כרגע לאף עמוד, אבל אין טעם להשאיר בו את הדפוס
+      שכבר הפיל שלושה מקומות אחרים.)
+    */
+    <>
       {isOpen && current && (
         <motion.div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={`תמונה מוגדלת: ${current.alt}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
           onClick={onClose}
@@ -98,7 +115,6 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
             key={currentIndex}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.25 }}
             className="relative max-w-4xl max-h-[85vh] w-full aspect-[4/3]"
             onClick={(e) => e.stopPropagation()}
@@ -118,12 +134,18 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
             )}
           </motion.div>
 
-          {/* Counter */}
+          {/*
+            ⚠️ אזור ה-live היה עטוף סביב נקודות עם aria-hidden בלבד — כלומר
+            הכריז מחרוזת ריקה, ומעבר בין תמונות לא נשמע כלל בקורא מסך.
+            ההכרזה עברה לטקסט sr-only אמיתי; הנקודות נשארות קישוט.
+          */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {`תמונה ${(currentIndex ?? 0) + 1} מתוך ${images.length}: ${current.alt}`}
+          </p>
           {currentIndex !== null && (
             <div
               className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2"
-              aria-live="polite"
-              aria-atomic="true"
+              aria-hidden="true"
             >
               {images.map((_, i) => (
                 <span
@@ -138,6 +160,6 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
           )}
         </motion.div>
       )}
-    </AnimatePresence>
+    </>
   )
 }

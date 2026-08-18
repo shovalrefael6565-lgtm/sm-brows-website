@@ -40,7 +40,7 @@ export default function PrivacyContent() {
           <ul className="list-disc list-inside space-y-1 text-brand-medium text-sm">
             <li>כתובת: {LOCATION}</li>
             <li>טלפון: <span dir="ltr">{PHONE_NUMBER}</span></li>
-            <li>דואר אלקטרוני: <a href={`mailto:${EMAIL}`} className="text-brand-rose hover:underline">{EMAIL}</a></li>
+            <li>דואר אלקטרוני: <a href={`mailto:${EMAIL}`} className="text-brand-rose-text hover:underline">{EMAIL}</a></li>
           </ul>
         </>
       ),
@@ -277,11 +277,11 @@ export default function PrivacyContent() {
           <p>{LOCATION}</p>
           <p>
             דואר אלקטרוני:{' '}
-            <a href={`mailto:${EMAIL}`} className="text-brand-rose hover:underline">{EMAIL}</a>
+            <a href={`mailto:${EMAIL}`} className="text-brand-rose-text hover:underline">{EMAIL}</a>
           </p>
           <p>
             וואצאפ:{' '}
-            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="text-brand-rose hover:underline">
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="text-brand-rose-text hover:underline">
               לחצי כאן לשליחת הודעה
             </a>
           </p>
@@ -327,7 +327,7 @@ export default function PrivacyContent() {
         <div className="mt-12 text-center">
           <Link
             href="/contact"
-            className="inline-flex items-center gap-2 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            className="inline-flex items-center gap-2 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             לשאלות נוספות – יצירת קשר
           </Link>

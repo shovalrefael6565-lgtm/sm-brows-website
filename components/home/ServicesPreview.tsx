@@ -214,7 +214,7 @@ export default function ServicesPreview() {
           <Link
             href="/services"
             aria-label="צפייה בעמוד הטיפולים המלא"
-            className="inline-flex items-center gap-2 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            className="inline-flex items-center gap-2 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             לכל הטיפולים

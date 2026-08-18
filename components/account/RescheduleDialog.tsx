@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 import { Loader2, Calendar, Clock, ArrowLeft, X } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
 import { buildLateChangeMessage, buildWhatsAppLinkToBusiness } from '@/lib/whatsappTemplates'
@@ -130,12 +131,13 @@ export default function RescheduleDialog({
     fetchBusy(selected.isoDate)
   }, [selected, fetchBusy])
 
-  // סגירה ב-Escape — התנהגות דיאלוג צפויה, גם במקלדת חיצונית בנייד
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, saving])
+  // Escape + לכידת focus + החזרתו לכפתור הפותח. saving חוסם סגירה
+  // כדי לא לנטוש בקשה שכבר בדרך לשרת.
+  const dialogRef = useDialogA11y<HTMLDivElement>({
+    open: true,
+    onClose: saving ? undefined : onClose,
+    lockScroll: true,
+  })
 
   const slots = selected && !slotsUnavailable
     ? selectDisplaySlots({
@@ -200,6 +202,7 @@ export default function RescheduleDialog({
       הודעת עוגיות / header 50 > ווידג'טים צפים 40.
     */
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-brand-dark/50 backdrop-blur-sm p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
@@ -372,7 +375,7 @@ export default function RescheduleDialog({
               }))}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-center text-xs font-semibold text-[#25D366] hover:underline"
+              className="block text-center text-xs font-semibold text-brand-whatsapp-dark hover:underline"
             >
               פנייה לשובל בוואטסאפ
             </a>

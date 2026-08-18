@@ -226,7 +226,7 @@ export default function LoginForm() {
                     key={i}
                     href={seg.href}
                     target="_blank"
-                    className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                    className="font-semibold text-brand-rose-text underline hover:text-brand-rose-text/80"
                   >
                     {seg.text}
                   </Link>

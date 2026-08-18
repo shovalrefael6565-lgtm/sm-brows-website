@@ -74,7 +74,7 @@ export default function RetrySyncButton({ appointmentId }: { appointmentId: stri
           href={fallbackUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-block mt-1 text-xs font-semibold text-[#25D366] hover:underline"
+          className="inline-block mt-1 text-xs font-semibold text-brand-whatsapp-dark hover:underline"
         >
           פתיחת הודעת האישור ב-WhatsApp
         </a>

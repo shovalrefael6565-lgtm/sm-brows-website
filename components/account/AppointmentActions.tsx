@@ -117,7 +117,7 @@ export default function AppointmentActions({
             }))}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block mt-1 font-semibold text-[#25D366] hover:underline"
+            className="inline-block mt-1 font-semibold text-brand-whatsapp-dark hover:underline"
           >
             פנייה לשובל בוואטסאפ
           </a>

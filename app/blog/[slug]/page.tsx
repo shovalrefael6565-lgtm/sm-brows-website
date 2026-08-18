@@ -106,7 +106,7 @@ export default async function BlogPostPage(props: Props) {
           <Link
             href="/blog"
             aria-label="חזרה לכל המאמרים"
-            className="inline-flex items-center gap-1.5 text-brand-rose hover:text-brand-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            className="inline-flex items-center gap-1.5 text-brand-rose-text hover:text-brand-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
             כל המאמרים
@@ -177,7 +177,7 @@ export default async function BlogPostPage(props: Props) {
                                 className="object-cover"
                               />
                             </div>
-                            <p className="text-xs text-brand-medium group-hover:text-brand-rose transition-colors leading-snug pt-1">
+                            <p className="text-xs text-brand-medium group-hover:text-brand-rose-text transition-colors leading-snug pt-1">
                               {related.title}
                             </p>
                           </Link>

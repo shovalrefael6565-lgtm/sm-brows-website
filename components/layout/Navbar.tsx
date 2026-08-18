@@ -11,6 +11,7 @@ import GoogleIcon from '@/components/ui/GoogleIcon'
 import { useCart } from '@/lib/cart'
 import { services } from '@/lib/data'
 import SocialIcons from '@/components/ui/SocialIcons'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 
 const navLinks = [
   { href: '/services', label: 'טיפולים', special: null },
@@ -106,6 +107,8 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
     return () => { document.body.style.overflow = '' }
   }, [menuOpen])
 
+  const mobileMenuRef = useDialogA11y<HTMLDivElement>({ open: menuOpen })
+
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus()
   }, [searchOpen])
@@ -132,6 +135,32 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  /*
+   * ⚠️ שלוש השכבות הנפתחות (מגירת הניווט, תפריט "קבעי תור", תיבת החיפוש)
+   * נסגרו עד כה **רק בעכבר** — mousedown מחוץ להן, או לחיצה על פריט.
+   * למשתמשת מקלדת לא הייתה שום דרך לסגור: Escape לא היה מחובר לכלום,
+   * והיא נשארה תקועה בתוך שכבה שמכסה את הדף. Escape הוא ההתנהגות הצפויה
+   * לכל אחת מהן (WCAG 2.1.2 — No Keyboard Trap).
+   */
+  useEffect(() => {
+    if (!menuOpen && !bookingOpen && !searchOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      // סדר סגירה מבפנים החוצה: השכבה שנפתחה אחרונה נסגרת ראשונה.
+      if (bookingOpen) {
+        setBookingOpen(false)
+        bookingRef.current?.querySelector('button')?.focus()
+      } else if (searchOpen) {
+        setSearchOpen(false)
+        setSearchQuery('')
+      } else if (menuOpen) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen, bookingOpen, searchOpen])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -263,12 +292,12 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                       className={cn(
                         'text-sm font-medium transition-colors duration-200 relative py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded',
                         special === 'sale'
-                          ? 'font-serif text-brand-gold font-bold hover:text-brand-gold-dark'
+                          ? 'font-serif text-brand-gold-text font-bold hover:text-brand-gold-dark'
                           : special === 'course'
-                          ? 'text-brand-rose font-semibold hover:text-brand-rose/80'
+                          ? 'text-brand-rose-text font-semibold hover:text-brand-rose-text/80'
                           : isActive
-                          ? 'text-brand-rose'
-                          : 'text-brand-dark hover:text-brand-rose'
+                          ? 'text-brand-rose-text'
+                          : 'text-brand-dark hover:text-brand-rose-text'
                       )}
                       aria-current={isActive && !special ? 'page' : undefined}
                     >
@@ -446,7 +475,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                         className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-cream transition-colors cursor-pointer group border-b border-brand-cream-dark/40"
                       >
                         <span className="w-8 h-8 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
-                          <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+                          <WhatsAppIcon className="w-4 h-4 text-brand-whatsapp-dark" />
                         </span>
                         <div className="text-right">
                           <p className="text-sm font-bold text-brand-dark">תור בוואצאפ</p>
@@ -512,9 +541,16 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             </div>
           </nav>
 
-          {/* Section dots — homepage only, desktop only */}
+          {/*
+            Section dots — homepage only, desktop only.
+
+            ⚠️ הנקודות הן 8×8 פיקסלים — מתחת ל-24×24 הנדרשים (WCAG 2.2,
+            2.5.8). המראה נשאר זהה; מה שהשתנה הוא שהכפתור עצמו הוא כעת
+            24 גובה עם ריפוד אופקי, והנקודה היא span פנימי מקושט.
+            ה-gap ירד ל-0 כי הריפוד מספק בדיוק את אותו מרווח ויזואלי.
+          */}
           {isHome && (
-            <div className="hidden lg:flex items-center justify-center gap-2 pb-1 pt-0.5">
+            <div className="hidden lg:flex items-center justify-center gap-0 pb-1 pt-0.5">
               {SECTIONS.map(({ id, label }) => {
                 const isActive = activeSection === id
                 return (
@@ -525,11 +561,16 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                     aria-label={`עבור אל: ${label}`}
                     aria-current={isActive ? 'true' : undefined}
                     title={label}
-                    className={cn(
-                      'rounded-full transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold',
-                      isActive ? 'w-5 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-muted/40 hover:bg-brand-rose/50'
-                    )}
-                  />
+                    className="h-6 px-2 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'block rounded-full transition-all duration-300',
+                        isActive ? 'w-5 h-2 bg-brand-rose' : 'w-2 h-2 bg-brand-muted/40'
+                      )}
+                    />
+                  </button>
                 )
               })}
             </div>
@@ -572,6 +613,14 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               initial="hidden"
               animate="visible"
               exit="hidden"
+              /*
+                ⚠️ המגירה הכריזה aria-modal="true" בלי ללכוד focus: Tab מתוכה
+                המשיך אל הקישורים של הדף שמתחת ל-overlay — גלויים לסדר ה-Tab
+                אך מוסתרים ויזואלית, כלומר focus נעלם מהמסך.
+                ה-Escape מטופל ב-effect המשותף לשלוש השכבות למעלה, ולכן
+                ההוק כאן מקבל onClose=undefined ורק לוכד ומחזיר focus.
+              */
+              ref={mobileMenuRef}
               className="fixed top-0 left-0 bottom-0 w-72 bg-white z-[60] flex flex-col lg:hidden shadow-soft-lg"
               role="dialog"
               aria-label="תפריט ניווט"
@@ -661,10 +710,10 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                           special === 'sale'
                             ? 'font-serif text-brand-gold font-bold hover:bg-brand-gold/10'
                             : special === 'course'
-                            ? 'text-brand-rose font-semibold hover:bg-brand-rose-bg'
+                            ? 'text-brand-rose-text font-semibold hover:bg-brand-rose-bg'
                             : pathname === href
-                            ? 'bg-brand-rose-bg text-brand-rose font-semibold'
-                            : 'text-brand-dark hover:bg-brand-rose-bg hover:text-brand-rose'
+                            ? 'bg-brand-rose-bg text-brand-rose-text font-semibold'
+                            : 'text-brand-dark hover:bg-brand-rose-bg hover:text-brand-rose-text'
                         )}
                       >
                         {label}

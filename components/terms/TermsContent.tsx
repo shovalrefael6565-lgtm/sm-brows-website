@@ -108,7 +108,7 @@ export default function TermsContent() {
 
         <h2>13. יצירת קשר</h2>
         <p>
-          לכל שאלה בנוגע לתנאי שימוש אלו, ניתן לפנות אלינו דרך <a href="/contact" className="text-brand-rose hover:text-brand-medium transition-colors">עמוד יצירת הקשר</a> או בוואצאפ.
+          לכל שאלה בנוגע לתנאי שימוש אלו, ניתן לפנות אלינו דרך <a href="/contact" className="text-brand-rose-text hover:text-brand-medium transition-colors">עמוד יצירת הקשר</a> או בוואצאפ.
         </p>
 
       </div>

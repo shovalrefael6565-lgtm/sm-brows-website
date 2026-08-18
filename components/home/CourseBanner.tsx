@@ -74,7 +74,7 @@ export default function CourseBanner() {
             >
               קורס עיצוב גבות
               <br />
-              <span className="text-brand-gold">מקצועי</span>
+              <span className="text-brand-gold-text">מקצועי</span>
             </h2>
 
             {/* Description — switches per format */}
@@ -155,7 +155,7 @@ export default function CourseBanner() {
               <div aria-hidden="true" className="absolute inset-0 bg-brand-gold/10 rounded-3xl blur-2xl scale-110" />
 
               <div className="relative bg-white/80 border border-brand-cream-dark rounded-3xl p-8 text-center backdrop-blur-sm shadow-soft">
-                <div className="inline-flex items-center gap-1.5 bg-brand-rose/20 border border-brand-rose/30 text-brand-rose text-xs font-bold px-3 py-1 rounded-full mb-5">
+                <div className="inline-flex items-center gap-1.5 bg-brand-rose/20 border border-brand-rose/30 text-brand-rose-text text-xs font-bold px-3 py-1 rounded-full mb-5">
                   <Sparkles className="w-3 h-3" aria-hidden="true" />
                   {data.badge}
                 </div>

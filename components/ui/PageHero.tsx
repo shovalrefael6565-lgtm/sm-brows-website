@@ -32,7 +32,7 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
           {titleHighlight && (
             <>
               {' '}
-              <span className="text-brand-rose">{titleHighlight}</span>
+              <span className="text-brand-rose-text">{titleHighlight}</span>
             </>
           )}
         </h1>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertTriangle, X } from 'lucide-react'
 import { createInFlightGuard } from '@/lib/otpFormGuards'
@@ -50,13 +51,11 @@ export default function CancelPendingButton({ appointmentId }: { appointmentId: 
    */
   const inFlight = useRef(createInFlightGuard())
 
-  // סגירה ב-Escape — התנהגות דיאלוג צפויה, גם במקלדת חיצונית בנייד
-  useEffect(() => {
-    if (!confirming) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) setConfirming(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [confirming, loading])
+  const dialogRef = useDialogA11y<HTMLDivElement>({
+    open: confirming,
+    onClose: loading ? undefined : () => setConfirming(false),
+    lockScroll: true,
+  })
 
   const close = () => {
     if (loading) return
@@ -125,6 +124,7 @@ export default function CancelPendingButton({ appointmentId }: { appointmentId: 
           היו מכסות את הגיליון התחתון הזה בדיוק כפי שקרה בדיאלוגים האחרים.
         */
         <div
+          ref={dialogRef}
           className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-brand-dark/50 backdrop-blur-sm p-0 sm:p-4"
           role="dialog"
           aria-modal="true"

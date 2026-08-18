@@ -36,13 +36,13 @@ export default function GalleryPreview() {
               className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
             >
               עבודות שאני
-              <span className="text-brand-rose"> גאה בהן</span>
+              <span className="text-brand-rose-text"> גאה בהן</span>
             </h2>
           </div>
           <Link
             href="/services"
             aria-label="לעמוד הטיפולים"
-            className="inline-flex items-center gap-1.5 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            className="inline-flex items-center gap-1.5 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             לעמוד הטיפולים

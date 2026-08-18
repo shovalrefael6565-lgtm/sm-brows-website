@@ -112,7 +112,7 @@ export default function ServiceFaqSection() {
             className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-4"
           >
             שאלות
-            <span className="text-brand-rose"> נפוצות</span>
+            <span className="text-brand-rose-text"> נפוצות</span>
           </h2>
           <div className="flex items-center justify-center gap-2 mb-4" aria-hidden="true">
             <span className="w-10 h-px bg-brand-rose-light" />
@@ -152,7 +152,7 @@ export default function ServiceFaqSection() {
           </a>
           <Link
             href="/faq"
-            className="text-sm text-brand-rose hover:text-brand-rose/70 underline underline-offset-2 transition-colors"
+            className="text-sm text-brand-rose-text hover:text-brand-rose-text/80 underline underline-offset-2 transition-colors"
           >
             לכל השאלות ←
           </Link>

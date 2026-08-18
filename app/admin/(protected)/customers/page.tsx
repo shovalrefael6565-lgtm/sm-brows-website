@@ -190,7 +190,7 @@ function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLab
   return (
     <tr className="hover:bg-brand-cream/30 transition-colors">
       <td className="px-4 py-3">
-        <Link href={`/admin/customers/${row.id}`} className="font-medium text-brand-dark hover:text-brand-rose">
+        <Link href={`/admin/customers/${row.id}`} className="font-medium text-brand-dark hover:text-brand-rose-text">
           {row.full_name}
         </Link>
         <div className="text-xs text-brand-muted flex items-center gap-1.5" dir="ltr">

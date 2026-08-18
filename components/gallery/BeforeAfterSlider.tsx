@@ -84,8 +84,10 @@ export default function BeforeAfterSlider({
     <div
       ref={containerRef}
       className="relative w-full h-full select-none overflow-hidden rounded-2xl"
+      /* ⚠️ לא role="img": תוכן של role="img" נחשב פרזנטציוני, וה-role="slider"
+         שבתוכו נעלם מעץ הנגישות. group משאיר את הפקד נגיש. */
       aria-label={`השוואת לפני ואחרי: ${alt}`}
-      role="img"
+      role="group"
     >
       {/* After/right image (base layer) */}
       <div
@@ -156,6 +158,7 @@ export default function BeforeAfterSlider({
         aria-valuenow={Math.round(position)}
         aria-valuemin={0}
         aria-valuemax={100}
+        aria-valuetext={`${Math.round(position)}% מהתמונה "${leftLabel || 'לפני'}"`}
         tabIndex={0}
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}

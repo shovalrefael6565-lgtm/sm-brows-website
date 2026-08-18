@@ -83,7 +83,7 @@ export default function MicrobladingTeaser() {
             />
             <span
               aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 via-transparent to-transparent"
+              className="absolute inset-0 bg-gradient-to-t from-brand-dark/85 via-brand-dark/25 to-transparent"
             />
             <span className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-1.5 text-white text-sm font-semibold opacity-90 group-hover:opacity-100 transition-opacity">
               לצפייה בעוד

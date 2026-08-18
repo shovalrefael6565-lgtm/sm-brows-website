@@ -38,7 +38,7 @@ export default function BookingSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="קביעת תור בוואצאפ – S.M BROWS"
-              className="inline-flex items-center gap-3 bg-[#25D366] text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-3 bg-brand-whatsapp-dark text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2"
             >
               <WhatsAppIcon className="w-7 h-7" />
               שלחי הודעה בוואצאפ
@@ -58,7 +58,7 @@ export default function BookingSection() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="list" aria-label="פרטי התקשרות">
             {[
               {
-                icon: <WhatsAppIcon className="w-6 h-6 text-[#25D366]" />,
+                icon: <WhatsAppIcon className="w-6 h-6 text-brand-whatsapp-dark" />,
                 label: 'וואצאפ',
                 value: PHONE_NUMBER,
                 href: WHATSAPP_URL,

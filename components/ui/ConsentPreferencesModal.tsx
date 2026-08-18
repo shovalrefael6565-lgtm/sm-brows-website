@@ -65,6 +65,7 @@ export default function ConsentPreferencesModal() {
   useEffect(() => {
     if (!visible) return
     const dialog = dialogRef.current
+    const opener = document.activeElement as HTMLElement | null
     const firstFocusable = dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
     firstFocusable?.focus()
 
@@ -88,7 +89,15 @@ export default function ConsentPreferencesModal() {
       }
     }
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      /*
+       * ⚠️ החזרת focus למי שפתח את החלון. בלעדיה focus נפל ל-<body> אחרי
+       * הסגירה, ומשתמשת שפתחה את ההעדפות מקישור הפוטר נזרקה לראש הדף
+       * וצריכה לעבור שוב בכל האתר ב-Tab (WCAG 2.4.3 — Focus Order).
+       */
+      if (opener && opener.isConnected) opener.focus()
+    }
   }, [visible, closePreferences])
 
   if (!visible) return null

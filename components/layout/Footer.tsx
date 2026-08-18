@@ -91,9 +91,9 @@ export default function Footer() {
 
           {/* Col 2 — עזרה */}
           <div>
-            <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
               עזרה
-            </h3>
+            </h2>
             <ul className="space-y-3" role="list">
               {col2Links.map(({ href, label, external }) => (
                 <li key={label}>
@@ -124,9 +124,9 @@ export default function Footer() {
 
           {/* Col 3 — עליי */}
           <div>
-            <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
               עליי
-            </h3>
+            </h2>
             <ul className="space-y-3" role="list">
               {col3Links.map(({ href, label }) => (
                 <li key={label}>
@@ -143,9 +143,9 @@ export default function Footer() {
 
           {/* Col 4 — הקליניקה */}
           <div>
-            <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
               הקליניקה שלי
-            </h3>
+            </h2>
             <ul className="space-y-4" role="list">
               <li>
                 <div className="flex items-start gap-3 text-white/55 text-sm">

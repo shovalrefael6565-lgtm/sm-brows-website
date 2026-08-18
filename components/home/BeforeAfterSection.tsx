@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, useInView } from 'framer-motion'
 import Image from 'next/image'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 
 const IMAGES = [
   { src: '/ba-new-1.webp?v=3', alt: 'מיקרובליידינג לפני ואחרי 1',  pos: '50% 30%', mobilePos: '50% 30%' },
@@ -35,6 +36,13 @@ export default function BeforeAfterSection() {
   const [current, setCurrent]   = useState(0)
   const [lightbox, setLightbox] = useState<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Escape + לכידת focus + החזרתו לתמונה שממנה נפתח הלייטבוקס.
+  const lightboxRef = useDialogA11y<HTMLDivElement>({
+    open: lightbox !== null,
+    onClose: () => setLightbox(null),
+    lockScroll: true,
+  })
 
   /* ── Desktop strip (RAF-based) ── */
   const stripRef  = useRef<HTMLDivElement>(null)
@@ -198,7 +206,18 @@ export default function BeforeAfterSection() {
               className="relative rounded-3xl shadow-soft overflow-hidden aspect-[16/9] cursor-zoom-in group"
               onClick={() => setLightbox(current)}
               role="button" aria-label="הגדל תמונה" tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && setLightbox(current)}
+              /*
+                ⚠️ גם Space, לא רק Enter. אלמנט עם role="button" חייב להגיב
+                לשני המקשים (WCAG 2.1.1) — זו ההתנהגות של <button> אמיתי,
+                ומשתמשות מקלדת רבות מפעילות כפתורים ברווח. preventDefault
+                מונע מהרווח לגלול את הדף מתחת ללייטבוקס.
+              */
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setLightbox(current)
+                }
+              }}
             >
               {IMAGES.map((img, i) => (
                 <div
@@ -220,11 +239,20 @@ export default function BeforeAfterSection() {
               <button onClick={prev} aria-label="תמונה קודמת" className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm">
                 <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-              <div className="flex gap-2" role="tablist" aria-label="בחירת תמונה">
+              {/*
+                ⚠️ הנקודות עצמן הן 8×8 פיקסלים — הרבה מתחת ל-24×24 הנדרשים
+                (WCAG 2.2, 2.5.8). הן נשארות באותו גודל ויזואלי, אבל עוטפות
+                אותן כפתורים בגובה 24 ועם ריפוד אופקי, כך שאזור הלחיצה עצמו
+                עומד בדרישה. ה-gap ירד ל-0 כי הריפוד מספק את המרווח.
+              */}
+              <div className="flex gap-0" role="tablist" aria-label="בחירת תמונה">
                 {IMAGES.map((_, i) => (
-                  <button key={i} role="tab" aria-selected={i === current} aria-label={`תמונה ${i + 1}`}
+                  <button key={i} type="button" role="tab" aria-selected={i === current} aria-label={`תמונה ${i + 1}`}
                     onClick={() => goTo(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${i === current ? 'w-6 bg-brand-rose' : 'w-2 bg-brand-rose-light'}`} />
+                    className="h-6 px-2 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold">
+                    <span aria-hidden="true"
+                      className={`block h-2 rounded-full transition-all duration-300 ${i === current ? 'w-6 bg-brand-rose' : 'w-2 bg-brand-rose-light'}`} />
+                  </button>
                 ))}
               </div>
               <button onClick={next} aria-label="תמונה הבאה" className="w-9 h-9 rounded-full border border-brand-rose-light bg-white hover:bg-brand-rose hover:border-brand-rose hover:text-white text-brand-rose transition-all duration-200 flex items-center justify-center shadow-sm">
@@ -235,21 +263,45 @@ export default function BeforeAfterSection() {
         </div>
       </section>
 
-      {/* ── Lightbox ── */}
-      <AnimatePresence>
-        {lightbox !== null && (
+      {/*
+        ── Lightbox ──
+
+        🔴 בלי AnimatePresence — באג פרודקשן אמיתי, אומת ב-hit-test.
+
+        ⚠️ exit animation של framer-motion 11 עם React 19 לא תמיד משלים
+        unmount. השכבה הזו היא `fixed inset-0 z-[9999]`, ולכן כשהיא נתקעת
+        עם opacity:0 ו-pointer-events:auto היא בולעת **כל** לחיצה בדף
+        הבית — אחרי פתיחה וסגירה אחת של תמונה מוגדלת, האתר נראה תקין
+        לגמרי ולא מגיב לכלום. אומת: אחרי Escape האלמנט נשאר ב-DOM עם
+        pointerEvents=auto ו-opacity=0.
+
+        ⚠️ אותו כשל בדיוק מתועד ב-components/ui/ConsentPreferencesModal.tsx
+        וב-components/ui/AccessibilityWidget.tsx. רינדור מותנה מסיר את
+        האלמנט מיידית; אנימציית הכניסה נשמרת.
+      */}
+      {lightbox !== null && (
           <motion.div
             key="lightbox-overlay"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.22 }}
+            /*
+              ⚠️ הלייטבוקס הזה הכריז aria-modal="true" בלי לממש כלום מזה:
+              Escape לא סגר אותו, Tab יצא ממנו אל הדף שמתחת, ואחרי סגירה
+              focus נפל ל-<body>. הוא נשאר מחוץ לרדאר כי הוא לייטבוקס שני,
+              מקומי, ולא components/gallery/Lightbox.tsx.
+            */
+            ref={lightboxRef}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
             style={{ background: 'linear-gradient(135deg,rgba(250,247,245,.97) 0%,rgba(247,235,232,.97) 40%,rgba(240,216,213,.97) 70%,rgba(234,216,181,.97) 100%)' }}
             onClick={() => setLightbox(null)}
             role="dialog" aria-modal="true" aria-label="תצוגת תמונה מוגדלת"
           >
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {`תמונה ${lightbox + 1} מתוך ${IMAGES.length}: ${IMAGES[lightbox].alt}`}
+            </p>
             <motion.div
               key={lightbox}
-              initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.93 }}
+              initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               className="relative w-full max-w-3xl max-h-[85vh] aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl"
               onClick={e => e.stopPropagation()}
@@ -274,7 +326,6 @@ export default function BeforeAfterSection() {
             </button>
           </motion.div>
         )}
-      </AnimatePresence>
     </>
   )
 }

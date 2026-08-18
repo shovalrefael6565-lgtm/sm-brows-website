@@ -13,17 +13,24 @@ const config: Config = {
           cream: '#FAF7F5',
           'cream-dark': '#F2E8E4',
           rose: '#C4847A',
+          'rose-text': '#96534A',    // accessible rose for text/links — 5.8:1 on white, 4.7:1 on linen
           'rose-light': '#EDD5D0',
           'rose-bg': '#FAF0EE',
           gold: '#C9A96E',
           'gold-light': '#EAD8B5',
           'gold-dark': '#A07840',
-          'gold-text': '#7D5C1C',   // accessible gold for small text — 6:1 on white/cream/linen
+          'gold-text': '#725417',   // accessible gold for small text — 7:1 on white/cream, 5:1 on gold-light
           linen: '#EDE8DF',
           'linen-dark': '#DDD6CB',
           dark: '#2C1810',
           medium: '#6B4545',
           muted: '#6B5252',          // was #9B7A7A (3.8:1) — now 7:1 on white
+          // ⚠️ ירוק הוואטסאפ הרשמי (#25D366) נותן 1.98:1 מול לבן — נכשל גם
+          // בטקסט גדול וגם בדרישת 3:1 לאייקונים (WCAG 1.4.11). הוא נשאר
+          // לשימושי מילוי/רקע-שקוף בלבד; כל משטח שנושא טקסט או אייקון לבן,
+          // וכל טקסט ירוק על רקע בהיר, משתמשים ב-whatsapp-dark (5.1:1 מול לבן).
+          whatsapp: '#25D366',
+          'whatsapp-dark': '#0C7F3F',
         },
       },
       fontFamily: {

@@ -49,7 +49,7 @@ export default function BlogPage() {
           >
             {blogPosts.map((post, i) => (
               <li key={post.id}>
-                <BlogCard post={post} priority={i === 0} />
+                <BlogCard post={post} priority={i === 0} headingLevel={2} />
               </li>
             ))}
           </ul>

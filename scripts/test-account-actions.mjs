@@ -278,8 +278,16 @@ section('11. נגישות — מקלדת ומובייל')
     const clean = stripComments(src(file))
     chk(`${label}: role="dialog" + aria-modal + aria-labelledby`,
       /role="dialog"/.test(clean) && /aria-modal="true"/.test(clean) && /aria-labelledby=/.test(clean))
+    /*
+     * ⚠️ ה-Escape עבר ל-lib/useDialogA11y — יחד עם לכידת focus והחזרתו,
+     * שהיו חסרים כאן לגמרי (הדיאלוג הכריז aria-modal בלי לממש אותו).
+     * הערובה עצמה לא השתנתה: Escape סוגר, **אבל לא בזמן שליחה** —
+     * שם onClose מועבר כ-undefined, וההוק מתעלם מהמקש.
+     */
     chk(`${label}: Escape סוגר (ולא בזמן שליחה)`,
-      /e\.key === 'Escape' && !saving/.test(clean))
+      /useDialogA11y</.test(clean) && /onClose: saving \? undefined : onClose/.test(clean))
+    chk(`${label}: focus נלכד בדיאלוג ומוחזר בסגירה`,
+      /ref=\{dialogRef\}/.test(clean) && /const dialogRef = useDialogA11y/.test(clean))
     chk(`${label}: גיליון תחתון במובייל, ממורכז בדסקטופ`,
       /items-end sm:items-center/.test(clean))
     chk(`${label}: כפתור סגירה בעל aria-label`, /aria-label="סגירה"/.test(clean))
@@ -316,7 +324,12 @@ section('11.5 🔴 ביטול בקשה ממתינה — בלי window.confirm')
   chk('🔒 הדיאלוג מרונדר רק אחרי בחירה מפורשת', /\{confirming && \(/.test(clean))
   chk('דיאלוג React אמיתי: role + aria-modal + aria-labelledby',
     /role="dialog"/.test(clean) && /aria-modal="true"/.test(clean) && /aria-labelledby="cancel-pending-title"/.test(clean))
-  chk('Escape סוגר (ולא בזמן שליחה)', /e\.key === 'Escape' && !loading/.test(clean))
+  // ⚠️ כמו בשני הדיאלוגים האחרים: Escape + לכידת focus עברו ל-useDialogA11y.
+  // loading חוסם סגירה, כדי לא לנטוש POST שכבר בדרך.
+  chk('Escape סוגר (ולא בזמן שליחה)',
+    /useDialogA11y</.test(clean) && /onClose: loading \? undefined : \(\) => setConfirming\(false\)/.test(clean))
+  chk('focus נלכד בדיאלוג ומוחזר בסגירה',
+    /ref=\{dialogRef\}/.test(clean) && /const dialogRef = useDialogA11y/.test(clean))
   chk('גיליון תחתון במובייל, ממורכז בדסקטופ', /items-end sm:items-center/.test(clean))
 
   const zOfPending = (() => {

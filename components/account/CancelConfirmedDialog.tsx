@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useDialogA11y } from '@/lib/useDialogA11y'
 import { Loader2, AlertTriangle, X } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
 import { buildLateChangeMessage, buildWhatsAppLinkToBusiness } from '@/lib/whatsappTemplates'
@@ -30,11 +31,11 @@ export default function CancelConfirmedDialog({
   const [error, setError] = useState<string | null>(null)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, saving])
+  const dialogRef = useDialogA11y<HTMLDivElement>({
+    open: true,
+    onClose: saving ? undefined : onClose,
+    lockScroll: true,
+  })
 
   const submit = async () => {
     if (saving) return
@@ -77,6 +78,7 @@ export default function CancelConfirmedDialog({
       הודעת עוגיות / header 50 > ווידג'טים צפים 40.
     */
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-brand-dark/50 backdrop-blur-sm p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
@@ -143,7 +145,7 @@ export default function CancelConfirmedDialog({
               }))}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-center text-xs font-semibold text-[#25D366] hover:underline"
+              className="block text-center text-xs font-semibold text-brand-whatsapp-dark hover:underline"
             >
               פנייה לשובל בוואטסאפ
             </a>

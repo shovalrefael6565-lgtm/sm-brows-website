@@ -60,7 +60,7 @@ export default function ServicesPage() {
               className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
             >
               הפכי את התשוקה
-              <span className="text-brand-rose"> למקצוע</span>
+              <span className="text-brand-rose-text"> למקצוע</span>
             </h2>
           </div>
           <CourseCard />

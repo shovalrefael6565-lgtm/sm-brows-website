@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useDialogA11y } from '@/lib/useDialogA11y'
+import { motion } from 'framer-motion'
 import { X, Accessibility } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -76,20 +77,14 @@ const A11Y_OPTIONS: A11yOption[] = [
       </svg>
     ),
   },
-  {
-    id: 'screen-reader',
-    label: 'קריינות מסך',
-    description: 'הפעלת תמיכה בקורא מסך (ARIA)',
-    cssClass: 'a11y-screen-reader',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5" aria-hidden="true">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
-      </svg>
-    ),
-  },
+  /*
+   * ⚠️ המתג "קריינות מסך" הוסר. הוא הוסיף לגוף המסמך את המחלקה
+   * `a11y-screen-reader` — מחלקה שאין לה שום כלל ב-app/globals.css ואף
+   * קוד אינו קורא אותה. כלומר הוא נדלק, נשמר ב-localStorage, ולא עשה
+   * דבר, תוך שהוא מבטיח "הפעלת תמיכה בקורא מסך (ARIA)". תמיכת ה-ARIA
+   * באתר פעילה תמיד ואינה ניתנת להפעלה מהדפדפן; מתג ריק שמבטיח אותה
+   * מטעה בדיוק את המשתמשות שהווידג'ט נועד לשרת.
+   */
 ]
 
 const STORAGE_KEY = 'sm-brows-a11y'
@@ -97,6 +92,17 @@ const STORAGE_KEY = 'sm-brows-a11y'
 export default function AccessibilityWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [active, setActive] = useState<Record<string, boolean>>({})
+
+  /*
+   * ⚠️ הפאנל הכריז aria-modal="true" בלי לממש דבר מזה: Escape לא סגר אותו,
+   * Tab יצא ממנו אל הדף שמאחוריו, ואחרי סגירה focus נזרק ל-<body>. דווקא
+   * בווידג'ט הנגישות זו התקלה הכואבת ביותר — הוא הכלי הראשון שמשתמשת
+   * מקלדת מגיעה אליו.
+   */
+  const panelRef = useDialogA11y<HTMLDivElement>({
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+  })
 
   // קריאת localStorage חייבת לקרות אחרי mount (לא ב-lazy initializer של
   // useState): הקוד הזה רץ גם ב-SSR, ו-localStorage אינו קיים שם — קריאה
@@ -156,27 +162,44 @@ export default function AccessibilityWidget() {
         <Accessibility className="w-6 h-6" aria-hidden="true" />
       </button>
 
-      {/* Panel */}
-      <AnimatePresence>
-        {isOpen && (
+      {/*
+        🔴 בלי AnimatePresence — באג פרודקשן אמיתי, אומת ב-hit-test.
+
+        ⚠️ exit animation של framer-motion 11 עם React 19 לא תמיד משלים
+        unmount. הפאנל נשאר ב-DOM עם opacity:0 אבל pointer-events:auto
+        ו-visibility:visible, יחד עם ה-overlay שלו (fixed inset-0).
+        התוצאה: אחרי פתיחה־וסגירה **אחת** של תפריט הנגישות, כל לחיצה
+        באזור של ~365×460 פיקסלים בפינה התחתונה נבלעה ע"י פאנל בלתי נראה,
+        בכל עמוד באתר — הווידג'ט גלובלי. אומת: elementFromPoint(1100,700)
+        החזיר כפתור מתוך הפאנל הסגור במקום את תוכן העמוד.
+
+        ⚠️ בנוסף, אלמנט תקוע עם role="dialog" aria-modal="true" נשאר חשוף
+        לקורא מסך כדיאלוג פתוח — כלומר דווקא תפריט הנגישות היה זה שפגע
+        בנגישות של כל שאר הדף.
+
+        ⚠️ ההחלטה הזו כבר התקבלה במקום אחר במערכת מאותה סיבה בדיוק:
+        components/ui/ConsentPreferencesModal.tsx מתעד את אותו כשל.
+        רינדור מותנה רגיל מסיר את האלמנט מיידית ואמין; אנימציית הכניסה
+        (initial/animate) ממשיכה לעבוד, רק בלי exit.
+      */}
+      {isOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-0 bg-black/30 z-40"
               onClick={() => setIsOpen(false)}
               aria-hidden="true"
             />
             <motion.div
+              ref={panelRef}
               id="a11y-panel"
               role="dialog"
               aria-label="אפשרויות נגישות"
               aria-modal="true"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
               className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm bg-white rounded-2xl shadow-soft-lg border border-brand-rose-light overflow-hidden"
             >
@@ -261,7 +284,6 @@ export default function AccessibilityWidget() {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
     </>
   )
 }

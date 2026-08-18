@@ -256,7 +256,7 @@ function IssueCard({ issue, appt }: { issue: OpenIssueRow; appt?: AdminAppointme
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block mt-2 text-xs font-semibold text-[#25D366] hover:underline"
+            className="inline-block mt-2 text-xs font-semibold text-brand-whatsapp-dark hover:underline"
           >
             פתיחת WhatsApp ללקוחה
           </a>

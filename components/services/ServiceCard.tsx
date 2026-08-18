@@ -151,10 +151,15 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: {
       </button>
 
       <div
-        className="absolute bottom-4 start-4 flex items-center gap-1.5 z-10"
+        className="absolute bottom-1 start-2 flex items-center gap-0 z-10"
         role="tablist"
         aria-label="בחרי תמונה"
       >
+        {/*
+          ⚠️ הנקודות הן 6×6 פיקסלים. הן נשארות כך ויזואלית, אבל עוטף אותן
+          כפתור 24 גובה עם ריפוד — אזור הלחיצה עומד ב-WCAG 2.2 (2.5.8),
+          שהוא קריטי במיוחד כאן: הפקד יושב על תמונה, בנייד, באצבע.
+        */}
         {images.map((_, i) => (
           <button
             key={i}
@@ -163,12 +168,19 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: {
             aria-selected={i === displayIdx}
             aria-label={`תמונה ${i + 1}`}
             onClick={() => navigate(i)}
-            className={`transition-all duration-300 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${
-              i === displayIdx
-                ? 'w-4 h-1.5 bg-brand-gold'
-                : 'w-1.5 h-1.5 bg-white/60 hover:bg-white'
-            }`}
-          />
+            /* px-2.5 ולא px-2: הנקודה כאן היא 6px (w-1.5), ולכן ריפוד של 8
+               לכל צד היה נותן 22px — עדיין מתחת ל-24. */
+            className="h-6 px-2.5 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+          >
+            <span
+              aria-hidden="true"
+              className={`block transition-all duration-300 rounded-full ${
+                i === displayIdx
+                  ? 'w-4 h-1.5 bg-brand-gold'
+                  : 'w-1.5 h-1.5 bg-white/60'
+              }`}
+            />
+          </button>
         ))}
       </div>
     </div>
@@ -251,7 +263,7 @@ export default function ServiceCard({ service, index }: Props) {
                 <p className="text-xs text-brand-muted">מחיר הטיפול</p>
                 <p className="font-serif text-2xl font-bold text-brand-dark">{service.price}</p>
                 {service.priceNote && (
-                  <p className="text-xs text-brand-rose font-semibold mt-0.5">{service.priceNote}</p>
+                  <p className="text-xs text-brand-rose-text font-semibold mt-0.5">{service.priceNote}</p>
                 )}
               </div>
               <div className="h-10 w-px bg-brand-rose-light" aria-hidden="true" />

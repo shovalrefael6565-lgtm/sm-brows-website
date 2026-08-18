@@ -116,7 +116,7 @@ export default function TestimonialsSection() {
             id="testimonials-heading"
             className="font-serif text-4xl sm:text-5xl font-bold text-brand-dark mb-4"
           >
-            לקוחות <span className="text-brand-rose">ממליצות</span>
+            לקוחות <span className="text-brand-rose-text">ממליצות</span>
           </h2>
           <div className="flex items-center justify-center gap-3">
             <div className="w-10 h-px bg-brand-gold/50" />

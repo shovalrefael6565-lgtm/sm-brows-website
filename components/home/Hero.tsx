@@ -125,7 +125,7 @@ export default function Hero() {
                       className="flex items-center gap-3 px-5 py-4 hover:bg-brand-cream transition-colors cursor-pointer group border-b border-brand-cream-dark/40"
                     >
                       <span className="w-9 h-9 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
-                        <WhatsAppIcon className="w-4.5 h-4.5 text-[#25D366]" />
+                        <WhatsAppIcon className="w-4.5 h-4.5 text-brand-whatsapp-dark" />
                       </span>
                       <div className="text-right">
                         <p className="text-sm font-bold text-brand-dark">תור בוואצאפ</p>
@@ -179,7 +179,7 @@ export default function Hero() {
               { num: '100%', label: 'שביעות רצון' },
             ].map(({ num, label }) => (
               <div key={num} className="text-center" role="listitem">
-                <p className="font-serif text-xl font-bold text-brand-rose">{num}</p>
+                <p className="font-serif text-xl font-bold text-brand-rose-text">{num}</p>
                 <p className="text-xs text-brand-muted">{label}</p>
               </div>
             ))}
@@ -236,7 +236,7 @@ export default function Hero() {
                 {/* Divider with title */}
                 <div className="flex items-center gap-3 mb-5">
                   <div className="flex-1 h-px bg-brand-gold/30" />
-                  <span className="text-xs sm:text-sm text-brand-gold font-semibold tracking-[0.2em] uppercase whitespace-nowrap">
+                  <span className="text-xs sm:text-sm text-brand-gold-text font-semibold tracking-[0.2em] uppercase whitespace-nowrap">
                     מומחית גבות · 5 שנות ניסיון
                   </span>
                   <div className="flex-1 h-px bg-brand-gold/30" />
@@ -254,7 +254,7 @@ export default function Hero() {
                 <div className="mt-4 pt-4 border-t border-brand-cream-dark/60 text-center">
                   <p className="text-brand-dark text-xl sm:text-2xl font-serif">
                     כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות —
-                    <span className="text-brand-rose"> גבות שמדברות בעד עצמן.</span>
+                    <span className="text-brand-rose-text"> גבות שמדברות בעד עצמן.</span>
                   </p>
                 </div>
               </div>

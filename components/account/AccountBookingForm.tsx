@@ -444,7 +444,7 @@ export default function AccountBookingForm() {
                     key={i}
                     href={seg.href}
                     target="_blank"
-                    className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                    className="font-semibold text-brand-rose-text underline hover:text-brand-rose-text/80"
                   >
                     {seg.text}
                   </Link>
@@ -482,7 +482,7 @@ export default function AccountBookingForm() {
                   href={POLICY_PATH}
                   target="_blank"
                   onClick={e => e.stopPropagation()}
-                  className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                  className="font-semibold text-brand-rose-text underline hover:text-brand-rose-text/80"
                 >
                   מדיניות קביעת התורים, השינויים והביטולים
                 </Link>{' '}
@@ -524,7 +524,7 @@ export default function AccountBookingForm() {
                         href={PRIVACY_PATH}
                         target="_blank"
                         onClick={e => e.stopPropagation()}
-                        className="font-semibold text-brand-rose underline hover:text-brand-rose/80"
+                        className="font-semibold text-brand-rose-text underline hover:text-brand-rose-text/80"
                       >
                         {linkText}
                       </Link>
@@ -567,7 +567,7 @@ export default function AccountBookingForm() {
             href={WHATSAPP_BASE}
             target="_blank"
             rel="noopener noreferrer"
-            className="block text-center text-xs font-semibold text-[#25D366] hover:underline"
+            className="block text-center text-xs font-semibold text-brand-whatsapp-dark hover:underline"
           >
             פנייה לשובל בוואטסאפ
           </a>

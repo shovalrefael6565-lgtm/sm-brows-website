@@ -34,13 +34,13 @@ export default function BlogPreview() {
               className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
             >
               טיפים וידע
-              <span className="text-brand-rose"> ממני</span>
+              <span className="text-brand-rose-text"> ממני</span>
             </h2>
           </div>
           <Link
             href="/blog"
             aria-label="לכל המאמרים"
-            className="inline-flex items-center gap-1.5 text-brand-rose font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            className="inline-flex items-center gap-1.5 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             לכל המאמרים

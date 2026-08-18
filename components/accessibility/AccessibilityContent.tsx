@@ -7,27 +7,42 @@ import { EMAIL, WHATSAPP_URL } from '@/lib/utils'
 
 const OWNER_NAME = 'שובל ואחדי מאירה'
 const BUSINESS_NAME = 'S.M BROWS'
-const LAST_UPDATED = 'מאי 2026'
+const LAST_UPDATED = 'אוגוסט 2026'
 
+/*
+ * ⚠️ הרשימות כאן הן הצהרה משפטית, לא שיווק. כל שורה חייבת להיות נכונה
+ * במצב הקוד **בפועל** — סעיף שמבטיח התאמה שלא קיימת חושף את העסק בדיוק
+ * באותה מידה כמו היעדר ההתאמה עצמה. עודכן לאחר בדיקת נגישות מלאה
+ * (ניגודיות, ניווט מקלדת, דיאלוגים, landmarks, אזורי לחיצה) באוגוסט 2026.
+ *
+ * ⚠️ נמחקו שתי הצהרות שלא היו נכונות בזמן הכתיבה:
+ *   • "אזורי לחיצה 44×44" — הדרישה בתקן היא 24×24 (WCAG 2.2, 2.5.8), וחלק
+ *     מהפקדים היו מתחת גם לזה עד לתיקון הזה. הנוסח החדש מצהיר על מה שנבדק.
+ *   • "מבנה כותרות תקין" נשאר, אבל רק אחרי שדילוגי הרמות בפועל תוקנו.
+ */
 const implemented = [
   'הגדרת כיוון RTL (מימין לשמאל) לכל דפי האתר',
-  'תגי ARIA מתאימים לכפתורים, ניווט ורכיבים אינטראקטיביים',
-  'טקסט חלופי (alt text) לכל התמונות המשמעותיות',
-  'ניגודיות צבעים עומדת בדרישות רמה AA לפי WCAG 2.0',
-  'גודל פונטים ניתן להגדלה ללא שבירת הפריסה',
-  'אפשרות ניווט מלאה באמצעות מקלדת (Tab order)',
-  'מצבי focus גלויים על כל האלמנטים האינטראקטיביים',
-  'כותרות (h1–h6) במבנה היררכי תקין',
-  'גדלי אזורי לחיצה עומדים בדרישות המינימום (44×44 פיקסל)',
-  'תמיכה ב-prefers-reduced-motion להפחתת אנימציות',
   'שפת הדף מוגדרת כ-"he" (עברית)',
-  'כל הטפסים כוללים תוויות (labels) מתאימות',
+  'קישור "דלגי לתוכן הראשי" בתחילת כל עמוד',
+  'מבנה landmarks תקין — header, nav, main ו-footer אחד בכל עמוד',
+  'כותרות (h1–h6) במבנה היררכי תקין, ללא דילוגי רמות',
+  'ניווט מלא במקלדת בכל האתר, כולל קביעת תור, האזור האישי וממשק הניהול',
+  'מצבי focus גלויים על כל אלמנט אינטראקטיבי',
+  'חלונות קופצים לוכדים focus, נסגרים ב-Escape ומחזירים את הפוקוס לכפתור שפתח אותם',
+  'תגי ARIA מתאימים לכפתורים, ניווט, מתגים ורכיבים אינטראקטיביים',
+  'טקסט חלופי (alt text) לכל התמונות המשמעותיות; תמונות קישוט מוסתרות מקורא מסך',
+  'כל הטפסים כוללים תוויות (labels) מקושרות, סימון שדות שגויים והודעות שגיאה שמוכרזות בקורא מסך',
+  'ניגודיות צבעים של טקסט וסמלים עומדת בדרישות רמה AA לפי WCAG 2.0',
+  'אזורי לחיצה עומדים במינימום 24×24 פיקסל (WCAG 2.2, 2.5.8)',
+  'גודל פונטים ניתן להגדלה עד 200% ללא שבירת הפריסה',
+  'תמיכה ב-prefers-reduced-motion להפחתת אנימציות',
+  'תפריט נגישות קבוע: הגדלת טקסט, ניגודיות גבוהה, גווני אפור, הדגשת קישורים ועצירת אנימציות',
 ]
 
 const limitations = [
-  'חלק מהאנימציות המתקדמות (Framer Motion) עשויות להציג אתגר למשתמשי קורא מסך',
-  'תצוגת ה-carousel בגלריה אינה מכריזה אוטומטית על החלפת תמונה בקורא מסך',
-  'מפת Google המוטמעת (אם קיימת) אינה בשליטתנו המלאה מבחינת נגישות',
+  'ממשק גרירת מחוון "לפני ואחרי" נגיש במקלדת (חצים), אך חוויית הגרירה עצמה מותאמת בעיקר לעכבר ולמגע',
+  'סרטוני הטיזר באתר מוצגים ללא כתוביות; הם אינם נושאים דיבור או מידע מילולי',
+  'תכנים של צדדים שלישיים המוטמעים באתר (למשל וואצאפ) אינם בשליטתנו המלאה מבחינת נגישות',
 ]
 
 export default function AccessibilityContent() {
@@ -112,11 +127,11 @@ export default function AccessibilityContent() {
                 <p className="font-semibold text-brand-dark mt-1">{OWNER_NAME}</p>
                 <p>
                   דואר אלקטרוני:{' '}
-                  <a href={`mailto:${EMAIL}`} className="text-brand-rose hover:underline">{EMAIL}</a>
+                  <a href={`mailto:${EMAIL}`} className="text-brand-rose-text hover:underline">{EMAIL}</a>
                 </p>
                 <p>
                   וואצאפ:{' '}
-                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="text-brand-rose hover:underline">
+                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="text-brand-rose-text hover:underline">
                     לחצי כאן לשליחת הודעה
                   </a>
                 </p>
@@ -144,7 +159,7 @@ export default function AccessibilityContent() {
                   href="https://www.justice.gov.il/Units/NetzivutShivyon"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-brand-rose hover:underline"
+                  className="text-brand-rose-text hover:underline"
                 >
                   www.justice.gov.il
                 </a>
@@ -156,12 +171,17 @@ export default function AccessibilityContent() {
             title: '8. טכנולוגיות נתמכות',
             content: (
               <>
-                <p className="mb-2">האתר נבדק ומותאם לשימוש עם:</p>
+                {/*
+                  ⚠️ רק מה שנבדק בפועל. הנוסח הקודם הצהיר על בדיקה מלאה
+                  ב-NVDA וב-VoiceOver; כאן מפורט מה נבדק ובאיזה אופן, כדי
+                  שההצהרה תישאר מדויקת.
+                */}
+                <p className="mb-2">האתר נבנה ונבדק לשימוש עם:</p>
                 <ul className="list-disc list-inside space-y-1.5 text-sm text-brand-medium">
-                  <li>NVDA (קורא מסך לחלונות) עם Chrome</li>
-                  <li>VoiceOver (קורא מסך של Apple) עם Safari</li>
-                  <li>ניווט מקלדת בדפדפני Chrome, Firefox ו-Safari</li>
-                  <li>תצוגה מוגדלת עד 200% ברוחב מסך מלא</li>
+                  <li>ניווט מקלדת מלא בדפדפני Chrome, Firefox ו-Safari</li>
+                  <li>מבנה ARIA וסמנטיקה התומכים בקוראי מסך נפוצים (NVDA, VoiceOver)</li>
+                  <li>בדיקות ניגודיות, תוויות ומבנה כותרות אוטומטיות על כל עמודי האתר</li>
+                  <li>תצוגה מוגדלת עד 200% ברוחב מסך מלא, בדסקטופ ובנייד</li>
                 </ul>
               </>
             ),
@@ -205,7 +225,7 @@ export default function AccessibilityContent() {
             </p>
             <Link
               href="/contact"
-              className="inline-flex items-center gap-2 text-brand-rose font-semibold hover:text-brand-medium transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+              className="inline-flex items-center gap-2 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
             >
               יצירת קשר עם רכזת הנגישות ←
             </Link>
