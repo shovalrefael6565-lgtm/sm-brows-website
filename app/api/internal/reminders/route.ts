@@ -6,6 +6,37 @@ import { completePastConfirmedAppointments } from '@/lib/db/appointments'
 export const dynamic = 'force-dynamic'
 
 /**
+ * 🔒 תקרת גוף הבקשה.
+ *
+ * ⚠️ ה-route אינו קורא את הגוף בכלל — אין לו פרמטרים, וכל מה שהוא צריך
+ * נמצא בכותרת Authorization. התקרה כאן אינה מגנה על פרסור (אין כזה) אלא
+ * חוסמת בקשה שמנסה להזרים אליו מגה-בייטים לפני שהיא נדחית. היא נבדקת
+ * **לפני** האימות ולפני כל נגיעה במסד.
+ *
+ * ⚠️ הגבול מבוטא בכותרת Content-Length, וזו כל תחולתו. בקשה שאינה
+ * מצהירה על אורך (chunked) **אינה** נדחית כאן, ואין בכך פרצה: הגוף לעולם
+ * אינו נקרא, ומה שחוסם גישה הוא ה-Bearer ולא התקרה. דחיית chunked הייתה
+ * מסתכנת בשבירת scheduler לגיטימי בתמורה לאפס הגנה נוספת.
+ */
+const MAX_BODY_BYTES = 1024
+
+/**
+ * 🔒 אף תשובה כאן אינה ניתנת לשמירה במטמון.
+ *
+ * ⚠️ `private` בנוסף ל-`no-store`: התשובה מתארת את מצב מנגנון השליחה
+ * (enabled/provider/ספירות), ואין שום proxy שאמור להחזיק אותה — גם לא
+ * לרגע, וגם לא תשובת 401/404.
+ */
+const NO_STORE: Readonly<Record<string, string>> = {
+  'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+  Pragma: 'no-cache',
+}
+
+function json(body: unknown, status: number): NextResponse {
+  return NextResponse.json(body, { status, headers: { ...NO_STORE } })
+}
+
+/**
  * נקודת הרצה פנימית לשליחת התזכורות — מוכנה לתזמון עתידי, ולא מתוזמנת עכשיו.
  *
  * ⚠️ שלב 11 אינו מפעיל Vercel Cron, אינו יוצר vercel.json ואינו פורס דבר.
@@ -60,12 +91,19 @@ export async function POST(req: NextRequest) {
 
   // לא מוגדר, או קצר מכדי להיות סוד אמיתי → אין route.
   if (!secret || secret.length < 32) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    return json({ error: 'not_found' }, 404)
+  }
+
+  // ⚠️ תקרת הגוף נבדקת **לפני** האימות: בקשה עצומה נדחית בלי שהשרת יקרא
+  // ממנה בייט, ובלי שנגיע לחישוב ההשוואה.
+  const tooLarge = bodyTooLarge(req.headers.get('content-length'))
+  if (tooLarge) {
+    return json({ error: 'payload_too_large' }, 413)
   }
 
   const token = bearerToken(req.headers.get('authorization'))
   if (!token || !secretsMatch(token, secret)) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    return json({ error: 'unauthorized' }, 401)
   }
 
   try {
@@ -78,7 +116,50 @@ export async function POST(req: NextRequest) {
   // ⚠️ אין כאן בדיקת דגל שמחזירה 403. הדגלים נבדקים בתוך ה-dispatcher,
   // ומצב כבוי חוזר כ-200 עם enabled:false ואפס כתיבות למסד.
   const stats = await runReminderDispatch()
-  return NextResponse.json({ ok: true, stats })
+  return json({ ok: true, stats }, 200)
+}
+
+/**
+ * 🔒 כל מתודה שאינה POST — 405, בלי נגיעה במסד ובלי הפעלת הספק.
+ *
+ * ⚠️ Next מחזיר 405 מעצמו על מתודה שאין לה handler, אבל **בלי הכותרות
+ * שלנו ובלי Allow**. הצהרה מפורשת היא מה שהופך את זה להתנהגות בדוקה: אין
+ * מסלול GET שאפשר לירות עליו מדפדפן או מ-prefetch, ואין תשובה שנשמרת
+ * במטמון. ה-route הזה גורם לשליחת SMS — הוא אינו אמור להיות ניתן
+ * להפעלה בניווט.
+ *
+ * ⚠️ אינו מסגיר את קיום ה-endpoint יותר משעשה קודם: 405 חוזר בין אם
+ * ה-secret מוגדר ובין אם לא, ולפני כל בדיקת הרשאה.
+ */
+function methodNotAllowed(): NextResponse {
+  return NextResponse.json(
+    { error: 'method_not_allowed' },
+    { status: 405, headers: { ...NO_STORE, Allow: 'POST' } },
+  )
+}
+
+export const GET = methodNotAllowed
+export const PUT = methodNotAllowed
+export const PATCH = methodNotAllowed
+export const DELETE = methodNotAllowed
+export const HEAD = methodNotAllowed
+export const OPTIONS = methodNotAllowed
+
+/**
+ * האם הגוף גדול מהמותר.
+ *
+ * ⚠️ כותרת חסרה → false (ראה MAX_BODY_BYTES). כותרת **פסולה** — לא
+ * מספר, שלילית — → true: מי ששלח Content-Length שאינו מספר לא שלח בקשה
+ * תמימה, ואין שום סיבה להמשיך לטפל בה.
+ *
+ * ⚠️ `Content-Length: 0` ובקשת POST קצרה הם המקרה התקין — QStash שולח
+ * בדיוק כך.
+ */
+function bodyTooLarge(contentLength: string | null): boolean {
+  if (contentLength === null) return false
+  const n = Number(contentLength)
+  if (!Number.isFinite(n) || n < 0) return true
+  return n > MAX_BODY_BYTES
 }
 
 /**

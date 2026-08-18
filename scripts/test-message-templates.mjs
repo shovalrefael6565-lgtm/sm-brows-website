@@ -112,8 +112,15 @@ const EXPECTED = {
     ['לקוחה ביקשה לשנות מועד. לניהול: https://smbrows.co.il/admin', 59],
   'appointment_moved_by_business/customer':
     ['מועד התור שלך עודכן. לפרטים: https://smbrows.co.il/account', 58],
-  'reminder/day_before':        ['תזכורת: התור שלך מחר. פרטים: https://smbrows.co.il/account', 58],
-  'reminder/two_hours_before':  ['תזכורת: התור שלך היום. פרטים: https://smbrows.co.il/account', 59],
+  // 🔴 שניהם השתנו: הנוסחים העסקיים החדשים של תיקון מסירת התזכורות.
+  //    day_before:       'התור שלך מחר. פרטים:'  → 'יש לך תור מחר. לפרטים:'  (58 → 60)
+  //    two_hours_before: 'התור שלך היום. פרטים:' → 'התור שלך בעוד שעתיים. לפרטים:' (59 → 67)
+  // ⚠️ two_hours_before הוא מעכשיו טענה על מרחק בזמן, ולכן הוא זה שהצריך
+  //    את TWO_HOURS_FRESHNESS_MS ב-lib/reminders/dispatch.ts.
+  'reminder/day_before':
+    ['תזכורת: יש לך תור מחר. לפרטים: https://smbrows.co.il/account', 60],
+  'reminder/two_hours_before':
+    ['תזכורת: התור שלך בעוד שעתיים. לפרטים: https://smbrows.co.il/account', 67],
 }
 
 const actual = new Map(allTexts)
@@ -128,14 +135,18 @@ chk('🔒 אין נוסח שלא נמדד', allTexts.every(([l]) => l in EXPECTE
   allTexts.filter(([l]) => !(l in EXPECTED)).map(([l]) => l).join(', '))
 
 /**
- * ⚠️ המרווח הצפוף ביותר הוא 6 תווים. הבדיקה הזו אינה מיותרת מול בדיקת
- * ה-≤70: היא מתריעה כשמישהו מתקרב לגבול, בזמן שעוד אפשר לקצר במכוון
- * במקום לגלות את זה בתוספת המילה הבאה.
+ * ⚠️ **הצפוף ביותר עבר ל-reminder/two_hours_before, והמרווח ירד מ-6 ל-3.**
+ * זו עובדה מדודה ולא הרפיה של הכלל: הנוסח החדש ("התור שלך בעוד שעתיים")
+ * ארוך ב-8 תווים מקודמו, והוא נוסח עסקי מאושר.
+ *
+ * ⚠️ הבדיקה אינה מיותרת מול בדיקת ה-≤70: היא מתריעה כשמישהו מתקרב לגבול
+ * בזמן שעוד אפשר לקצר במכוון. עם 3 תווים מרווח, **כל תוספת מילה לנוסח
+ * הזה שוברת אותו למקטע שני** — כלומר מכפילה את עלות ה-SMS על כל תור.
  */
 const tightest = allTexts.reduce((a, b) => (smsLength(a[1]) >= smsLength(b[1]) ? a : b))
-chk('הנוסח הצפוף ביותר הוא reschedule_rejected/customer',
-  tightest[0] === 'reschedule_rejected/customer', `${tightest[0]} (${smsLength(tightest[1])})`)
-chk('נשארו לפחות 6 תווים מרווח', SMS_MAX_CHARS - smsLength(tightest[1]) >= 6,
+chk('הנוסח הצפוף ביותר הוא reminder/two_hours_before',
+  tightest[0] === 'reminder/two_hours_before', `${tightest[0]} (${smsLength(tightest[1])})`)
+chk('נשארו לפחות 3 תווים מרווח', SMS_MAX_CHARS - smsLength(tightest[1]) >= 3,
   `מרווח ${SMS_MAX_CHARS - smsLength(tightest[1])}`)
 
 // ─── 3. אפס PII ─────────────────────────────────────────────────────────────
@@ -262,10 +273,16 @@ chk('🔒 smsBodyFor אינו יודע להחזיר נוסח תזכורת',
   smsBodyFor('day_before', 'customer') === null
   && smsBodyFor('two_hours_before', 'customer') === null)
 
-/** ⚠️ לתזכורת יש חלון ולא רגע — ולכן "מחר"/"היום" ולא שעה מדויקת. */
-chk('נוסחי התזכורות מדברים בחלון ולא בשעה',
+/**
+ * ⚠️ אף נוסח תזכורת אינו נושא שעה מדויקת — זה לא השתנה. מה שהשתנה הוא
+ * **מה מחליף אותה**: day_before אומר "מחר" (נכון לכל אורך החלון של 0011),
+ * ו-two_hours_before אומר "בעוד שעתיים" — טענה על מרחק בזמן שנכונה רק
+ * בסמוך ל-scheduled_for, ולכן נאכפת ע"י TWO_HOURS_FRESHNESS_MS ולא ע"י
+ * החלון. ראה lib/reminders/dispatch.ts.
+ */
+chk('נוסחי התזכורות מדברים בחלון/מרחק ולא בשעה מדויקת',
   /מחר/.test(REMINDER_SMS.day_before)
-  && /היום/.test(REMINDER_SMS.two_hours_before)
+  && REMINDER_SMS.two_hours_before.includes('בעוד שעתיים')
   && !/\d{1,2}:\d{2}/.test(REMINDER_SMS.day_before)
   && !/\d{1,2}:\d{2}/.test(REMINDER_SMS.two_hours_before))
 

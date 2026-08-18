@@ -52,6 +52,53 @@ import {
 const RUN_BUDGET_MS = 60 * 1000
 
 /**
+ * 🔒 חסם הרעננות של `two_hours_before` — כמה זמן אחרי `scheduled_for`
+ * עדיין מותר לומר "בעוד שעתיים".
+ *
+ * ⚠️ זו אינה החמרה של החלון, אלא אכיפה של **הנוסח**. `expires_at` של
+ * two_hours_before הוא `starts_at - 15m` (0011), כלומר החלון פתוח עד רבע
+ * שעה לפני התור. הנוסח המאושר אומר "התור שלך בעוד שעתיים" — טענה על
+ * מרחק בזמן — ושליחתו שעה וחצי אחרי `scheduled_for` היא פשוט שקר
+ * ללקוחה. בלי החסם הזה, scheduler שנפל לשעתיים היה מתעורר ושולח את
+ * ההודעה הלא-נכונה במקום לוותר עליה.
+ *
+ * ⚠️ **ולא לצמצם את `expires_at` ב-DB במקום זה.** צמצום כזה הוא migration
+ * ממוספרת חדשה, ואינו נחוץ: `scheduled_for` כבר נמצא בשורה שנתפסה, ו-
+ * `abort_reminder_attempt` כבר יודעת לסמן `expired_before_send` →
+ * `skipped`. הכלל נאכף בקוד, בלי שינוי סכמה.
+ *
+ * ⚠️ הערך **גדול בהרבה** מתדירות ה-scheduler (5 דקות) בכוונה: הדרישה היא
+ * שריצה שהתעכבה תשלים תזכורת שהפכה due ולא תפספס אותה. חצי שעה מכסה
+ * scheduler שדילג על חמש-שש הרצות, ועדיין משאירה את ההודעה נכונה — היא
+ * תצא בין שעתיים לשעה וחצי לפני התור. איחור גדול מזה כבר אינו "עיכוב"
+ * אלא הודעה אחרת.
+ *
+ * ⚠️ הכלל חל על **רגע ה-claim בפועל**, ולכן הוא מכסה גם retry: ניסיון
+ * חוזר עם backoff שחורג מחצי השעה מסתיים ב-skipped ולא בהודעה שגויה.
+ */
+export const TWO_HOURS_FRESHNESS_MS = 30 * 60 * 1000
+
+/**
+ * האם עדיין מותר לשלוח את התזכורת שנתפסה, לפי הנוסח שלה.
+ *
+ * 🔒 פונקציה טהורה בכוונה — זהו כלל תוכן שאסור שיישבר בשקט, והוכחתו לא
+ * צריכה להיות תלויה ב-DB, בשעון או ברשת (בדיוק כמו shouldDispatch).
+ *
+ * ⚠️ `day_before` ו-`manual` מוחזרים כתקפים תמיד. day_before מוגן ע"י
+ * הסכמה עצמה (ראה lib/reminders/templates.ts), ו-manual נושא תאריך ושעה
+ * מפורשים ולכן אינו טוען דבר על מרחק בזמן.
+ */
+export function isReminderStillTruthful(
+  kind: 'day_before' | 'two_hours_before' | 'manual',
+  scheduledForMs: number,
+  nowMs: number,
+): boolean {
+  if (kind !== 'two_hours_before') return true
+  if (!Number.isFinite(scheduledForMs)) return true
+  return nowMs - scheduledForMs <= TWO_HOURS_FRESHNESS_MS
+}
+
+/**
  * הסיבות שמעידות על **שינוי אמיתי בתור** ולא על מעבר זמן.
  *
  * ⚠️ 'appointment_started' ו-'expired_before_send' אינם כאן בכוונה: תור
@@ -216,6 +263,24 @@ async function processOne(
   const before = await d.db.reminderPrecheck(reminder.id, leaseToken)
   if (!before.ok) {
     const row = await d.db.abortReminderAttempt(reminder.id, leaseToken, before.reason)
+    tallyAbort(stats, row?.status)
+    return
+  }
+
+  // ── חסם הרעננות של הנוסח ─────────────────────────────────────────────
+  // ⚠️ **אחרי ה-precheck ולפני טעינת הנמענת**, ובכוונה: זהו כלל תוכן ולא
+  // כלל הרשאה, ואין שום סיבה לשלוף טלפון של לקוחה בשביל הודעה שכבר
+  // הוחלט לא לשלוח. הסימון הוא expired_before_send → skipped (0011,
+  // abort_reminder_attempt), כלומר בדיוק אותה עקבה נראית שיש לתזכורת
+  // שחלונה נסגר — וזה התיאור הנכון: חלון ה*נוסח* שלה נסגר.
+  if (
+    !isReminderStillTruthful(
+      reminder.reminder_kind,
+      Date.parse(reminder.scheduled_for),
+      d.now(),
+    )
+  ) {
+    const row = await d.db.abortReminderAttempt(reminder.id, leaseToken, 'expired_before_send')
     tallyAbort(stats, row?.status)
     return
   }

@@ -340,13 +340,18 @@ for (const kind of ['day_before', 'two_hours_before']) {
 }
 
 /**
- * ⚠️ אלה **כן** אומרות "מחר"/"היום" — זו ההחלטה שאושרה ונמדדה ב-15F, לא
- * כלל שהתהפך. ראה lib/reminders/templates.ts למה זה בטוח בפועל בזכות
- * חלונות השליחה הקבועים ב-0011 (day_before יוצאת לכל המאוחר 6 שעות אחרי
- * scheduled_for; two_hours_before עד רבע שעה לפני התור עצמו).
+ * ⚠️ אלה **כן** אומרות "מחר"/"בעוד שעתיים" — ההחלטה שאושרה, לא כלל
+ * שהתהפך. אבל שתיהן אינן מוגנות באותו אופן, וזה מה שנבדק כאן ובסעיף
+ * חסם הרעננות למטה:
+ *   day_before ("מחר")          — מוגן ע"י הסכמה (expires_at = +6h).
+ *   two_hours_before ("בעוד שעתיים") — טענה על מרחק בזמן, ולכן מוגן ע"י
+ *     TWO_HOURS_FRESHNESS_MS ב-dispatch.ts ולא ע"י החלון של 0011.
  */
 chk('🔒 day_before אומר "מחר" (מאושר, לא באג)', /מחר/.test(bodies.day_before))
-chk('🔒 two_hours_before אומר "היום" (מאושר, לא באג)', /היום/.test(bodies.two_hours_before))
+chk('🔒 two_hours_before אומר "בעוד שעתיים" (מאושר, לא באג)',
+  bodies.two_hours_before.includes('בעוד שעתיים'))
+chk('⚠️ two_hours_before כבר אינו אומר "היום" — הנוסח הוחלף',
+  !bodies.two_hours_before.includes('היום'))
 
 /**
  * manual אינו אחד מנוסחי 15F ונשאר תבנית דינמית: מנהלת שולחת אותו בכל רגע
@@ -578,13 +583,26 @@ chk('⚠️ גוף התשובה עצמו מכיל רק ok ו-stats',
   Object.keys(ok.body ?? {}).join(','))
 
 // ── שיטות שאינן POST ──────────────────────────────────────────────────────
-// Next.js מחזיר 405 אוטומטית לכל שיטה שאין לה export ב-route.ts.
-for (const method of ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
-  chk(`🔒 ${method} אינו מיוצא — Next מחזיר 405`, routeMod[method] === undefined)
+/**
+ * ⚠️ **השתנה**: עד כאן הבדיקה אימתה ש-GET/PUT/... *אינם מיוצאים*, והסתמכה
+ * על 405 האוטומטי של Next. הם מיוצאים עכשיו במפורש, וזה חוזה חזק יותר —
+ * 405 האוטומטי אינו נושא Allow ואינו נושא את כותרות ה-no-store שלנו.
+ *
+ * 🔒 שום handler כזה אינו נוגע במסד ואינו מפעיל ספק: הוא מחזיר 405 מיד,
+ * בלי לקרוא secret ובלי לגעת ב-dispatcher.
+ */
+for (const method of ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']) {
+  const handler = routeMod[method]
+  chk(`🔒 ${method} מיוצא כ-405 מפורש`, typeof handler === 'function')
+  if (typeof handler !== 'function') continue
+  const res = handler()
+  chk(`🔒 ${method} → 405`, res.status === 405)
+  chk(`🔒 ${method} מצהיר Allow: POST`, res.headers.get('allow') === 'POST')
+  chk(`🔒 ${method} אינו ניתן לשמירה במטמון`,
+    /no-store/.test(res.headers.get('cache-control') ?? ''))
 }
-chk('POST הוא ה-export היחיד של שיטת HTTP',
-  Object.keys(routeMod).filter(k => k === k.toUpperCase() && k.length > 2).join(',') === 'POST',
-  Object.keys(routeMod).join(','))
+chk('POST הוא השיטה היחידה שמריצה dispatch',
+  typeof routeMod.POST === 'function')
 
 // ── summary ─────────────────────────────────────────────────────────────────
 const failed = results.filter(r => !r).length
