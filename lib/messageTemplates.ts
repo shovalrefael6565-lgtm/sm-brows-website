@@ -87,16 +87,16 @@ export type RecipientRole = 'admin' | 'customer'
 /**
  * 🔒 נוסחי ה-SMS ה**סטטיים**, לפי (אירוע, נמען).
  *
- * ⚠️ שני נוסחי ה-admin שנעשו דינמיים — `reschedule_requested` ו-
- * `booking_cancelled/admin` — **אינם כאן**. הם חיים ב-DYNAMIC_BUILDERS
- * למטה, כי אורכם תלוי בשם הלקוחה ולא ניתן לאכיפה כ-assertion על קבוע.
+ * 🔴 **כל הנוסחים כאן, ואין יותר אף נוסח דינמי.** `reschedule_requested`
+ * ו-`booking_cancelled/admin` היו בעבר ב-DYNAMIC_BUILDERS כי אורכם היה
+ * תלוי בשם הלקוחה; הם שוכתבו כסטטיים, וה-DYNAMIC_BUILDERS ריק.
  *
  * ⚠️ `/account` בהודעות ללקוחה נשאר **בכוונה** גם ללקוחה שאין לה חשבון
  * (מסלול ציבורי, `auth_user_id = null`): היא תעבור OTP ותגיע לאזור האישי.
  * זו התנהגות רצויה ולא פער — ראה החלטה 2 ב-STAGE-15F-ARCHITECTURE.
  *
- * ⚠️ `booking_cancelled` עדיין נשלח לשני נמענים — אבל רק צד הלקוחה סטטי;
- * צד ה-admin דינמי ויושב למטה. שתי השורות נבדלות ב-`recipient_role`,
+ * ⚠️ `booking_cancelled` נשלח לשני נמענים, ו**שני הצדדים סטטיים**
+ * עכשיו. שתי השורות נבדלות ב-`recipient_role`,
  * ולכן מפתח ה-idempotency `(source_history_id, recipient_role)` מתיר את
  * שתיהן ועדיין חוסם כפילות בכל אחת מהן בנפרד.
  */
@@ -105,6 +105,16 @@ export const SMS_TEXT: Readonly<
 > = {
   booking_requested: {
     admin: `בקשת תור חדשה. לניהול: ${ADMIN_URL}`,
+  },
+  reschedule_requested: {
+    /*
+     * 🔴 היה דינמי (`בקשת שינוי מועד: {שם}. ניהול: …`) ונשא את שם
+     * הלקוחה. ראה את ההערה ב-booking_cancelled/admin — אותו שיקול בדיוק.
+     *
+     * 🔒 **admin בלבד.** הלקוחה יודעת שהיא ביקשה; היא תיודע כשתהיה
+     * הכרעה (reschedule_approved / reschedule_rejected).
+     */
+    admin: `לקוחה ביקשה לשנות מועד. לניהול: ${ADMIN_URL}`,
   },
   booking_approved: {
     customer: `תורך אושר. לפרטים: ${ACCOUNT_URL}`,
@@ -120,7 +130,30 @@ export const SMS_TEXT: Readonly<
     customer: `בקשת שינוי המועד לא אושרה. לפרטים: ${ACCOUNT_URL}`,
   },
   booking_cancelled: {
-    customer: `תורך בוטל. לפרטים: ${ACCOUNT_URL}`,
+    customer: `התור שלך בוטל. לפרטים: ${ACCOUNT_URL}`,
+    /*
+     * 🔴 **הנוסח הזה היה דינמי ונשא PII — ועכשיו הוא סטטי.**
+     *
+     * ⚠️ עד כאן: `תור בוטל: {שם}, {תאריך} {שעה}`, שנבנה ב-
+     * `buildBookingCancelledAdminSms` מתוך `customers.full_name` ו-
+     * `starts_at`. הוא היה אחד משני החריגים היחידים שהעבירו שם לקוחה
+     * ומועד תור ב-SMS **לא מוצפן**.
+     *
+     * 🔒 עם המעבר לנוסח סטטי החריג הזה נסגר: **אף SMS מסוג appointment
+     * notification אינו נושא עוד שם, טלפון, טיפול, תאריך, שעה או מחיר.**
+     * שובל מקבלת את הפרטים במסך הניהול, שמאחורי הזדהות.
+     *
+     * ⚠️ **הטענה מוגבלת למסלול ההתראות בכוונה, והיא אינה נכונה לכל SMS
+     * בריפו.** `manualReminderBody` (lib/reminders/templates.ts) עדיין
+     * שולח טיפול, תאריך ושעה, ו-`otpMessage` שולח קוד כניסה. שניהם
+     * מסלולים אחרים שלא נגענו בהם, וניסוח גורף היה מכסה עליהם.
+     * ראה scripts/test-sms-pii-scan.mjs, שאוכף בדיוק את ההיקף הזה.
+     *
+     * ⚠️ ההשלכה התפעולית שיש לקבל במודע: ההודעה כבר אינה אומרת לשובל
+     * *איזו* משבצת התפנתה, והיא צריכה להיכנס לניהול כדי לדעת. זה מה
+     * שנקנה בהסרת ה-PII.
+     */
+    admin: `לקוחה ביטלה תור. לניהול: ${ADMIN_URL}`,
   },
   appointment_moved_by_business: {
     /*
@@ -168,129 +201,58 @@ export function isAwaitingApprovedTemplate(event: NotificationEvent): boolean {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// נוסחי ADMIN דינמיים
+// נוסחי ADMIN דינמיים — 🔴 **ריק. אין יותר אף נוסח שנושא PII.**
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * ⚠️ **שני הנוסחים האלה שוברים במכוון שתי הנחות של 15F**, ולכן הם מופרדים
- * מ-`SMS_TEXT` ולא נדחפו לתוכו:
+ * 🔴 **שני הנוסחים הדינמיים הוסרו, והמנגנון נשאר ריק בכוונה.**
  *
- * 1. **הם אינם סטטיים.** מגבלת ה-70 אינה ניתנת יותר לאכיפה כ-assertion על
- *    קבוע, כי האורך תלוי בשם הלקוחה. במקומה יש **תקציב**: החלק הקבוע נמדד,
- *    והשם מקוצץ למה שנשאר. ה-assertion בטעינת המודול בודק את המקרה הגרוע —
- *    שם ארוך פתולוגית — ולכן הגבול עדיין מוכח בזמן בנייה ולא בפרודקשן.
+ * עד כאן חיו כאן `buildRescheduleRequestedAdminSms` ו-
+ * `buildBookingCancelledAdminSms`: שני נוסחים שנמענם שובל, שנשאו את שם
+ * הלקוחה — ובביטול גם את מועד התור — ב-SMS **לא מוצפן**. הם היו החריג
+ * המודע היחיד לכלל של 15F, יחד עם כל התשתית ששירתה אותם: תקציב תווים,
+ * קיצוץ שם, וניקוי אמוג'י מתוך `full_name`.
  *
- * 2. **הם נושאים PII.** שם הלקוחה, ובביטול גם מועד התור, עוברים ב-SMS לא
- *    מוצפן. ⚠️ זו הרחבה מודעת של מה שהוסכם ב-15F, והיא מוגבלת לשני
- *    נוסחים ש**נמענם הוא שובל בלבד** — בעלת העסק, שהנתונים האלה שלה
- *    ממילא. 🔒 אף נוסח שנמען ללקוחה לא השתנה ואינו נושא PII.
+ * 🔒 **שניהם הוחלפו בנוסחים סטטיים ב-`SMS_TEXT`, והחריג נסגר. מהיום אף
+ * נוסח SMS במערכת אינו נושא שם, טלפון, תאריך, שעה או מחיר** — לא ללקוחה
+ * ולא לשובל. מה שנשאר בהודעה הוא עובדה אחת וקישור למקום מוגן.
+ *
+ * ⚠️ הרישום נשאר במקומו ריק, ולא נמחק, מאותו שיקול בדיוק כמו
+ * `AWAITING_APPROVED_TEMPLATE`: הוא ה**מקום היחיד** שבו נוסח תלוי-נתונים
+ * יכול להיכנס. נוסח כזה מחייב החלטה מודעת על PII ב-SMS, ורישום ריק עם
+ * ההסבר הזה הוא מה שמכריח את ההחלטה להיעשות כאן ולא בשקט בתוך
+ * `SMS_TEXT`. ⚠️ מי שמוסיף כאן ערך מחזיר PII ל-SMS — ראה
+ * `loadNotificationContext`, שהיא הצרכן היחיד בצד השני.
  */
+const DYNAMIC_BUILDERS: Partial<
+  Record<NotificationEvent, Partial<Record<RecipientRole, (c: AdminSmsContext) => string>>>
+> = {}
 
-/** מה שהבונים הדינמיים צריכים. מגיע מנתוני הלקוחה הקנוניים. */
+/**
+ * ההקשר שנוסח דינמי היה מקבל.
+ *
+ * ⚠️ נשאר כטיפוס בלבד — `DYNAMIC_BUILDERS` ריק, ולכן שום נוסח אינו מקבל
+ * אותו בפועל ו-`loadNotificationContext` אינה נקראת. הטיפוס נשמר כדי
+ * שהחתימה של המנגנון תישאר שלמה ובדוקה.
+ */
 export interface AdminSmsContext {
-  /** `customers.full_name` — מקור האמת היחיד. לא שם שהוקלד בטופס ולא cache. */
   customerName: string
-  /** מועד **התור שבוטל**, בשעון ישראל. לא חותמת הזמן של הביטול. */
   appointmentDate?: string
   appointmentTime?: string
 }
 
 /**
- * סימן הקיצוץ.
+ * האם הזוג (אירוע, נמען) דורש טעינת נתוני לקוחה.
  *
- * ⚠️ U+2026 (…) ולא שלוש נקודות: תו אחד במקום שלושה, בטווח BMP, ואינו
- * אמוג'י — כלומר אינו מפר את כלל ה-multipart ואינו נספר פעמיים.
+ * 🔴 **מחזירה false לכל זוג**, כי אין יותר נוסחים דינמיים. זו הפונקציה
+ * שה-dispatcher נשען עליה כדי להחליט אם לשלוף שם ומועד מה-DB, ולכן
+ * המשמעות המעשית היא ש**שום התראה אינה גורמת עוד לשליפת נתוני לקוחה**.
  */
-const TRUNCATION_MARK = '\u2026'
-
-/**
- * ניקוי שם לקוחה לפני שהוא נכנס ל-SMS.
- *
- * ⚠️ `full_name` הוא טקסט חופשי שהלקוחה הקלידה בטופס, ולכן הוא יכול
- * להכיל בדיוק את מה שאסור בהודעה שנמדדת בתווים:
- *
- *   אמוג'י     → שתי יחידות UCS-2, ומסכן תצוגה. מוסר.
- *   שורה חדשה  → שוברת הודעה בת שורה אחת. הופכת לרווח.
- *   רווחים כפולים → אורך מבוזבז בתקציב צפוף.
- *
- * ⚠️ ההסרה קודמת למדידה: אחרת אמוג'י היה "תופס" שני תווים מהתקציב של השם
- * ואז מוסר, והתוצאה הייתה קצרה מהנדרש בלי סיבה.
- */
-export function sanitizeCustomerName(raw: string): string {
-  return raw
-    .replace(EMOJI_STRIP_RE, '')
-    .replace(/[\uD800-\uDFFF]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-/**
- * קיצוץ לתקציב, ביחידות UCS-2.
- *
- * ⚠️ הקיצוץ הוא **על השם בלבד** ולעולם לא על הקישור או על המועד. שם חתוך
- * עדיין מזהה את הלקוחה; קישור חתוך אינו נפתח, ומועד חתוך משקר.
- */
-export function fitToBudget(name: string, budget: number): string {
-  if (budget <= 0) return ''
-  if (name.length <= budget) return name
-  if (budget === 1) return TRUNCATION_MARK
-  return name.slice(0, budget - 1).trimEnd() + TRUNCATION_MARK
-}
-
-/** החלקים הקבועים, מדודים פעם אחת — הם מגדירים את התקציב שנשאר לשם. */
-const RESCHEDULE_REQ_PREFIX = 'בקשת שינוי מועד: '
-const RESCHEDULE_REQ_SUFFIX = `. ניהול: ${ADMIN_URL}`
-const CANCELLED_PREFIX = 'תור בוטל: '
-
-/**
- * `בקשת שינוי מועד: {שם}. ניהול: {URL}`
- *
- * ⚠️ הקישור נשאר — שובל צריכה להגיע למסך ההכרעה, וזו הפעולה שההודעה
- * מבקשת ממנה.
- */
-export function buildRescheduleRequestedAdminSms(ctx: AdminSmsContext): string {
-  const fixed = RESCHEDULE_REQ_PREFIX.length + RESCHEDULE_REQ_SUFFIX.length
-  const name = fitToBudget(sanitizeCustomerName(ctx.customerName), SMS_MAX_CHARS - fixed)
-  return `${RESCHEDULE_REQ_PREFIX}${name}${RESCHEDULE_REQ_SUFFIX}`
-}
-
-/**
- * `תור בוטל: {שם}, {תאריך} {שעה}`
- *
- * ⚠️ **ללא קישור, במכוון.** ההודעה מוסרת עובדה מלאה — מי, מתי — ואין
- * פעולה שנדרשת משובל. הוויתור על הקישור הוא מה שמפנה 27 תווים למועד
- * ולשם.
- *
- * 🔒 **התאריך והשעה הם של התור שבוטל, לא של רגע הביטול.** הקורא אחראי
- * להעביר את `starts_at` — ראה loadNotificationContext.
- */
-export function buildBookingCancelledAdminSms(ctx: AdminSmsContext): string {
-  const when = [ctx.appointmentDate, ctx.appointmentTime].filter(Boolean).join(' ')
-  // ⚠️ מועד חסר מקצר את ההודעה ואינו שובר אותה — אבל גם אינו ממציא מועד.
-  const suffix = when ? `, ${when}` : ''
-  const fixed = CANCELLED_PREFIX.length + suffix.length
-  const name = fitToBudget(sanitizeCustomerName(ctx.customerName), SMS_MAX_CHARS - fixed)
-  return `${CANCELLED_PREFIX}${name}${suffix}`
-}
-
-/**
- * הזוגות שדורשים הקשר. 🔒 **שניהם admin בלבד.**
- *
- * ⚠️ הרשימה הזו היא מה שקובע אם ה-dispatcher טוען נתוני לקוחה. כל שאר
- * הזוגות ממשיכים לעבור במסלול שטוען **טלפון בלבד**, כפי שנקבע ב-15F.
- */
-const DYNAMIC_BUILDERS: Partial<
-  Record<NotificationEvent, Partial<Record<RecipientRole, (c: AdminSmsContext) => string>>>
-> = {
-  reschedule_requested: { admin: buildRescheduleRequestedAdminSms },
-  booking_cancelled: { admin: buildBookingCancelledAdminSms },
-}
-
 export function requiresContext(event: NotificationEvent, role: RecipientRole): boolean {
   return Boolean(DYNAMIC_BUILDERS[event]?.[role])
 }
 
-/** גוף ההודעה לזוג דינמי, או null אם הזוג אינו דינמי. */
+/** גוף ההודעה לזוג דינמי, או null אם הזוג אינו דינמי (כלומר: תמיד null). */
 export function smsBodyWithContext(
   event: NotificationEvent,
   role: RecipientRole,
@@ -300,7 +262,6 @@ export function smsBodyWithContext(
   return build ? build(ctx) : null
 }
 
-// ════════════════════════════════════════════════════════════════════════════
 // תזכורות — נוסחים מאושרים, מחווטים ל-lib/reminders/templates.ts
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -318,13 +279,27 @@ export function smsBodyWithContext(
  * ולא דרך מסלול ההתראות הטרנזקציוני. ראה הנימוק המלא ב-
  * STAGE-15F-ARCHITECTURE (למה טבלה חדשה ולא הרחבת appointment_reminders).
  *
- * ⚠️ הנוסחים אומרים "מחר" ו"היום" ולא שעה מדויקת — זו החלטה שאושרה
- * ונמדדה כאן, לא תיאור של כלל כללי: `lib/reminders/templates.ts` מסביר
- * למה זה בטוח בפועל בזכות חלונות השליחה שקבועים ב-0011.
+ * ⚠️ הנוסחים אומרים "מחר" ו"בעוד שעתיים" ולא שעה מדויקת — זו החלטה
+ * שאושרה ונמדדה כאן, לא תיאור של כלל כללי.
+ *
+ * 🔴 `two_hours_before` **החליף נוסח קודם שאמר "היום"**, וההחלפה אינה
+ * סגנונית: "היום" היה נכון בכל רגע שבו החלון של 0011 היה פתוח, ואילו
+ * "בעוד שעתיים" הוא **טענה על מרחק בזמן** — הוא נכון רק בסמוך ל-
+ * `scheduled_for`, ולא בכל אורך החלון (שנמשך עד רבע שעה לפני התור).
+ * לכן הנוסח החדש מחייב חסם רעננות בצד השולח, ראה
+ * `TWO_HOURS_FRESHNESS_MS` ב-`lib/reminders/dispatch.ts`. ⚠️ מי שמחזיר
+ * כאן נוסח שאינו תלוי-מרחק חייב לשקול מחדש גם את החסם ההוא.
+ *
+ * ⚠️ `day_before` ("מחר") אינו זקוק לחסם כזה, וזה נגזר מהסכמה ולא
+ * מהנחה: `expires_at` שלו הוא `scheduled_for + 6h`, ו-`scheduled_for`
+ * הוא אותה שעת קיר ביום הקלנדרי הקודם — ולכן כל רגע שבו החלון פתוח הוא
+ * בהכרח היום הקלנדרי שלפני התור בישראל. "מחר" נכון בכל אורך החלון.
  */
 export const REMINDER_SMS: Readonly<Record<string, string>> = {
-  day_before: `תזכורת: התור שלך מחר. פרטים: ${ACCOUNT_URL}`,
-  two_hours_before: `תזכורת: התור שלך היום. פרטים: ${ACCOUNT_URL}`,
+  // 60/70
+  day_before: `תזכורת: יש לך תור מחר. לפרטים: ${ACCOUNT_URL}`,
+  // 67/70 — הצפוף מבין השניים.
+  two_hours_before: `תזכורת: התור שלך בעוד שעתיים. לפרטים: ${ACCOUNT_URL}`,
 } as const
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -385,21 +360,14 @@ export function hasEmoji(body: string): boolean {
   return EMOJI_RE.test(body)
 }
 
-/**
- * גרסת ההסרה של EMOJI_RE.
+/*
+ * 🔴 `EMOJI_STRIP_RE` הוסר יחד עם `sanitizeCustomerName`.
  *
- * ⚠️ ביטוי נפרד ולא `EMOJI_RE` עם `g`: דגל `g` שומר `lastIndex` בין
- * קריאות, ו-`test()` על ביטוי גלובלי מדלג על התאמות לסירוגין. שיתוף
- * המופע בין `hasEmoji` ל-`sanitizeCustomerName` היה הופך את הבדיקה
- * ללא-דטרמיניסטית.
- *
- * ⚠️ כולל גם ZWJ (U+200D): אחרי הסרת רכיבי אמוג'י מורכב (💆‍♀️) עלול
- * להישאר מחבר יתום, שאינו נראה אבל נספר בתקציב.
+ * ⚠️ הוא שירת מטרה אחת בלבד: לנקות אמוג'י מתוך `customers.full_name`
+ * לפני שהשם נכנס לנוסח SMS. אין יותר נוסח שמקבל שם, ולכן אין יותר קלט
+ * חופשי לנקות. `EMOJI_RE` (הבדיקה, לא ההסרה) נשאר — הוא אוכף שאף נוסח
+ * **קבוע** לא ידבק בו אמוג'י בהעתקה מנוסח WhatsApp.
  */
-const EMOJI_STRIP_RE = new RegExp(
-  '\\p{Extended_Pictographic}|\\p{Regional_Indicator}|\\uFE0F|\\u200D',
-  'gu',
-)
 
 /**
  * 🔒 האכיפה עצמה — רצה **בזמן טעינת המודול**, לא בזמן שליחה.
@@ -421,22 +389,13 @@ function assertAllTextsFitOneSegment(): void {
   }
 
   /*
-   * 🔒 הנוסחים הדינמיים, במקרה הגרוע ביותר.
+   * 🔴 **הנוסחים הדינמיים ובדיקת "השם המקסימלי" הוסרו — אין יותר כאלה.**
    *
-   * ⚠️ בלי זה מגבלת ה-70 הייתה מפסיקה להיות מוכחת בזמן בנייה ברגע ששני
-   * הנוסחים האלה הפכו דינמיים. שם באורך פתולוגי הוא בדיוק המקרה שהתקציב
-   * קיים בשבילו, ולכן הוא זה שנבדק — לא שם טיפוסי.
+   * ⚠️ זה מחזיר את האכיפה למצב החזק יותר שהיה לפני שני הנוסחים ההם:
+   * **כל נוסח במערכת הוא קבוע**, ולכן המגבלה מוכחת על המחרוזת עצמה בזמן
+   * טעינת המודול — ולא על תרחיש גרוע משוער של קלט משתנה. אין יותר קלט
+   * משתנה.
    */
-  const worstName = 'א'.repeat(300)
-  all.push(
-    ['reschedule_requested/admin (שם מקסימלי)',
-      buildRescheduleRequestedAdminSms({ customerName: worstName })],
-    ['booking_cancelled/admin (שם מקסימלי)',
-      buildBookingCancelledAdminSms({
-        customerName: worstName, appointmentDate: '24/08/2026', appointmentTime: '17:00',
-      })],
-  )
-
   const problems: string[] = []
   for (const [label, body] of all) {
     const len = smsLength(body)

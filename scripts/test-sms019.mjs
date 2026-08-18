@@ -327,11 +327,35 @@ section('🔒 מיפוי קודי הספק')
   chk('status=0 → accepted', r.outcome === 'accepted')
   chk('provider_message_id = shipment_id', r.providerMessageId === 'SHIP-7')
 }
-chk('status כמחרוזת "0" → accepted', classifySms019Body({ status: '0' }).outcome === 'accepted')
-chk('status=0 בלי shipment_id → עדיין accepted',
-  classifySms019Body({ status: 0 }).outcome === 'accepted')
+chk('status כמחרוזת "0" עם shipment_id → accepted',
+  classifySms019Body({ status: '0', shipment_id: 'S' }).outcome === 'accepted')
+
+/*
+ * 🔴 hotfix — **הבדיקה הזו התהפכה, וזו הנקודה של התיקון כולו.**
+ *
+ * ⚠️ קודם נכתב כאן `status=0 בלי shipment_id → עדיין accepted`, כלומר
+ * הבדיקה **קיבעה את הבאג**: תשובת 200 שאין בה מזהה משלוח נרשמה כ-accepted,
+ * וה-RPC הפכה אותה ל-`sent`. בפרודקשן נצפו בדיוק שלוש שורות כאלה — `sent`
+ * בלי provider_message_id, ובלי שום זכר בדוח ההודעות היוצאות של 019.
+ *
+ * 🔒 החוזה של 019 לקבלת בקשה למשלוח הוא **שני** שדות: status:0 **וגם**
+ * shipment_id. אין מזהה — אין ראיה — אין 'sent'.
+ */
+{
+  const r = classifySms019Body({ status: 0 })
+  chk('🔴 status=0 בלי shipment_id → delivery_unknown, לא accepted',
+    r.outcome === 'delivery_unknown', r.outcome)
+  chk('  ומסווג בקוד ייעודי שניתן לאיתור במסך הניהול',
+    r.errorCode === 'sms019_accepted_without_shipment_id', r.errorCode)
+}
+chk('🔴 status=0 עם shipment_id ריק → delivery_unknown',
+  classifySms019Body({ status: 0, shipment_id: '   ' }).outcome === 'delivery_unknown')
+chk('🔴 status=0 עם shipment_id לא-סקלרי → delivery_unknown',
+  classifySms019Body({ status: 0, shipment_id: { a: 1 } }).outcome === 'delivery_unknown')
 chk('shipment_id מספרי מומר למחרוזת',
   classifySms019Body({ status: 0, shipment_id: 12345 }).providerMessageId === '12345')
+chk('🔒 המסלול שעובד לא נפגע — status:0 + shipment_id עדיין accepted',
+  classifySms019Body({ status: 0, shipment_id: 'SHIP-1' }).outcome === 'accepted')
 
 const expectStatus = (code, outcome, slug) => {
   const r = classifySms019Body({ status: code })
@@ -409,7 +433,9 @@ section('הספק מקצה לקצה (fetch מוזרק)')
 // ── ולידציה מקומית: נכשלת בלי שום קריאת רשת ──
 {
   let called = 0
-  const failIfCalled = async () => { called++; return httpRes(200, { status: 0 }) }
+  // ⚠️ shipment_id נדרש: תשובת הצלחה בלי מזהה משלוח היא delivery_unknown,
+  // וכאן נבדקת הוולידציה המקומית ולא חוזה ההצלחה.
+  const failIfCalled = async () => { called++; return httpRes(200, { status: 0, shipment_id: 'S' }) }
 
   const { provider } = providerWith(failIfCalled)
   const intl = await provider.send({ ...MSG, to: '+14155552671' })

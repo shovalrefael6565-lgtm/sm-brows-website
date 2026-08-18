@@ -58,8 +58,26 @@ export default function CancelConfirmedDialog({
   }
 
   return (
+    /*
+      🔒 z-[70] ולא z-50.
+
+      ⚠️ באג פרודקשן אמיתי: הודעת העוגיות (components/ui/CookieNotice.tsx)
+      היא `fixed bottom-0 inset-x-0 z-50`, והיא מרונדרת ב-DeferredWidgets
+      **אחרי** {children} ב-app/layout.tsx. באותו z-index מנצח מי שמאוחר
+      יותר ב-DOM — ולכן הבאנר צויר מעל הדיאלוג הזה. במובייל הדיאלוג הוא
+      גיליון תחתון (items-end), כלומר בדיוק היכן שהבאנר יושב: הלקוחה לחצה,
+      הדיאלוג **כן** נפתח, אבל היא לא ראתה אותו ולא הצליחה ללחוץ על כפתוריו.
+      אומת ב-hit-test: elementFromPoint במרכז כפתור האישור החזיר את כפתור
+      "אישור הכול" של הבאנר.
+
+      ⚠️ אותה תקלה בדיוק כבר טופלה במגירת הניווט (components/layout/Navbar.tsx,
+      שם z-[60]) — הדיאלוגים של האזור האישי פשוט לא עודכנו יחד איתה.
+
+      הסדר: דיאלוג אזור אישי 70 > העדפות עוגיות 60/61 > מגירת ניווט 60 >
+      הודעת עוגיות / header 50 > ווידג'טים צפים 40.
+    */
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-brand-dark/50 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-brand-dark/50 backdrop-blur-sm p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cancel-title"
