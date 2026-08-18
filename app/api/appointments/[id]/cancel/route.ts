@@ -88,7 +88,26 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     })
   }
 
-  // ── בקשה ממתינה: המסלול הקיים, ללא שינוי ──────────────────────────────────
+  /*
+   * ── בקשה ממתינה: המסלול הקיים ─────────────────────────────────────────
+   *
+   * TODO(pending-cancel): שובל אינה מקבלת SMS כשלקוחה מבטלת בקשה שעדיין
+   * ממתינה לאישור — הבקשה נעלמת ממסך הניהול בלי הודעה. זהו פער מוכר
+   * שהוחלט **לדחות** לשלב שאחרי rollout מיגרציות הפרטיות.
+   *
+   * ⚠️ הסגירה מחייבת migration ואינה אפשרית בקוד בלבד:
+   *   1. `cancel_pending_appointment` (0003) כותבת שורת היסטוריה
+   *      ('cancelled', 'pending', 'cancelled_by_customer').
+   *   2. אף אחד מארבעת הענפים בטריגר של 0025 אינו תופס את הצירוף —
+   *      ענף הביטול דורש from_status='confirmed'.
+   *   3. ל-enum `notification_event` אין ערך שמתאר ביטול בקשה ממתינה,
+   *      ולנוסח הנדרש טקסט משלו — ולכן שימוש חוזר ב-booking_cancelled
+   *      אינו פותר.
+   *
+   * כשזה ייסגר, התיקון כאן הוא שורה אחת: `waitUntil(dispatchNow(id))`
+   * אחרי ההצלחה, בדיוק כמו בענף ה-confirmed שלמעלה. ⚠️ **לא** שליחת
+   * SMS ישירה — היא תעקוף את הטבלה, את ה-attempts ואת ה-idempotency.
+   */
   const result = await cancelPendingAppointment(id, customerId)
   if (!result.ok) {
     if (result.error === 'not_found') {

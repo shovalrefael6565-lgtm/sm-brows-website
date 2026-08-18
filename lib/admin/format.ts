@@ -290,6 +290,9 @@ export const REMINDER_ERROR_CODE_LABELS: Record<string, string> = {
   sms019_connect_failed:             'לא הצלחנו להתחבר לספק',
   sms019_malformed_response:         'תשובה לא מובנת מהספק',
   sms019_unmapped_status:            'קוד תשובה לא מוכר מהספק',
+  // ⚠️ 019 אישר את הבקשה אך לא החזיר מזהה משלוח. אין ראיה שההודעה נכנסה
+  // לתור השליחה, ולכן היא **אינה** מסומנת כנשלחה. דורש בדיקה מול הספק.
+  sms019_accepted_without_shipment_id: 'הספק ענה ללא מזהה משלוח — אין אישור שההודעה יצאה',
   sms019_unsupported_destination:    'מספר שאינו ישראלי — לא נתמך',
   sms019_message_empty:              'גוף ההודעה ריק',
   sms019_message_too_long:           'ההודעה ארוכה מדי',

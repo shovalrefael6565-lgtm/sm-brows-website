@@ -167,18 +167,24 @@ section('2. מסלול מוצלח, וניקוז שתי שורות')
     stats.claimed === 2 && stats.sent === 2, `claimed=${stats.claimed} sent=${stats.sent}`)
   chk('נשלחו שני נוסחים שונים — ללקוחה ולשובל',
     provider.calls.length === 2 && provider.calls[0].body !== provider.calls[1].body)
-  /**
-   * 🔒 צד ה-admin דינמי ונושא שם ומועד; צד הלקוחה סטטי ואינו נושא PII.
-   * ⚠️ זו ההפרדה המרכזית של השינוי, ולכן היא נבדקת על הפלט בפועל.
+  /*
+   * 🔴 **שני הצדדים סטטיים עכשיו, ואף אחד מהם אינו נושא PII.**
+   *
+   * ⚠️ עד כאן צד ה-admin היה דינמי ונשא שם לקוחה ומועד תור. הבדיקה
+   * הזו הפוכה בכוונה: היא נכשלת אם מישהו יחזיר PII לאחד משני הנוסחים.
    */
-  const adminBody = provider.calls.find(c => c.body.startsWith('תור בוטל:'))?.body
-  const custBody = provider.calls.find(c => c.body.startsWith('תורך בוטל'))?.body
-  chk('הודעת ה-admin נושאת שם ומועד התור',
-    Boolean(adminBody) && adminBody.includes('דנה כהן') && adminBody.includes('17:00'),
-    adminBody)
-  chk('🔒 הודעת הלקוחה נשארה סטטית וללא PII',
-    custBody === 'תורך בוטל. לפרטים: https://smbrows.co.il/account', custBody)
-  chk('🔒 הודעת ה-admin ללא קישור', Boolean(adminBody) && !/https?:/.test(adminBody))
+  const adminBody = provider.calls.find(c => c.body.startsWith('לקוחה ביטלה תור'))?.body
+  const custBody = provider.calls.find(c => c.body.startsWith('התור שלך בוטל'))?.body
+  chk('🔴 הודעת שובל — נוסח סטטי מדויק',
+    adminBody === 'לקוחה ביטלה תור. לניהול: https://smbrows.co.il/admin', adminBody)
+  chk('🔴 הודעת הלקוחה — נוסח סטטי מדויק',
+    custBody === 'התור שלך בוטל. לפרטים: https://smbrows.co.il/account', custBody)
+  chk('🔒 אף אחת מהשתיים אינה נושאת שם, תאריך או שעה',
+    [adminBody, custBody].every(b => !/דנה|\d{1,2}\/\d{1,2}|\d{1,2}:\d{2}/.test(b)))
+  chk('🔒 שתיהן נושאות קישור למקום מוגן',
+    [adminBody, custBody].every(b => /^https:\/\//.test(b.split(' ').at(-1))))
+  chk('🔒 ואף נתון לקוחה לא נשלף מה-DB עבורן',
+    !db.log.some(l => l.fn === 'context'), JSON.stringify(db.log))
   chk('🔒 idempotencyKey = מזהה ההתראה, לא מספר ניסיון או חותמת זמן',
     provider.calls[0].idempotencyKey === '11111111-1111-1111-1111-111111111111'
     && provider.calls[1].idempotencyKey === '22222222-2222-2222-2222-222222222222')
@@ -273,21 +279,36 @@ section('3ב. 🔒 הקשר נטען רק לזוגות הדינמיים')
   const db = fakeDb([row({ event: 'reschedule_requested', recipient_role: 'admin' })])
   const provider = fakeProvider()
   await dispatchNow('appt-1', { provider, db })
-  chk('זוג דינמי → ההקשר נטען', db.log.some(l => l.fn === 'context'))
-  chk('והשם הקנוני נכנס לגוף ההודעה',
-    provider.calls[0]?.body === 'בקשת שינוי מועד: דנה כהן. ניהול: https://smbrows.co.il/admin',
+  /*
+   * 🔴 היה "זוג דינמי → ההקשר נטען". עכשיו ההפך: הנוסח סטטי, ולכן
+   * **אין** שליפת נתוני לקוחה גם עבור בקשת שינוי מועד.
+   */
+  chk('🔴 בקשת שינוי מועד — אפס טעינת הקשר',
+    !db.log.some(l => l.fn === 'context'), JSON.stringify(db.log))
+  chk('🔴 והנוסח הוא הסטטי המדויק, ללא שם',
+    provider.calls[0]?.body === 'לקוחה ביקשה לשנות מועד. לניהול: https://smbrows.co.il/admin',
     provider.calls[0]?.body)
 }
 
 {
   enable()
-  // ⚠️ בלי הקשר אין הודעה — ולא נוסח חלקי שחסר בו מי או מתי.
+  /*
+   * 🔴 **הקשר חסר כבר אינו יכול לחסום הודעה.**
+   *
+   * ⚠️ עד כאן `booking_cancelled/admin` היה דינמי, ו-`loadNotificationContext`
+   * שמחזירה null הפילה אותו ל-skip/context_unavailable. עכשיו הנוסח סטטי,
+   * ולכן ההודעה נשלחת כרגיל **גם** כשההקשר אינו זמין — אין בה מה למלא.
+   *
+   * 🔒 זו הקשחה ולא ויתור: נעלמה עוד נקודת כשל שיכלה להשתיק התראה לשובל.
+   */
   const db = fakeDb([row({ event: 'booking_cancelled', recipient_role: 'admin' })], '+972501112233', null)
   const provider = fakeProvider()
   const stats = await dispatchNow('appt-1', { provider, db })
-  chk('🔒 הקשר חסר → skip/context_unavailable, ולא הודעה חלקית',
-    db.log.some(l => l.fn === 'skip' && l.reason === 'context_unavailable')
-    && provider.calls.length === 0 && stats.skipped === 1)
+  chk('🔴 הקשר לא זמין → ההודעה בכל זאת נשלחת (הנוסח סטטי)',
+    provider.calls.length === 1 && stats.sent === 1 && stats.skipped === 0,
+    `sent=${stats.sent} skipped=${stats.skipped}`)
+  chk('🔒 ו-loadNotificationContext כלל לא נקראה',
+    !db.log.some(l => l.fn === 'context'))
 }
 
 // ════════════════════════════════════════════════════════════════════════════

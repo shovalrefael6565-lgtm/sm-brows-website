@@ -40,9 +40,6 @@ const {
   hasEmoji,
   requiresContext,
   smsBodyWithContext,
-  sanitizeCustomerName,
-  buildRescheduleRequestedAdminSms,
-  buildBookingCancelledAdminSms,
 } = await import('../lib/messageTemplates.ts')
 
 // ─── 1. המגבלה ──────────────────────────────────────────────────────────────
@@ -59,7 +56,9 @@ for (const [kind, body] of Object.entries(REMINDER_SMS)) {
   allTexts.push([`reminder/${kind}`, body])
 }
 
-chk('9 נוסחים סטטיים (שניים הפכו דינמיים)', allTexts.length === 9, `נמצאו ${allTexts.length}`)
+// 🔴 11 ולא 9: שני נוסחי ה-admin שהיו דינמיים חזרו להיות סטטיים.
+chk('🔴 11 נוסחים — כולם סטטיים, אין יותר דינמיים', allTexts.length === 11,
+  `נמצאו ${allTexts.length}`)
 
 for (const [label, body] of allTexts) {
   const len = smsLength(body)
@@ -105,7 +104,12 @@ const EXPECTED = {
   'booking_rejected/customer':  ['בקשת התור לא אושרה. לפרטים: https://smbrows.co.il/account', 57],
   'reschedule_approved/customer': ['שינוי המועד אושר. לפרטים: https://smbrows.co.il/account', 55],
   'reschedule_rejected/customer': ['בקשת שינוי המועד לא אושרה. לפרטים: https://smbrows.co.il/account', 64],
-  'booking_cancelled/customer': ['תורך בוטל. לפרטים: https://smbrows.co.il/account', 48],
+  // 🔴 השתנה: 'תורך בוטל' → 'התור שלך בוטל' (48 → 52).
+  'booking_cancelled/customer': ['התור שלך בוטל. לפרטים: https://smbrows.co.il/account', 52],
+  // 🔴 חדשים כסטטיים — היו נוסחים דינמיים שנשאו שם ומועד.
+  'booking_cancelled/admin':    ['לקוחה ביטלה תור. לניהול: https://smbrows.co.il/admin', 52],
+  'reschedule_requested/admin':
+    ['לקוחה ביקשה לשנות מועד. לניהול: https://smbrows.co.il/admin', 59],
   'appointment_moved_by_business/customer':
     ['מועד התור שלך עודכן. לפרטים: https://smbrows.co.il/account', 58],
   'reminder/day_before':        ['תזכורת: התור שלך מחר. פרטים: https://smbrows.co.il/account', 58],
@@ -158,8 +162,12 @@ chk('🔒 הנוסחים סטטיים (אין תלות בשעון או במצב)
 // ─── 4. המיפוי ──────────────────────────────────────────────────────────────
 section('מיפוי (אירוע, נמען)')
 
-chk('🔒 שני הזוגות הדינמיים אינם ב-SMS_TEXT',
-  !SMS_TEXT.reschedule_requested && !SMS_TEXT.booking_cancelled.admin)
+chk('🔴 שני הזוגות שהיו דינמיים נמצאים עכשיו ב-SMS_TEXT כסטטיים',
+  typeof SMS_TEXT.reschedule_requested?.admin === 'string'
+  && typeof SMS_TEXT.booking_cancelled?.admin === 'string')
+
+chk('🔒 בקשת שינוי מועד נשלחת לשובל בלבד — לא ללקוחה',
+  !SMS_TEXT.reschedule_requested?.customer)
 
 chk('בקשות הולכות לאדמין, הכרעות ללקוחה',
   !!SMS_TEXT.booking_requested.admin && !SMS_TEXT.booking_requested.customer
@@ -176,63 +184,54 @@ chk('🔒 זוג ללא נוסח מחזיר null ולא נוסח חלופי',
   smsBodyFor('booking_approved', 'admin') === null
   && smsBodyFor('booking_requested', 'customer') === null)
 
-// ─── 4ב. שני נוסחי ה-ADMIN הדינמיים ─────────────────────────────────────────
-section('נוסחי ADMIN דינמיים')
+// ─── 4ב. 🔴 אין יותר נוסחים דינמיים ────────────────────────────────────────
+section('🔴 מנגנון הנוסחים הדינמיים — ריק')
 
-chk('🔒 שני הזוגות הדינמיים — ושניהם admin בלבד',
-  requiresContext('reschedule_requested', 'admin')
-  && requiresContext('booking_cancelled', 'admin')
-  && !requiresContext('reschedule_requested', 'customer')
-  && !requiresContext('booking_cancelled', 'customer')
-  && !requiresContext('booking_approved', 'customer'))
+/*
+ * 🔴 המקטע הזה בדק עד כה את שני נוסחי ה-admin הדינמיים: תקציב תווים,
+ * קיצוץ שם, וניקוי אמוג'י מתוך `full_name`.
+ *
+ * ⚠️ **שניהם הוסרו.** `booking_cancelled/admin` ו-
+ * `reschedule_requested/admin` הם נוסחים סטטיים, ולכן אין יותר תקציב
+ * לבדוק ואין יותר שם לקצץ. מה שנבדק כאן עכשיו הוא ההפך: שהמנגנון **ריק
+ * ונשאר ריק**, כלומר שאף התראה אינה גורמת עוד לשליפת נתוני לקוחה.
+ */
+for (const [event, role] of [
+  ['reschedule_requested', 'admin'],
+  ['booking_cancelled', 'admin'],
+  ['booking_cancelled', 'customer'],
+  ['booking_approved', 'customer'],
+  ['booking_requested', 'admin'],
+  ['reschedule_approved', 'customer'],
+]) {
+  chk(`🔴 ${event}/${role} אינו דורש הקשר — אין שליפת נתוני לקוחה`,
+    requiresContext(event, role) === false)
+}
 
-chk('בקשת שינוי מועד — נוסח מדויק',
-  buildRescheduleRequestedAdminSms({ customerName: 'דנה כהן' })
-  === 'בקשת שינוי מועד: דנה כהן. ניהול: https://smbrows.co.il/admin')
+chk('🔴 smsBodyWithContext מחזיר null לכל זוג — אין בונים דינמיים',
+  smsBodyWithContext('booking_cancelled', 'admin', { customerName: 'x' }) === null
+  && smsBodyWithContext('reschedule_requested', 'admin', { customerName: 'x' }) === null
+  && smsBodyWithContext('booking_approved', 'customer', { customerName: 'x' }) === null)
 
-chk('ביטול — נוסח מדויק, וללא קישור',
-  buildBookingCancelledAdminSms({
-    customerName: 'דנה כהן', appointmentDate: '24/08/2026', appointmentTime: '17:00',
-  }) === 'תור בוטל: דנה כהן, 24/08/2026 17:00')
-chk('🔒 הודעת הביטול אינה מכילה URL',
-  !/https?:/.test(buildBookingCancelledAdminSms({
-    customerName: 'דנה כהן', appointmentDate: '24/08/2026', appointmentTime: '17:00' })))
-
-/**
- * 🔒 **המקרה שהתקציב קיים בשבילו.** שם ארוך פתולוגית חייב להיחתך, ולא
- * להפוך את ההודעה לשני מקטעים.
+/*
+ * 🔒 הבדיקה שמחליפה את כל בדיקות התקציב: **אף נוסח אינו נושא PII.**
+ * לא שם, לא טלפון, לא תאריך, לא שעה, לא מחיר.
  */
 {
-  const long = 'א'.repeat(400)
-  const a = buildRescheduleRequestedAdminSms({ customerName: long })
-  const b = buildBookingCancelledAdminSms({
-    customerName: long, appointmentDate: '24/08/2026', appointmentTime: '17:00' })
-  chk('🔒 שם באורך 400 — בקשת שינוי ≤70', smsLength(a) <= SMS_MAX_CHARS, `${smsLength(a)}`)
-  chk('🔒 שם באורך 400 — ביטול ≤70', smsLength(b) <= SMS_MAX_CHARS, `${smsLength(b)}`)
-  chk('הקיצוץ מסומן ב-…', a.includes('…') && b.includes('…'))
-  // ⚠️ הקישור והמועד לעולם אינם נחתכים — רק השם.
-  chk('🔒 הקישור נשאר שלם גם בשם מקסימלי', a.endsWith('https://smbrows.co.il/admin'))
-  chk('🔒 המועד נשאר שלם גם בשם מקסימלי', b.endsWith('24/08/2026 17:00'))
+  const PII = [
+    ['ספרות רצופות (טלפון/מספר)', /\d{3,}/],
+    ['תאריך', /\d{1,2}\/\d{1,2}/],
+    ['שעה', /\d{1,2}:\d{2}/],
+    ['סימן מחיר', /[₪$]/],
+  ]
+  for (const [event, byRole] of Object.entries(SMS_TEXT)) {
+    for (const [role, body] of Object.entries(byRole ?? {})) {
+      for (const [label, re] of PII) {
+        chk(`🔒 ${event}/${role} — ללא ${label}`, !re.test(body), body)
+      }
+    }
+  }
 }
-
-/**
- * ⚠️ `full_name` הוא טקסט חופשי מהטופס. אמוג'י שם היה שובר את כלל
- * ה-multipart ומבזבז תקציב.
- */
-chk("🔒 אמוג'י בשם מוסר לפני המדידה",
-  sanitizeCustomerName('דנה 🌸💆‍♀️ כהן') === 'דנה כהן',
-  JSON.stringify(sanitizeCustomerName('דנה 🌸💆‍♀️ כהן')))
-chk('שורה חדשה ורווחים כפולים מנורמלים',
-  sanitizeCustomerName('  דנה\n\n  כהן  ') === 'דנה כהן')
-for (const bad of ['דנה 🌸 כהן', 'דנה\nכהן', 'דנה 🇮🇱']) {
-  const out = buildBookingCancelledAdminSms({
-    customerName: bad, appointmentDate: '24/08/2026', appointmentTime: '17:00' })
-  chk(`🔒 פלט נקי עבור ${JSON.stringify(bad)}`,
-    !hasEmoji(out) && !out.includes('\n') && smsLength(out) <= SMS_MAX_CHARS)
-}
-
-chk('smsBodyWithContext מחזיר null לזוג שאינו דינמי',
-  smsBodyWithContext('booking_approved', 'customer', { customerName: 'x' }) === null)
 
 // ─── 5. התזכורות — מקור אמת משותף עם lib/reminders/templates.ts ────────────
 section('תזכורות — מחווטות ל-lib/reminders/templates.ts')

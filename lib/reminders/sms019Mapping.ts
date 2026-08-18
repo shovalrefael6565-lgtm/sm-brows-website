@@ -312,9 +312,38 @@ export function classifySms019Body(body: unknown): ReminderDeliveryResult {
     const providerMessageId =
       typeof shipment === 'string' && shipment.trim() !== ''
         ? shipment.trim()
-        : typeof shipment === 'number'
+        : typeof shipment === 'number' && Number.isFinite(shipment)
           ? String(shipment)
           : undefined
+
+    /*
+     * 🔒 hotfix — **`status: 0` לבדו אינו הצלחה.**
+     *
+     * ⚠️ החוזה של 019 לקבלת בקשה למשלוח הוא **שני** שדות: `status: 0`
+     * ו-`shipment_id`. עד כאן נבדק רק הראשון, ו-`shipment_id` נחשב
+     * "נחמד שיהיה" — כלומר תשובת HTTP 200 שיש בה `status: 0` ואין בה
+     * מזהה משלוח נרשמה כ-accepted, וה-RPC הפכה אותה ל-`sent`.
+     *
+     * ⚠️ זהו בדיוק המצב שנצפה בפרודקשן: שורות `sent` שאין להן
+     * `provider_message_id`, ושאין להן שום זכר בדוח ההודעות היוצאות של
+     * 019. `sent` בלי מזהה משלוח הוא הצהרה שאין מאחוריה שום ראיה.
+     *
+     * 🔒 הסיווג הוא `delivery_unknown` ולא כשל: הבקשה **כן** יצאה,
+     * ו-019 **כן** ענה 200. אין הוכחה שההודעה נדחתה, ולכן אין לנסות
+     * שוב — ל-019 אין idempotency מוכחת, ו-retry כאן הוא הימור על SMS
+     * שני על חשבון הלקוחה. זה בדיוק הכלל שבראש הקובץ.
+     *
+     * ⚠️ המסלול משותף ל-OTP, לתזכורות ולהתראות **בכוונה**, וזה מה
+     * שמקיים את הדרישה "אותו serializer, בלי מימוש מקביל". התנהגות
+     * המסלולים שעובדים אינה משתנה: תשובת הצלחה אמיתית של 019 נושאת
+     * `shipment_id`, ולכן היא ממשיכה להיות accepted בדיוק כמו קודם.
+     * ב-OTP `delivery_unknown` מתורגם ל-`{ok:true, uncertain:true}` —
+     * שורת הקוד נשארת תקפה והלקוחה אינה נענשת.
+     */
+    if (providerMessageId === undefined) {
+      return { outcome: 'delivery_unknown', errorCode: 'sms019_accepted_without_shipment_id' }
+    }
+
     return { outcome: 'accepted', providerMessageId }
   }
 
