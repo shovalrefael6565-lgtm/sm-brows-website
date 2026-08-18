@@ -89,24 +89,20 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
 
   /*
-   * ── בקשה ממתינה: המסלול הקיים ─────────────────────────────────────────
+   * ── בקשה ממתינה ───────────────────────────────────────────────────────
    *
-   * TODO(pending-cancel): שובל אינה מקבלת SMS כשלקוחה מבטלת בקשה שעדיין
-   * ממתינה לאישור — הבקשה נעלמת ממסך הניהול בלי הודעה. זהו פער מוכר
-   * שהוחלט **לדחות** לשלב שאחרי rollout מיגרציות הפרטיות.
+   * ⚠️ עד 0033 הענף הזה **לא** נוקז, והבקשה נעלמה ממסך הניהול בלי ששובל
+   * ידעה. 0033 הוסיפה ערך enum (`pending_request_cancelled`) וענף בטריגר
+   * שרושם התראה ל-admin בלבד, ולכן הניקוז כאן נכון עכשיו — בדיוק כמו
+   * בענף ה-confirmed למעלה.
    *
-   * ⚠️ הסגירה מחייבת migration ואינה אפשרית בקוד בלבד:
-   *   1. `cancel_pending_appointment` (0003) כותבת שורת היסטוריה
-   *      ('cancelled', 'pending', 'cancelled_by_customer').
-   *   2. אף אחד מארבעת הענפים בטריגר של 0025 אינו תופס את הצירוף —
-   *      ענף הביטול דורש from_status='confirmed'.
-   *   3. ל-enum `notification_event` אין ערך שמתאר ביטול בקשה ממתינה,
-   *      ולנוסח הנדרש טקסט משלו — ולכן שימוש חוזר ב-booking_cancelled
-   *      אינו פותר.
+   * 🔒 **לא שליחת SMS ישירה.** הניקוז עובר דרך הטבלה, ה-attempts
+   * וה-idempotency של 0025 — שליחה ישירה הייתה עוקפת את שלושתם.
    *
-   * כשזה ייסגר, התיקון כאן הוא שורה אחת: `waitUntil(dispatchNow(id))`
-   * אחרי ההצלחה, בדיוק כמו בענף ה-confirmed שלמעלה. ⚠️ **לא** שליחת
-   * SMS ישירה — היא תעקוף את הטבלה, את ה-attempts ואת ה-idempotency.
+   * 🔒 ביטול אחד = SMS אחד: `cancel_pending_appointment` דורשת
+   * status='pending', ולכן ביטול חוזר אינו כותב שורת היסטוריה שנייה;
+   * ומפתח ה-idempotency (source_history_id, recipient_role) חוסם כפילות
+   * גם אם dispatchNow ירוץ פעמיים.
    */
   const result = await cancelPendingAppointment(id, customerId)
   if (!result.ok) {
@@ -121,6 +117,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       { status: 500 },
     )
   }
+
+  waitUntil(dispatchNow(id))
 
   return NextResponse.json({ ok: true })
 }

@@ -57,7 +57,8 @@ for (const [kind, body] of Object.entries(REMINDER_SMS)) {
 }
 
 // 🔴 11 ולא 9: שני נוסחי ה-admin שהיו דינמיים חזרו להיות סטטיים.
-chk('🔴 11 נוסחים — כולם סטטיים, אין יותר דינמיים', allTexts.length === 11,
+// 🔴 12 מ-0033: נוסף pending_request_cancelled/admin (ביטול בקשה ממתינה).
+chk('🔴 12 נוסחים — כולם סטטיים, אין יותר דינמיים', allTexts.length === 12,
   `נמצאו ${allTexts.length}`)
 
 for (const [label, body] of allTexts) {
@@ -119,6 +120,12 @@ const EXPECTED = {
   //    את TWO_HOURS_FRESHNESS_MS ב-lib/reminders/dispatch.ts.
   'reminder/day_before':
     ['תזכורת: יש לך תור מחר. לפרטים: https://smbrows.co.il/account', 60],
+  /*
+   * 0033 — ביטול בקשה שעדיין ממתינה. admin בלבד, סטטי, בלי PII.
+   * 57/70 — מקטע יחיד.
+   */
+  'pending_request_cancelled/admin':
+    ['לקוחה ביטלה בקשת תור. לניהול: https://smbrows.co.il/admin', 57],
   'reminder/two_hours_before':
     ['תזכורת: התור שלך בעוד שעתיים. לפרטים: https://smbrows.co.il/account', 67],
 }

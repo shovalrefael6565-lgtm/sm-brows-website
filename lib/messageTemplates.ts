@@ -81,6 +81,16 @@ export type NotificationEvent =
    * גרירה שנייה חייבת לייצר התראה שנייה.
    */
   | 'appointment_moved_by_business'
+  /**
+   * הלקוחה ביטלה בקשה שעדיין **ממתינה לאישור** (0033).
+   *
+   * 🔒 נפרד מ-`booking_cancelled` ולא שימוש חוזר בו: בקשה ממתינה אינה
+   * תור, והנוסח שונה בהתאם ("ביטלה בקשת תור" מול "התור בוטל"). מיזוגם
+   * היה מטשטש בדיוק את ההבחנה שעליה נבנה 15F.
+   *
+   * 🔒 `admin` בלבד — הלקוחה יודעת שהיא ביטלה.
+   */
+  | 'pending_request_cancelled'
 
 export type RecipientRole = 'admin' | 'customer'
 
@@ -128,6 +138,13 @@ export const SMS_TEXT: Readonly<
   reschedule_rejected: {
     // ⚠️ 64/70 — הנוסח הצפוף ביותר. אין כאן מקום למילה נוספת.
     customer: `בקשת שינוי המועד לא אושרה. לפרטים: ${ACCOUNT_URL}`,
+  },
+  /*
+   * 🔒 סטטי כמו כל השאר, ובלי PII: לא שם, לא טלפון, לא מועד. שובל רואה
+   * איזו בקשה בוטלה במסך הניהול, שמאחורי הזדהות.
+   */
+  pending_request_cancelled: {
+    admin: `לקוחה ביטלה בקשת תור. לניהול: ${ADMIN_URL}`,
   },
   booking_cancelled: {
     customer: `התור שלך בוטל. לפרטים: ${ACCOUNT_URL}`,
