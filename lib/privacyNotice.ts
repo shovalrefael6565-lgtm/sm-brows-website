@@ -10,7 +10,7 @@
  * העמודות ב-appointments (policy_version מול privacy_notice_version)
  * נשמרות בנפרד ואינן מתערבבות.
  */
-export const PRIVACY_NOTICE_VERSION = '1.0'
+export const PRIVACY_NOTICE_VERSION = '1.1'
 export const PRIVACY_NOTICE_UPDATED = 'אוגוסט 2026'
 export const PRIVACY_PATH = '/privacy'
 export const CONTACT_PATH = '/contact'
