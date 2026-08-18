@@ -242,7 +242,7 @@ section('9. הצלחה מרעננת; כישלון מציג שגיאה ואינו
   }
   const pending = stripComments(src(PENDING_BTN))
   chk('ביטול בקשה: מרענן רק בהצלחה, ומציג שגיאה בכישלון',
-    /if \(!res\.ok\) \{[\s\S]*?setError\([\s\S]*?return[\s\S]*?\}\s*router\.refresh\(\)/.test(pending))
+    /if \(!res\.ok\) \{[\s\S]*?setError\([\s\S]*?return[\s\S]*?\}[\s\S]*?setConfirming\(false\)\s*router\.refresh\(\)/.test(pending))
   chk('ביטול בקשה: disabled בזמן טעינה (בלי POST כפול)', /disabled=\{loading\}/.test(pending))
 }
 
@@ -285,6 +285,79 @@ section('11. נגישות — מקלדת ומובייל')
     chk(`${label}: כפתור סגירה בעל aria-label`, /aria-label="סגירה"/.test(clean))
     chk(`${label}: הודעת שגיאה מוכרזת (role="alert")`, /role="alert"/.test(clean))
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('11.5 🔴 ביטול בקשה ממתינה — בלי window.confirm')
+{
+  /*
+    🔴 התקלה: הכפתור "ביטול הבקשה" נראה ולא הגיב לכלום.
+
+    הוא היה מגודר ב-`window.confirm(...)`. דפדפן שמדכא דיאלוגים נטיביים
+    מחזיר false **סינכרונית, בלי להציג דבר** — ה-webview של אינסטגרם/
+    פייסבוק (שדרכו מגיעה רוב התנועה), וגם כרום אחרי "מנע מהדף הזה ליצור
+    דיאלוגים נוספים". התוצאה: אפס fetch, בלי ספינר, בלי שגיאה. כפתור מת.
+
+    שוחזר ב-production build מקומי: confirm→false נתן 0 קריאות רשת ו-DOM
+    ללא שינוי; confirm→true נתן POST אחד תקין.
+  */
+  const clean = stripComments(src(PENDING_BTN))
+
+  chk('🔴 אין window.confirm ברכיב', !/window\.confirm|(^|[^.\w])confirm\(/.test(clean))
+  chk('🔴 אין alert/prompt נטיביים ברכיב', !/window\.(alert|prompt)|(^|[^.\w])(alert|prompt)\(/.test(clean))
+
+  // ⚠️ שער כולל: אף רכיב באזור האישי לא יחזיר את הדפוס הזה בשקט.
+  for (const f of [ACTIONS, CANCEL_DIALOG, RESCHED_DIALOG, PENDING_BTN]) {
+    chk(`🔒 ${f.split('/').pop()} — בלי דיאלוג נטיבי`,
+      !/window\.(confirm|alert|prompt)\(/.test(stripComments(src(f))))
+  }
+
+  chk('הכפתור בכרטיס רק פותח דיאלוג', /onClick=\{\(\) => setConfirming\(true\)\}/.test(clean))
+  chk('🔒 הדיאלוג מרונדר רק אחרי בחירה מפורשת', /\{confirming && \(/.test(clean))
+  chk('דיאלוג React אמיתי: role + aria-modal + aria-labelledby',
+    /role="dialog"/.test(clean) && /aria-modal="true"/.test(clean) && /aria-labelledby="cancel-pending-title"/.test(clean))
+  chk('Escape סוגר (ולא בזמן שליחה)', /e\.key === 'Escape' && !loading/.test(clean))
+  chk('גיליון תחתון במובייל, ממורכז בדסקטופ', /items-end sm:items-center/.test(clean))
+
+  const zOfPending = (() => {
+    const line = src(PENDING_BTN).split('\n').find(l => l.includes('fixed inset-0 z-'))
+    const m = line && line.match(/z-\[?(\d+)\]?/)
+    return m ? Number(m[1]) : null
+  })()
+  chk('🔒 הדיאלוג מעל הודעת העוגיות ושכבת ההעדפות', zOfPending > 61, `pending=${zOfPending}`)
+
+  chk('🔒 בדיוק קריאת fetch אחת אל /api/appointments',
+    (clean.match(/fetch\(`\/api\/appointments\//g) || []).length === 1)
+
+  /*
+    ⚠️ `if (loading) return` ו-disabled={loading} לבדם אינם מונעים POST
+    כפול: שניהם נשענים על state שמתעדכן רק ברינדור הבא, ושתי נגיעות באותו
+    tick רואות שתיהן loading=false. אומת: שלוש לחיצות סינכרוניות ייצרו
+    שלושה POST לפני התיקון, ואחת אחריו.
+  */
+  chk('🔒 שער סינכרוני נגד POST כפול (createInFlightGuard, לא רק state)',
+    /createInFlightGuard/.test(clean) && /if \(!inFlight\.current\.tryStart\(\)\) return/.test(clean))
+  chk('🔒 השער משוחרר בכל מסלול כישלון', (clean.match(/inFlight\.current\.finish\(\)/g) || []).length >= 2)
+  chk('כפתור האישור disabled בזמן שליחה', /disabled=\{loading\}/.test(clean))
+
+  chk('🔒 401 מקבל נוסח משלו — "נסי שוב" לא היה עוזר לעולם',
+    /res\.status === 401/.test(clean) && /נותקת מהחשבון/.test(clean))
+  chk('🔒 401 מציע מסלול יציאה אמיתי (קישור להתחברות)',
+    /href="\/login"/.test(clean))
+  chk('שגיאה אחרת מגיעה מהשרת עם ברירת מחדל', /data\.message \?\? 'הביטול נכשל/.test(clean))
+  chk('כשל רשת מקבל נוסח משלו', /catch \{\s*setError\('אין חיבור לאינטרנט/.test(clean))
+  chk('הודעת השגיאה מוכרזת (role="alert")', /role="alert"/.test(clean))
+
+  chk('🔒 הצלחה סוגרת את הדיאלוג ומרעננת', /setConfirming\(false\)\s*router\.refresh\(\)/.test(clean))
+  chk('🔒 כישלון אינו מרענן ואינו סוגר (המצב לא משתנה אופטימית)',
+    clean.indexOf('router.refresh()') > clean.lastIndexOf('setLoading(false)\n        inFlight.current.finish()\n        return'))
+
+  /*
+    ⚠️ 69×16 פיקסלים היה גודל היעד הקודם — הרבה מתחת ל-44×44. נמדד
+    בדפדפן: 101×44 אחרי התיקון.
+  */
+  chk('🔒 יעד נגיעה בגובה 44px לפחות (h-11)', /className="[^"]*\bh-11\b/.test(clean))
+  chk('טבעת מיקוד גלויה למקלדת', /focus-visible:ring-brand-gold/.test(clean))
 }
 
 // ════════════════════════════════════════════════════════════════════════════
