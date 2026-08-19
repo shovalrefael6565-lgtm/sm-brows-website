@@ -1295,6 +1295,158 @@ export async function markAppointmentNoShowByAdmin(
 }
 
 /**
+ * 🔒 שלב 12 (0034) — שינוי מועד ע"י המנהלת.
+ *
+ * ═══ למה זו פונקציה נפרדת מ-approveRescheduleRequest ═══
+ *
+ * שם מדובר בשתי שורות: בקשה שהלקוחה יצרה, ותור מקורי שצריך להשתחרר.
+ * כאן יש שורה **אחת** שזזה. אין שורה שנייה, אין שעה ישנה לשחרר, ואין
+ * אירוע יומן למחוק — האירוע הקיים זז ל-patch. מיזוג שני המסלולים היה
+ * מחייב כל תנאי משניהם להתפצל בתוך פונקציה אחת.
+ *
+ * ⚠️ הכשלים העסקיים חוזרים כ-**outcome ולא כשגיאה**, בדיוק כמו בביטול
+ * הניהולי: "יש בקשת שינוי מועד ממתינה" ו"התור כבר הושלם" הם שתי עובדות
+ * שונות לחלוטין, ושובל חייבת לראות איזו מהן קרתה.
+ */
+export type AdminRescheduleOutcome =
+  | 'applied'
+  | 'no_change'
+  | 'not_confirmed'
+  | 'is_request_row'
+  | 'in_past'
+  | 'target_in_past'
+  | 'open_reschedule_request'
+  | 'sync_in_progress'
+
+export type AdminRescheduleError =
+  | 'not_found' | 'not_admin' | 'invalid_slot' | 'invalid_duration'
+  | 'slot_taken' | 'db_error'
+
+/**
+ * ⚠️ השורה הגולמית שה-RPC מחזירה (to_jsonb), בלי שדות ה-join — בדיוק
+ * מאותו טעם שמתועד ב-CancelledAppointmentRow.
+ */
+export interface RescheduledAppointmentRow {
+  id: string
+  status: string
+  starts_at: string
+  ends_at: string
+  duration_min: number
+  calendar_sync_operation: CalendarSyncOperation
+  calendar_sync_status: string
+  google_event_id: string | null
+}
+
+export interface AdminRescheduleResult {
+  outcome: AdminRescheduleOutcome
+  appointment: RescheduledAppointmentRow
+  /** הסטטוס בפועל, כש-outcome='not_confirmed' */
+  currentStatus?: string
+  /** המועד שממנו זז התור, כש-outcome='applied' */
+  fromStartsAt?: string
+}
+
+export async function rescheduleAppointmentByAdmin(params: {
+  appointmentId: string
+  startsAt: Date
+  durationMin: number | null
+  adminUserId: string
+}): Promise<{ ok: true; result: AdminRescheduleResult } | { ok: false; error: AdminRescheduleError }> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('admin_reschedule_appointment', {
+    p_appointment_id: params.appointmentId,
+    p_starts_at: params.startsAt.toISOString(),
+    p_duration_min: params.durationMin,
+    p_admin_user_id: params.adminUserId,
+  })
+
+  if (error) {
+    const m = (error.message ?? '').toUpperCase()
+    if (m.includes('NOT_FOUND')) return { ok: false, error: 'not_found' }
+    if (m.includes('NOT_ADMIN') || m.includes('ADMIN_REQUIRED')) return { ok: false, error: 'not_admin' }
+    if (m.includes('INVALID_DURATION')) return { ok: false, error: 'invalid_duration' }
+    if (m.includes('INVALID_SLOT')) return { ok: false, error: 'invalid_slot' }
+    // 23P01 = exclusion_violation — appointments_no_overlap תפס חפיפה.
+    // ⚠️ זו ההגנה האמיתית מפני שתי הזזות מקבילות, ולא הבדיקה המקדימה.
+    if (m.includes('23P01') || m.includes('APPOINTMENTS_NO_OVERLAP')) {
+      return { ok: false, error: 'slot_taken' }
+    }
+    console.error('[appointments] admin reschedule failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+
+  const envelope = data as unknown as {
+    outcome: AdminRescheduleOutcome
+    appointment: Record<string, unknown>
+    current_status?: string
+    from_starts_at?: string
+  }
+
+  return {
+    ok: true,
+    result: {
+      outcome: envelope.outcome,
+      appointment: envelope.appointment as unknown as RescheduledAppointmentRow,
+      currentStatus: envelope.current_status,
+      fromStartsAt: envelope.from_starts_at,
+    },
+  }
+}
+
+/**
+ * 🔒 שלב 12 (0034) — סימון תור בודד כהושלם.
+ *
+ * ⚠️ **אינו מחליף את ה-sweep** (complete_past_confirmed_appointments, 0029)
+ * אלא משלים אותו: ה-sweep רץ בתדירות שלו ומסמן הכול, וזה נותן לשובל
+ * לסגור תור מסוים מיד. שניהם כותבים בדיוק את אותו מעבר confirmed→completed
+ * ואת אותה שורת היסטוריה, ולכן אין מצב שבו שניהם "נלחמים" — הראשון שמגיע
+ * מנצח, והשני רואה שורה שכבר completed.
+ */
+export type AdminCompleteOutcome = 'applied' | 'already_completed' | 'not_ended' | 'not_eligible'
+export type AdminCompleteError = 'not_found' | 'not_admin' | 'db_error'
+
+export interface AdminCompleteResult {
+  outcome: AdminCompleteOutcome
+  appointment: NoShowAppointmentRow
+  /** הסטטוס בפועל, כש-outcome='not_eligible' */
+  currentStatus?: string
+}
+
+export async function markAppointmentCompletedByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<{ ok: true; result: AdminCompleteResult } | { ok: false; error: AdminCompleteError }> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('mark_appointment_completed', {
+    p_appointment_id: appointmentId,
+    p_admin_user_id: adminUserId,
+  })
+
+  if (error) {
+    const m = error.message ?? ''
+    if (m.includes('NOT_FOUND')) return { ok: false, error: 'not_found' }
+    if (m.includes('NOT_ADMIN') || m.includes('ADMIN_REQUIRED')) return { ok: false, error: 'not_admin' }
+    console.error('[appointments] mark completed failed', error.message)
+    return { ok: false, error: 'db_error' }
+  }
+
+  const envelope = data as unknown as {
+    outcome: AdminCompleteOutcome
+    appointment: Record<string, unknown>
+    current_status?: string
+  }
+
+  return {
+    ok: true,
+    result: {
+      outcome: envelope.outcome,
+      appointment: envelope.appointment as unknown as NoShowAppointmentRow,
+      currentStatus: envelope.current_status,
+    },
+  }
+}
+
+/**
  * טווחי תפוסה (HH:MM ישראל) מתוך תורים פעילים (pending/confirmed) ב-DB
  * לתאריך נתון — מיועד להתמזג עם טווחי התפוסה מ-Google Calendar כדי
  * שבקשה שממתינה לאישור תיחסם מהצגה כפנויה ללקוחה אחרת. מראה בדיוק את

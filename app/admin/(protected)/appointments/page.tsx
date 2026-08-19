@@ -5,11 +5,14 @@ import {
 } from '@/lib/db/appointments'
 import { formatPhoneForDisplay, E164_IL_MOBILE } from '@/lib/phone'
 import { formatDateTimeIL, treatmentLabel, STATUS_LABELS, BOOKING_SOURCE_LABELS } from '@/lib/admin/format'
+import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
 import { buildReminderWhatsAppMessage, buildWhatsAppLinkToCustomer } from '@/lib/whatsappTemplates'
 import Pagination from '@/components/admin/Pagination'
 import CancelAppointmentButton from '@/components/admin/CancelAppointmentButton'
 import MarkNoShowButton from '@/components/admin/MarkNoShowButton'
 import ApproveRejectButtons from '@/components/admin/ApproveRejectButtons'
+import MarkCompletedButton from '@/components/admin/MarkCompletedButton'
+import RescheduleAppointmentButton from '@/components/admin/RescheduleAppointmentButton'
 import { cn } from '@/lib/utils'
 
 /**
@@ -284,6 +287,25 @@ function AppointmentCard({ appt }: { appt: AdminAppointmentRow }) {
       // eslint-disable-next-line react-hooks/purity
       (appt.status === 'confirmed' && new Date(appt.ends_at).getTime() <= Date.now()))
 
+  /**
+   * 🔒 (0034) שינוי מועד — בדיוק אותם תנאים כמו ביטול: תור מאושר, שאינו
+   * שורת בקשה, שטרם התחיל. ה-RPC אוכף אותם בעצמו, ובנוסף חוסם כשיש בקשת
+   * שינוי מועד ממתינה של הלקוחה או lease סנכרון פעיל — שני מצבים שאי אפשר
+   * לדעת עליהם מכאן בלי שאילתה נוספת, ולכן הם מוחזרים כהודעה ברורה.
+   */
+  const canReschedule = canCancel
+
+  /**
+   * 🔒 (0034) סימון "הושלם" — רק לתור **מאושר שכבר הסתיים**. תור שכבר
+   * completed אינו מציג את הכפתור (אין מה לסמן), ולכן זה תת-קבוצה צרה
+   * יותר מ-canMarkNoShow.
+   */
+  const canMarkCompleted =
+    !isRescheduleRow &&
+    appt.status === 'confirmed' &&
+    // eslint-disable-next-line react-hooks/purity
+    new Date(appt.ends_at).getTime() <= Date.now()
+
   return (
     <div className="bg-white border border-brand-linen-dark rounded-2xl p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
@@ -330,6 +352,22 @@ function AppointmentCard({ appt }: { appt: AdminAppointmentRow }) {
         <ApproveRejectButtons appointmentId={appt.id} />
       ) : (
         <div className="flex flex-wrap items-center gap-2 mt-3 empty:mt-0">
+          {canReschedule && (
+            <RescheduleAppointmentButton
+              appointmentId={appt.id}
+              customerName={appt.customer_full_name || 'הלקוחה'}
+              currentIsoDate={israelDateStr(new Date(appt.starts_at))}
+              currentTime={fmtIsrael(new Date(appt.starts_at))}
+              currentDurationMin={appt.duration_min}
+            />
+          )}
+          {canMarkCompleted && (
+            <MarkCompletedButton
+              appointmentId={appt.id}
+              customerName={appt.customer_full_name || 'הלקוחה'}
+              whenLabel={`${date} בשעה ${time}`}
+            />
+          )}
           {canCancel && (
             <CancelAppointmentButton
               appointmentId={appt.id}

@@ -12,6 +12,8 @@ import {
   rejectRescheduleRequest,
   cancelConfirmedAppointmentByAdmin,
   markAppointmentNoShowByAdmin,
+  rescheduleAppointmentByAdmin,
+  markAppointmentCompletedByAdmin,
 } from '@/lib/db/appointments'
 import {
   updateAppointmentEventTime,
@@ -859,4 +861,173 @@ export async function rejectAppointment(appointmentId: string, adminId: string):
     time,
   })
   return { ok: true, whatsappUrl: buildWhatsAppLinkToCustomer(row.customer_phone_e164, message) }
+}
+
+/**
+ * 🔒 שלב 12 (0034) — שינוי מועד ע"י שובל, מקצה לקצה.
+ *
+ * ─── שלושה מנגנונים קיימים שממשיכים לעבוד בלי שנגענו בהם ─────────────────
+ *
+ * 1. **תזכורות.** הטריגר appointments_sync_reminders_update (0011) יורה על
+ *    שינוי ב-starts_at בתוך אותה טרנזקציה של ה-RPC: התזכורות של המועד
+ *    הישן מסומנות 'superseded' (outcome_reason='starts_at_changed'),
+ *    ונוצרות חדשות למועד החדש. אין כאן שום כתיבה לתזכורות — היא הייתה
+ *    יוצרת שורות כפולות מול הטריגר.
+ *
+ * 2. **יומן Google.** ה-RPC מחזיר את השורה למצב (confirmed, upsert,
+ *    pending), שהוא בדיוק מה ש-ensureCalendarSynced יודע להמשיך ממנו:
+ *    claim → patch על **אותו** אירוע (המזהה הדטרמיניסטי או המזהה השמור,
+ *    כולל אירוע שאומץ ידנית) → complete. אין מחיקה, ולכן אין אירוע שני.
+ *
+ * 3. **התראות SMS.** שורת ההיסטוריה שנכתבת היא
+ *    (action='rescheduled', confirmed→confirmed) — צירוף שאינו תואם שום
+ *    ענף ב-enqueue_notifications_from_history. אין שורת התראה, ולכן אין
+ *    כאן waitUntil(dispatchNow(...)) ואין מה לנקז.
+ *
+ * ⚠️ **כשל סנכרון אינו מבטל את ההזזה.** התור זז ב-DB, השעה החדשה תפוסה,
+ * והתזכורות כבר מתוזמנות למועד החדש. רק האירוע ביומן טרם עודכן — וזה
+ * בדיוק מה שכפתור "נסה לסנכרן שוב" הקיים פותר, בלי להזיז שוב.
+ */
+export type AdminRescheduleServiceResult =
+  | { ok: true; outcome: 'applied' | 'no_change'; calendarSynced: boolean; message: string }
+  | { ok: false; status: number; error: string; message: string }
+
+export async function rescheduleByAdmin(params: {
+  appointmentId: string
+  startsAt: Date
+  durationMin: number | null
+  adminUserId: string
+}): Promise<AdminRescheduleServiceResult> {
+  const res = await rescheduleAppointmentByAdmin(params)
+
+  if (!res.ok) {
+    switch (res.error) {
+      case 'not_found':
+        return { ok: false, status: 404, error: 'not_found', message: 'התור לא נמצא.' }
+      case 'not_admin':
+        // ⚠️ אמור להיחסם כבר ב-requireAdminApi — ראה ההערה המקבילה
+        // ב-cancelConfirmedByAdmin.
+        return { ok: false, status: 403, error: 'forbidden', message: 'אין הרשאה לבצע את הפעולה.' }
+      case 'slot_taken':
+        return {
+          ok: false, status: 409, error: 'slot_taken',
+          message: 'המועד החדש כבר תפוס בתור אחר. יש לבחור מועד אחר.',
+        }
+      case 'invalid_duration':
+        return { ok: false, status: 400, error: 'invalid_duration', message: 'משך הטיפול אינו תקין.' }
+      case 'invalid_slot':
+        return { ok: false, status: 400, error: 'invalid_slot', message: 'המועד שנבחר אינו תקין.' }
+      case 'db_error':
+        return { ok: false, status: 500, error: 'server_error', message: 'ההזזה נכשלה. נסי שוב.' }
+    }
+  }
+
+  const { outcome, currentStatus } = res.result
+
+  switch (outcome) {
+    case 'no_change':
+      // ⚠️ לא שגיאה: המועד כבר בדיוק זה. שום דבר לא נכתב, ואין מה לסנכרן.
+      return { ok: true, outcome: 'no_change', calendarSynced: true, message: 'המועד לא השתנה.' }
+    case 'not_confirmed': {
+      const label = STATUS_LABELS[currentStatus ?? '']?.label
+      return {
+        ok: false, status: 409, error: 'not_confirmed',
+        message: label
+          ? `אפשר להזיז רק תור מאושר. התור הזה בסטטוס "${label}".`
+          : 'אפשר להזיז רק תור מאושר.',
+      }
+    }
+    case 'is_request_row':
+      return {
+        ok: false, status: 409, error: 'is_request_row',
+        message: 'זו בקשת שינוי מועד של הלקוחה ולא תור. יש לאשר או לדחות אותה במסך הבקשות.',
+      }
+    case 'in_past':
+      return {
+        ok: false, status: 422, error: 'in_past',
+        message: 'התור כבר התחיל או עבר, ולכן לא ניתן להזיז אותו.',
+      }
+    case 'target_in_past':
+      return {
+        ok: false, status: 422, error: 'target_in_past',
+        message: 'לא ניתן להזיז תור למועד שכבר עבר.',
+      }
+    case 'open_reschedule_request':
+      return {
+        ok: false, status: 409, error: 'open_reschedule_request',
+        message: 'ללקוחה יש בקשת שינוי מועד ממתינה על התור הזה. יש להכריע בה קודם, במסך הבקשות.',
+      }
+    case 'sync_in_progress':
+      return {
+        ok: false, status: 409, error: 'sync_in_progress',
+        message: 'סנכרון היומן של התור מתבצע ברגע זה. נסי שוב בעוד רגע.',
+      }
+  }
+
+  // ── ההזזה הצליחה: מעדכנים את האירוע הקיים ביומן ─────────────────────────
+  const sync = await retryCalendarSync(res.result.appointment.id)
+
+  return {
+    ok: true,
+    outcome: 'applied',
+    calendarSynced: sync.ok,
+    message: sync.ok
+      ? 'התור הוזז והאירוע ביומן עודכן.'
+      : 'התור הוזז ותזכורות הלקוחה עודכנו למועד החדש, אך עדכון האירוע ביומן נכשל. אפשר לנסות לסנכרן שוב מרשימת התורים — אין צורך להזיז שוב.',
+  }
+}
+
+/**
+ * 🔒 שלב 12 (0034) — סימון תור בודד כהושלם.
+ *
+ * ⚠️ **אין כאן שום התראה ושום פעולת יומן**, בדיוק מאותם טעמים כמו
+ * markNoShowByAdmin: שורת ההיסטוריה (to_status='completed') אינה תואמת
+ * שום ענף ב-enqueue_notifications_from_history, והתור כבר התקיים — אין
+ * אירוע למחוק או לעדכן.
+ */
+export type AdminCompleteServiceResult =
+  | { ok: true; outcome: 'applied' | 'already_completed'; message: string }
+  | { ok: false; status: number; error: string; message: string }
+
+export async function markCompletedByAdmin(
+  appointmentId: string,
+  adminUserId: string,
+): Promise<AdminCompleteServiceResult> {
+  const res = await markAppointmentCompletedByAdmin(appointmentId, adminUserId)
+
+  if (!res.ok) {
+    switch (res.error) {
+      case 'not_found':
+        return { ok: false, status: 404, error: 'not_found', message: 'התור לא נמצא.' }
+      case 'not_admin':
+        return { ok: false, status: 403, error: 'forbidden', message: 'אין הרשאה לבצע את הפעולה.' }
+      case 'db_error':
+        return { ok: false, status: 500, error: 'server_error', message: 'הפעולה נכשלה. נסי שוב.' }
+    }
+  }
+
+  const { outcome, currentStatus } = res.result
+
+  if (outcome === 'not_ended') {
+    return {
+      ok: false, status: 422, error: 'not_ended',
+      message: 'התור עדיין לא הסתיים, ולכן לא ניתן לסמן אותו כהושלם.',
+    }
+  }
+
+  if (outcome === 'not_eligible') {
+    const label = STATUS_LABELS[currentStatus ?? '']?.label
+    return {
+      ok: false, status: 409, error: 'not_eligible',
+      message: label
+        ? `לא ניתן לסמן תור בסטטוס "${label}" כהושלם.`
+        : 'לא ניתן לסמן את התור במצבו הנוכחי כהושלם.',
+    }
+  }
+
+  return {
+    ok: true,
+    outcome,
+    message: outcome === 'already_completed' ? 'התור כבר מסומן כהושלם.' : 'התור סומן כהושלם.',
+  }
 }

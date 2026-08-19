@@ -315,6 +315,20 @@ const ASSERTION_MIGRATIONS = {
     'mark_appointment_no_show(uuid,uuid)',
   ],
   /**
+   * שלב 12 — שינוי מועד ניהולי וסימון "הושלם".
+   *
+   * 🔴 שתיהן משנות מצב עסקי ומקבלות p_admin_user_id כפרמטר, בדיוק כמו
+   * mark_appointment_no_show: חשיפה ל-anon/authenticated הייתה מאפשרת
+   * למי שמחזיק מפתח כזה להזיז תור של לקוחה אחרת או לסגור אותו, עם
+   * actor_id שרירותי בהיסטוריה. admin_reschedule_appointment חמורה
+   * במיוחד — היא כותבת starts_at, כלומר משנה שעה תפוסה ומזיזה אירוע
+   * ביומן Google.
+   */
+  '0034_admin_reschedule_and_completion.sql': [
+    'admin_reschedule_appointment(uuid,timestamptz,integer,uuid)',
+    'mark_appointment_completed(uuid,uuid)',
+  ],
+  /**
    * שלב 8 — אישור מדיניות פרטיות. שתי פונקציות היצירה של הלקוחה הוחלפו
    * (DROP + CREATE, ולכן חתימה חדשה — ראה 0031) כדי לקבל
    * p_privacy_notice_version ו-p_privacy_notice_acknowledged ולדחות בקשה בלי
