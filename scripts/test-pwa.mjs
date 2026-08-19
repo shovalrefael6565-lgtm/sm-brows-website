@@ -129,111 +129,133 @@ for (const s of APPLE_SPLASH) assetExists(splashSrc(s), { w: s.w, h: s.h })
 }
 
 /* ─────────────────── 2ב. גיאומטריה ואיכות של האייקון ─────────────────── */
-section('אייקונים — מרכוז, גודל ואיכות קצה')
+section('אייקונים — מקור, מרכוז, גודל ואיכות')
 
 {
   const { decodePng } = await import('./generate-pwa-assets.mjs')
-  const CREAM_RGB = [0xfa, 0xf7, 0xf5]
+  const MASTER = 'pwa-logo-master.png'
 
-  /** מודד את הסימן בתוך אייקון: תיבה חוסמת, מרכז מסה ואיכות הקצה */
+  const masterPath = path.join(PUBLIC, MASTER)
+  chk('קובץ המאסטר של האייקון קיים', existsSync(masterPath), MASTER)
+  const master = decodePng(readFileSync(masterPath))
+  chk('המאסטר ריבועי וברזולוציה גבוהה (≥1000px)',
+    master.width === master.height && master.width >= 1000, `${master.width}×${master.height}`)
+  chk('הסקריפט המייצר קורא מהמאסטר ולא מ-logo.png',
+    readFileSync(path.join(ROOT, 'scripts', 'generate-pwa-assets.mjs'), 'utf8')
+      .includes(`const MASTER = '${MASTER}'`))
+
+  /**
+   * מודד אייקון: התיבה החוסמת של הדיו (כל מה שכהה מהקרם), מרכז המסה,
+   * צבע הרקע, ופיקסלים "לבנים" — כלומר בהירים וחסרי גוון, מה שמסמן את
+   * שרידי השוליים הלבנים שמחוץ לפינות הכרטיס.
+   */
   function measure(rel) {
     const img = decodePng(readFileSync(path.join(PUBLIC, rel.replace(/^\//, ''))))
     const { width: W, height: H, data } = img
     let x0 = W, y0 = H, x1 = -1, y1 = -1
     let sx = 0, sy = 0, sw = 0
-    let solid = 0, partial = 0
-    const cov = new Float64Array(W * H)
+    let white = 0, minLum = 255
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4
-        // "כיסוי" = כמה הפיקסל רחוק מהקרם, בין 0 ל-1
-        const d = (CREAM_RGB[0] - data[i]) / (CREAM_RGB[0] - 109)
-        if (d <= 0.04) continue
+        const r = data[i], g = data[i + 1], b = data[i + 2]
+        const max = Math.max(r, g, b), min = Math.min(r, g, b)
+        // רק בפינות — מחוץ למעגל החסום. שם ורק שם חיו השוליים הלבנים,
+        // והיצירה עצמה לעולם לא מגיעה לשם. בדיקה על כל הקנבס תפסה
+        // הדגשות לבנות לגיטימיות בתוך הזהב של הגבה וב-S.
+        if (min >= 246 && max - min <= 6 && Math.hypot(x - W / 2, y - H / 2) > W * 0.5) white++
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b
+        if (lum < minLum) minLum = lum
+        if (lum >= 215) continue
         if (x < x0) x0 = x
         if (x > x1) x1 = x
         if (y < y0) y0 = y
         if (y > y1) y1 = y
-        sx += x * d; sy += y * d; sw += d
-        if (d > 0.96) solid++
-        else partial++
-        cov[y * W + x] = d
+        const wgt = 215 - lum
+        sx += x * wgt; sy += y * wgt; sw += wgt
       }
     }
+    const inkRadius = Math.max(
+      ...[[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => Math.hypot(x - W / 2, y - H / 2)),
+    ) / W
     return {
-      W, H, x0, y0, x1, y1,
-      markW: x1 - x0 + 1, markH: y1 - y0 + 1,
+      W, H, x0, y0, x1, y1, white, minLum, inkRadius,
+      markH: (y1 - y0 + 1) / H,
       bboxCx: (x0 + x1) / 2, bboxCy: (y0 + y1) / 2,
       massCx: sx / sw, massCy: sy / sw,
-      solid, partial,
-      // "פיקסלי גבול" = פיקסלים מלאים שנוגעים במשהו שאינו מלא. אורך
-      // ההיקף בפיקסלים, ולכן מדד שאינו תלוי בגודל הקנבס.
-      boundary: (() => {
-        let n = 0
-        for (let y = 1; y < H - 1; y++) {
-          for (let x = 1; x < W - 1; x++) {
-            if (cov[y * W + x] <= 0.96) continue
-            if (cov[(y - 1) * W + x] <= 0.96 || cov[(y + 1) * W + x] <= 0.96 ||
-                cov[y * W + x - 1] <= 0.96 || cov[y * W + x + 1] <= 0.96) n++
-          }
-        }
-        return n
-      })(),
       corner: [data[0], data[1], data[2]],
     }
   }
 
-  // גובה הסימן כשבר מצלע האייקון — חייב להתאים למה ש-main() מייצר.
-  const expected = [
-    ['/apple-touch-icon.png', 0.70],
-    ['/icons/icon-192.png', 0.70],
-    ['/icons/icon-512.png', 0.70],
-    ['/icons/icon-maskable-192.png', 0.52],
-    ['/icons/icon-maskable-512.png', 0.52],
+  const bg = measure('/apple-touch-icon.png').corner
+  const icons = [
+    ['/apple-touch-icon.png', 'full'],
+    ['/icons/icon-192.png', 'full'],
+    ['/icons/icon-512.png', 'full'],
+    ['/icons/icon-maskable-192.png', 'maskable'],
+    ['/icons/icon-maskable-512.png', 'maskable'],
   ]
 
-  for (const [rel, ratio] of expected) {
+  for (const [rel, kind] of icons) {
     const m = measure(rel)
     const name = rel.replace('/icons/', '').replace(/^\//, '')
 
-    // מרכוז: גם מרכז התיבה וגם מרכז המסה בתוך 2.5% מהמרכז. שני התנאים
-    // יחד הם ההגדרה של "ממורכז אופטית" — התיבה לבדה עברה גם כשהסימן
-    // נראה דחוף הצידה, ומרכז המסה לבדו היה מרשה חיתוך.
+    // מרכוז: גם מרכז התיבה וגם מרכז המסה בתוך 2.5% מהמרכז.
     const tol = m.W * 0.025
-    const dbx = Math.abs(m.bboxCx - m.W / 2), dby = Math.abs(m.bboxCy - m.H / 2)
-    const dmx = Math.abs(m.massCx - m.W / 2), dmy = Math.abs(m.massCy - m.H / 2)
-    chk(`${name} — ממורכז (תיבה ומסה)`,
-      dbx <= tol && dby <= tol && dmx <= tol && dmy <= tol,
-      `תיבה ${dbx.toFixed(1)}/${dby.toFixed(1)}px, מסה ${dmx.toFixed(1)}/${dmy.toFixed(1)}px, סף ${tol.toFixed(1)}`)
+    const d = [Math.abs(m.bboxCx - m.W / 2), Math.abs(m.bboxCy - m.H / 2),
+               Math.abs(m.massCx - m.W / 2), Math.abs(m.massCy - m.H / 2)]
+    chk(`${name} — ממורכז (תיבה ומסה)`, d.every((v) => v <= tol),
+      `${d.map((v) => v.toFixed(1)).join('/')}px, סף ${tol.toFixed(1)}`)
 
-    // גודל: לא קטן מדי ולא חתוך.
-    const got = m.markH / m.H
-    chk(`${name} — גובה הסימן ${(got * 100).toFixed(0)}% (צפוי ${(ratio * 100).toFixed(0)}%)`,
-      Math.abs(got - ratio) <= 0.03)
+    // גודל: הלוקאפ תופס חלק משמעותי מהאייקון ואינו נראה אבוד בתוך הקרם.
+    chk(`${name} — הלוגו ממלא ${(m.markH * 100).toFixed(0)}% מהגובה`,
+      m.markH >= 0.5 && m.markH <= 0.75)
     chk(`${name} — לא חתוך (יש שוליים בכל צד)`,
       m.x0 > 0 && m.y0 > 0 && m.x1 < m.W - 1 && m.y1 < m.H - 1,
       `${m.x0}/${m.W - 1 - m.x1}/${m.y0}/${m.H - 1 - m.y1}`)
 
-    // איכות קצה — מדד דו-כיווני שאינו תלוי בגודל: כמה פיקסלי ביניים יש
-    // על כל פיקסל גבול. קצה מרונדר אנליטית ברוחב פיקסל נותן ~1–2. מסכה
-    // בינארית משוננת (המצב שהיה, שממנו האייקון נראה גס) נותנת הרבה
-    // פחות, והגדלה מטושטשת נותנת הרבה יותר. שני הכיוונים נכשלים כאן.
-    const edge = m.partial / m.boundary
-    chk(`${name} — קצה חד ומוחלק (${edge.toFixed(2)} פיקסלי ביניים לפיקסל גבול)`,
-      edge >= 0.6 && edge <= 2.5)
+    // ⚠️ שרידי הלבן שמחוץ לפינות הכרטיס. הם מה שהופיע כרסיסים בהירים
+    // בפינות האייקון במסך הבית, ושתי גישות מילוי נכשלו עליהם לפני
+    // שהוחלף למילוי גלישה מהפינות. אפס = השוליים נוקו לגמרי.
+    chk(`${name} — בלי שרידי רקע לבן בפינות`, m.white === 0, `${m.white} פיקסלים`)
 
-    chk(`${name} — הרקע הוא brand-cream נקי`,
-      m.corner[0] === 0xfa && m.corner[1] === 0xf7 && m.corner[2] === 0xf5,
-      `rgb(${m.corner.join(',')})`)
+    // הרקע זהה בכל האייקונים — הקרם של הכרטיס עצמו.
+    chk(`${name} — רקע אחיד rgb(${bg})`,
+      m.corner[0] === bg[0] && m.corner[1] === bg[1] && m.corner[2] === bg[2],
+      `rgb(${m.corner})`)
+
+    // חדות: החום הכהה של הלוקאפ שרד את ההקטנה ולא נשטף לאפור.
+    chk(`${name} — הלוגו שמר על העומק (הגוון הכהה ביותר ${m.minLum.toFixed(0)})`,
+      m.minLum < 120)
+
+    if (kind === 'maskable') {
+      chk(`${name} — כל הדיו בתוך מעגל הבטיחות (40%)`,
+        m.inkRadius <= 0.4, `רדיוס ${(m.inkRadius * 100).toFixed(1)}%`)
+    }
   }
 
-  // maskable: אנדרואיד עשוי לחתוך למעגל ברדיוס 40% מהצלע. כל פיקסל דיו
-  // חייב לשבת בתוכו, אחרת הסימן ייחתך במסך הבית.
+  // הדמיה ישירה של החיתוך שאנדרואיד עושה: אף פיקסל דיו לא נחתך.
   for (const rel of ['/icons/icon-maskable-192.png', '/icons/icon-maskable-512.png']) {
-    const m = measure(rel)
-    const corners = [[m.x0, m.y0], [m.x1, m.y0], [m.x0, m.y1], [m.x1, m.y1]]
-    const maxR = Math.max(...corners.map(([x, y]) => Math.hypot(x - m.W / 2, y - m.H / 2)))
-    chk(`${rel.replace('/icons/', '')} — בתוך מעגל הבטיחות (40%)`,
-      maxR <= m.W * 0.4, `רדיוס ${(maxR / m.W * 100).toFixed(1)}%`)
+    const img = decodePng(readFileSync(path.join(PUBLIC, rel.replace(/^\//, ''))))
+    const { width: W, height: H, data } = img
+    let clipped = 0
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (Math.hypot(x - W / 2, y - H / 2) <= W * 0.4) continue
+        const i = (y * W + x) * 4
+        if (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2] < 215) clipped++
+      }
+    }
+    chk(`${rel.replace('/icons/', '')} — חיתוך למעגל לא מוריד שום פיקסל לוגו`,
+      clipped === 0, `${clipped} פיקסלים`)
+  }
+
+  // מסכי הפתיחה נבנים מאותו מאסטר — אותו רקע בדיוק, בלי תפר.
+  {
+    const sp = decodePng(readFileSync(path.join(PUBLIC, 'icons', 'splash', 'apple-splash-750x1334.png')))
+    chk('מסך פתיחה — אותו רקע קרם כמו האייקונים',
+      sp.data[0] === bg[0] && sp.data[1] === bg[1] && sp.data[2] === bg[2],
+      `rgb(${sp.data[0]},${sp.data[1]},${sp.data[2]})`)
   }
 }
 
