@@ -12,6 +12,7 @@ import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
 } from '@/lib/utils'
+import { APPLE_SPLASH, splashSrc, splashMedia } from '@/lib/pwa'
 
 // weight 300 (light) removed — no font-light class used in the codebase
 const rubik = Rubik({
@@ -51,12 +52,47 @@ export const metadata: Metadata = {
     ⚡ ה-favicon הצביע על /logo.png המלא — 294×288, 15KB — והדפדפן מושך
     אותו ב-priority גבוה בדיוק בחלון שבו נמדד ה-FCP, בכל עמוד באתר.
     favicon-64.png הוא אותו לוגו ב-64px (3KB): זהה לחלוטין בעין, כי
-    ה-favicon מוצג ממילא ב-16–32px. apple-touch-icon נשאר בגודל המלא —
-    iOS מושך אותו רק בהוספה למסך הבית, לא בטעינת עמוד.
+    ה-favicon מוצג ממילא ב-16–32px.
+  */
+  /*
+    🔒 שלב 9 — apple-touch-icon הופרד מ-/logo.png לקובץ ייעודי 180×180
+    אטום (public/apple-touch-icon.png). iOS לא מכבד שקיפות ומדביק את
+    האייקון על רקע שחור, ו-logo.png שקוף ב-294×288 — כלומר מונוגרם כהה
+    על ריבוע שחור במסך הבית. הקובץ החדש הוא אותו מונוגרם על רקע
+    brand-cream, ונמשך רק בהוספה למסך הבית — לא בטעינת עמוד.
   */
   icons: {
     icon: '/favicon-64.png',
-    apple: '/logo.png',
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    // מסכי הפתיחה של iOS — iOS בוחר לפי התאמה מדויקת של שאילתת המדיה,
+    // וכשאין התאמה הוא נופל למסך ריק בצבע background_color של המניפסט.
+    other: APPLE_SPLASH.map((s) => ({
+      rel: 'apple-touch-startup-image',
+      url: splashSrc(s),
+      media: splashMedia(s),
+    })),
+  },
+  /*
+    שלב 9 — התנהגות iOS ב-Add to Home Screen. `capable` מפעיל את מצב
+    ה-standalone (בלי סרגל Safari), ו-statusBarStyle 'default' משאיר שעון
+    ואייקונים כהים — הרקע העליון של האתר הוא brand-cream בהיר, ו-'black'
+    היה מייצר טקסט לבן על קרם.
+  */
+  appleWebApp: {
+    capable: true,
+    title: 'S.M BROWS',
+    statusBarStyle: 'default',
+  },
+  applicationName: 'S.M BROWS',
+  /*
+    Next.js 16 פולט רק את התקן החדש <meta name="mobile-web-app-capable">,
+    ש-WebKit מכיר מ-iOS 15.4 בלבד. אייפונים ישנים יותר (iOS 14/15.0) מכירים
+    אך ורק את הווריאנט של אפל, וללא התגית הזו הוספה למסך הבית שם נפתחת
+    בתוך Safari עם סרגל כתובת — לא standalone. שתי התגיות יכולות לחיות זו
+    לצד זו; הדפדפן קורא את זו שהוא מכיר.
+  */
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
   },
   title: {
     default: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
