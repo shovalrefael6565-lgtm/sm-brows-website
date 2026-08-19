@@ -7,6 +7,7 @@ import {
   isDispatchable,
   type ReminderProvider,
 } from '@/lib/reminders/provider'
+import { normalizeEnvFlag } from '@/lib/envFlag'
 
 /**
  * שלב 15F — בחירת הספק להתראות הטרנזקציוניות.
@@ -41,7 +42,10 @@ import {
 export function resolveNotificationProvider(
   env: NodeJS.ProcessEnv = process.env,
 ): ReminderProvider {
-  const requested = (env.NOTIFICATION_PROVIDER ?? 'disabled').toLowerCase()
+  // ⚠️ נרמול ולא רק toLowerCase: ערך שהודבק ללוח הבקרה של Vercel גורר
+  // איתו שורה חדשה או מרכאות, ו-`'sms_019\n' !== 'sms_019'` היה מפיל
+  // ל-disabled בלי שאיש יראה הבדל בלוח. ראה lib/envFlag.ts.
+  const requested = normalizeEnvFlag(env.NOTIFICATION_PROVIDER) || 'disabled'
 
   if (requested === 'sms_019') {
     const cfg = readSms019Config(env)

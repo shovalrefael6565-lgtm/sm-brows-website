@@ -2,6 +2,7 @@ import 'server-only'
 import { randomUUID } from 'crypto'
 import { areRemindersEnabled, isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import { isDispatchable, resolveReminderProvider } from './provider'
+import { normalizeEnvFlag } from '@/lib/envFlag'
 import type { ReminderProvider } from './types'
 import { reminderBodyFor } from './templates'
 import { treatmentLabel } from '@/lib/admin/format'
@@ -221,7 +222,29 @@ export async function runReminderDispatch(
   // אין בכך סיכון שתזכורת שפג תוקפה תישלח אחרי הפעלת 019: בהרצה הפעילה
   // הראשונה ה-sweep רץ לפני ה-claim, ומסמן אותן skipped לפני שמישהו יוכל
   // לתפוס אותן. הסדר הוא gate → sweep → claim.
-  if (!shouldDispatch(enabled, d.provider)) return stats
+  if (!shouldDispatch(enabled, d.provider)) {
+    /*
+      ⚠️ **מצב כבוי חייב להשמיע קול.** זו התקלה האמיתית שנחשפה כאן: מנוע
+      התזכורות היה כבוי בפרודקשן שבועות, ה-scheduler דפק על ה-route כל חמש
+      דקות והכול החזיר 200 — ואף שורה בלוג לא אמרה למה אף תזכורת לא יצאה.
+      "כבוי הוא מצב תפעולי תקין" נכון, אבל תקין אינו שקוף.
+
+      🔒 מודפסים **דגלים בלבד, אחרי נרמול**. שלושת אלה אינם סודות
+      (`true` / `sms_019`), ואין כאן token, טלפון, שם או גוף הודעה. הגזימה
+      ל-32 תווים היא הגנה מפני משתנה שהוגדר בטעות לערך ארוך — לא ידלוף
+      ממנו יותר מהתחלה קצרה.
+    */
+    const shown = (raw: string | undefined) => normalizeEnvFlag(raw).slice(0, 32)
+    console.error(
+      '[reminders] dispatch gate closed — ' +
+      `remindersEnabled=${areRemindersEnabled()} ` +
+      `newBookingSystem=${isNewBookingSystemEnabled()} ` +
+      `provider=${d.provider.name} ` +
+      `REMINDERS_ENABLED="${shown(process.env.REMINDERS_ENABLED)}" ` +
+      `REMINDER_PROVIDER="${shown(process.env.REMINDER_PROVIDER)}"`,
+    )
+    return stats
+  }
 
   const swept = await d.db.sweepExpiredReminders()
   stats.sweptExpired = swept.expired

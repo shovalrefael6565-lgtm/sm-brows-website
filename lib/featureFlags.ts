@@ -1,4 +1,5 @@
 import 'server-only'
+import { envFlagEnabled } from '@/lib/envFlag'
 
 /**
  * דגלים מרכזיים להפעלה/כיבוי של מערכות בפיתוח. אף דגל כאן אינו
@@ -11,6 +12,14 @@ import 'server-only'
  * אישי. ברירת המחדל היא כבוי — חייבים להדליק אותה במפורש בכל סביבה,
  * כולל production, אחרי שהתשתית נבדקה שם.
  */
+/*
+  ⚠️ **דווקא כאן נשארת ההשוואה הקשיחה, ובכוונה.** הדגלים שמתחת עוברים
+  נרמול (`envFlagEnabled`) אחרי שערך מלוכלך בלוח הבקרה השאיר מערכת שלמה
+  כבויה בשקט — אבל זה **killswitch**, ולא דגל הפעלה של תת-מערכת: החוזה
+  שלו (9E.1) הוא שרק המחרוזת המדויקת `'true'` פותחת, כדי שכל ערך שאינו
+  ודאי ייפול לצד הסגור. ` true`/`True` נחשבים כבוי כאן בכוונה, ויש בדיקה
+  שקוראת את הקוד הזה ותיפול על כל ריכוך. אין לאחד את השניים.
+*/
 export function isNewBookingSystemEnabled(): boolean {
   return process.env.NEW_BOOKING_SYSTEM_ENABLED === 'true'
 }
@@ -22,9 +31,14 @@ export function isNewBookingSystemEnabled(): boolean {
  * ע"י הטריגר ב-DB, כדי שההיסטוריה תהיה שלמה ושהדלקת המערכת תהיה מיידית
  * במקום להתחיל מאפס. כשהדגל כבוי אין claim, אין ניסיון, ואף תזכורת אינה
  * משנה סטטוס — היא פשוט ממתינה (ראה lib/reminders/dispatch.ts).
+ *
+ * ⚠️ **עובר נרמול, בשונה מה-killswitch שמעליו.** זו התקלה שקרתה בפועל:
+ * הדגל הוגדר בפרודקשן, לוח הבקרה הראה `true`, וההדבקה גררה איתה תו לבן —
+ * מנוע התזכורות נשאר כבוי שבועות בזמן שה-scheduler החזיר 200 בכל הרצה.
+ * הנרמול אינו מרכך את הצד הסגור: כל ערך שאינו `true` עדיין מכבה.
  */
 export function areRemindersEnabled(): boolean {
-  return process.env.REMINDERS_ENABLED === 'true'
+  return envFlagEnabled(process.env.REMINDERS_ENABLED)
 }
 
 /**
@@ -41,5 +55,5 @@ export function areRemindersEnabled(): boolean {
  * שייצא SMS, וזה מכוון: הברז שב-DB משתנה בלי פריסה, וזה שכאן מחייב פריסה.
  */
 export function areNotificationsEnabled(): boolean {
-  return process.env.NOTIFICATIONS_ENABLED === 'true'
+  return envFlagEnabled(process.env.NOTIFICATIONS_ENABLED)
 }

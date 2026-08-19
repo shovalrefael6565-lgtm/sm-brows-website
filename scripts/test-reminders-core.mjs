@@ -61,7 +61,15 @@ const dispatchSrc = readFileSync(new URL('../lib/reminders/dispatch.ts', import.
 const guardAt = dispatchSrc.indexOf('!shouldDispatch(enabled, d.provider)')
 const sweepAt = dispatchSrc.indexOf('d.db.sweepExpiredReminders()')
 const claimAt = dispatchSrc.indexOf('d.db.claimDueReminder(leaseToken')
-chk('⚠️ יש return מוקדם בשער', /if \(!shouldDispatch\([^)]*\)\) return stats/.test(dispatchSrc))
+/*
+  ⚠️ **השתנה**: הגוף של השער אינו שורה אחת יותר — הוא מדפיס גם שורת
+  אבחון לפני שהוא יוצא (ראה dispatch.ts). מה שנבדק הוא מה שחשוב באמת:
+  שקיים `return stats` **בתוך** השער, לפני ה-sweep. בדיקת טקסט צמודה
+  לניסוח שורה אחת הייתה נשברת על כל תוספת לגיטימית ומפתה למחוק אותה.
+*/
+const gateReturnAt = dispatchSrc.indexOf('return stats', guardAt)
+chk('⚠️ יש return מוקדם בשער',
+  guardAt !== -1 && gateReturnAt !== -1 && gateReturnAt < sweepAt)
 chk('⚠️ הסדר בקוד הוא gate → sweep → claim',
   guardAt > 0 && sweepAt > guardAt && claimAt > sweepAt,
   `gate=${guardAt} sweep=${sweepAt} claim=${claimAt}`)
@@ -603,6 +611,47 @@ for (const method of ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']) {
 }
 chk('POST הוא השיטה היחידה שמריצה dispatch',
   typeof routeMod.POST === 'function')
+
+// ════════════════════════════════════════════════════════════════════════════
+section('🔒 ערך מלוכלך במשתנה סביבה אינו מכבה את המערכת בשקט')
+// ════════════════════════════════════════════════════════════════════════════
+
+/*
+  התקלה שהבדיקות האלה נועדו לתפוס: מנוע התזכורות היה כבוי בפרודקשן בזמן
+  שלוח הבקרה הראה REMINDERS_ENABLED=true ו-REMINDER_PROVIDER=sms_019.
+  הדבקה לתוך ממשק ווב גוררת איתה שורה חדשה, רווח או מרכאות, והשוואה
+  מדויקת הפילה את הכול ל-disabled — בלי שגיאה, בלי סימן, ובלי דרך לראות
+  את זה מבחוץ.
+*/
+const { normalizeEnvFlag, envFlagEnabled } = await import('../lib/envFlag.ts')
+
+/** תצורת 019 תקינה — כאן רק הערך של REMINDER_PROVIDER נבדק. */
+const liveSms019Env = {
+  SMS019_USERNAME: 'u', SMS019_TOKEN: 't', SMS019_SOURCE: 'SM BROWS',
+  NODE_ENV: 'production',
+}
+
+for (const raw of ['true', ' true', 'true ', 'true\n', '\ttrue\t', 'TRUE', 'True', '"true"', "'true'", ' "true" ']) {
+  chk(`envFlagEnabled(${JSON.stringify(raw)}) = true`, envFlagEnabled(raw) === true)
+}
+for (const raw of [undefined, null, '', ' ', 'false', 'FALSE', '"false"', '1', 'yes', 'truthy', 'tru']) {
+  chk(`envFlagEnabled(${JSON.stringify(raw)}) = false`, envFlagEnabled(raw) === false)
+}
+chk('🔒 ברירת המחדל לא השתנתה — משתנה חסר עדיין כבוי',
+  envFlagEnabled(undefined) === false)
+
+for (const raw of ['sms_019', ' sms_019 ', 'sms_019\n', 'SMS_019', '"sms_019"', "'sms_019'"]) {
+  const p = resolveReminderProvider({ ...liveSms019Env, REMINDER_PROVIDER: raw })
+  chk(`REMINDER_PROVIDER=${JSON.stringify(raw)} → ספק חי`,
+    p.name === 'sms_019' && isDispatchable(p), p.name)
+}
+for (const raw of [undefined, '', '  ', 'disabled', ' disabled\n', 'sms019', 'sms-019']) {
+  const p = resolveReminderProvider({ ...liveSms019Env, REMINDER_PROVIDER: raw })
+  chk(`🔒 REMINDER_PROVIDER=${JSON.stringify(raw)} → disabled`,
+    p.name === 'disabled' && !isDispatchable(p), p.name)
+}
+chk('🔒 נרמול אינו נוגע ב-credentials — רק בדגלים',
+  normalizeEnvFlag('  SeCret Token  ') === 'secret token')
 
 // ── summary ─────────────────────────────────────────────────────────────────
 const failed = results.filter(r => !r).length

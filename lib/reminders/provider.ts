@@ -6,6 +6,7 @@ import type {
   ReminderProviderName,
 } from './types'
 import { Sms019ReminderProvider, readSms019Config } from './sms019'
+import { normalizeEnvFlag } from '@/lib/envFlag'
 
 /**
  * בחירת הספק. ברירת המחדל — בכל סביבה, כולל production — היא disabled.
@@ -66,7 +67,10 @@ export class DisabledReminderProvider implements ReminderProvider {
 export function resolveReminderProvider(
   env: NodeJS.ProcessEnv = process.env,
 ): ReminderProvider {
-  const requested = (env.REMINDER_PROVIDER ?? 'disabled').toLowerCase()
+  // ⚠️ נרמול ולא רק toLowerCase: ערך שהודבק ללוח הבקרה של Vercel גורר
+  // איתו שורה חדשה או מרכאות, ו-`'sms_019\n' !== 'sms_019'` היה מפיל
+  // ל-disabled בלי שאיש יראה הבדל בלוח. ראה lib/envFlag.ts.
+  const requested = normalizeEnvFlag(env.REMINDER_PROVIDER) || 'disabled'
 
   if (requested === 'sms_019') {
     const cfg = readSms019Config(env)
