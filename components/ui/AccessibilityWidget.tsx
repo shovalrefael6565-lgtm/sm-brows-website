@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDialogA11y } from '@/lib/useDialogA11y'
 import { motion } from 'framer-motion'
-import { X, Accessibility } from 'lucide-react'
+import { X, Accessibility, Minus, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type A11yOption = {
@@ -14,19 +14,21 @@ type A11yOption = {
   icon: React.ReactNode
 }
 
+/*
+ * 🔴 גודל הטקסט אינו מתג — הוא סקאלה.
+ *
+ * ⚠️ הגרסה הקודמת הייתה מתג יחיד "הגדלת טקסט" שהוסיף מחלקה עם
+ * `body { font-size: 120% }`. כל גדלי הטקסט באתר הם rem (Tailwind),
+ * כלומר יחסיים ל-<html> — ולכן המתג לא הגדיל שום דבר. אומת: body עבר
+ * ל-19.2px וכל אלמנט טקסט בפועל נשאר בדיוק כשהיה.
+ *
+ * ⚠️ 150% הוא הגג. מעליו מתחילה גלישה אופקית ב-360px, וזו בדיוק
+ * התקלה שהגדלת טקסט אמורה למנוע ולא ליצור.
+ */
+const TEXT_SCALES = [1, 1.15, 1.3, 1.5] as const
+const DEFAULT_SCALE_INDEX = 0
+
 const A11Y_OPTIONS: A11yOption[] = [
-  {
-    id: 'increase-text',
-    label: 'הגדלת טקסט',
-    description: 'הגדלת גודל הגופן לנוחות קריאה',
-    cssClass: 'a11y-increase-text',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5" aria-hidden="true">
-        <text x="2" y="16" fontSize="12" fill="currentColor" stroke="none" fontWeight="bold">A</text>
-        <text x="13" y="20" fontSize="16" fill="currentColor" stroke="none" fontWeight="bold">A</text>
-      </svg>
-    ),
-  },
   {
     id: 'high-contrast',
     label: 'ניגודיות גבוהה',
@@ -89,9 +91,29 @@ const A11Y_OPTIONS: A11yOption[] = [
 
 const STORAGE_KEY = 'sm-brows-a11y'
 
+/*
+ * 🔴 המחלקות מוחלות על <html> ולא על <body>.
+ *
+ * ⚠️ `filter` על אלמנט הופך אותו ל-containing block עבור כל צאצא
+ * `position: fixed`. כשהמחלקות ישבו על <body>, "ניגודיות גבוהה" או
+ * "גווני אפור" ניתקו את כל האלמנטים ה-fixed מה-viewport — כולל כפתור
+ * הנגישות עצמו, שקפץ אל מחוץ למסך. כלומר המשתמשת הפעילה מצב נגישות
+ * ואיבדה את היכולת לכבות אותו. הפירוט המלא ב-app/globals.css.
+ */
+const root = () => document.documentElement
+
+function applyScale(scale: number) {
+  // ⚠️ setProperty ולא style.fontSize: הכלל ב-globals.css הוא
+  // `font-size: calc(100% * var(--a11y-text-scale, 1))`, כדי שהעדפת
+  // גודל הגופן של המשתמשת בדפדפן תישמר ותוכפל, ולא תידרס בערך קבוע.
+  if (scale === 1) root().style.removeProperty('--a11y-text-scale')
+  else root().style.setProperty('--a11y-text-scale', String(scale))
+}
+
 export default function AccessibilityWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [active, setActive] = useState<Record<string, boolean>>({})
+  const [scaleIndex, setScaleIndex] = useState(DEFAULT_SCALE_INDEX)
 
   /*
    * ⚠️ הפאנל הכריז aria-modal="true" בלי לממש דבר מזה: Escape לא סגר אותו,
@@ -110,38 +132,65 @@ export default function AccessibilityWidget() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed: Record<string, boolean> = JSON.parse(saved)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setActive(parsed)
-        Object.entries(parsed).forEach(([id, enabled]) => {
-          const opt = A11Y_OPTIONS.find((o) => o.id === id)
-          if (opt && enabled) {
-            document.body.classList.add(opt.cssClass)
-          }
-        })
+      if (!saved) return
+      const parsed = JSON.parse(saved) as Record<string, boolean | number>
+
+      const toggles: Record<string, boolean> = {}
+      A11Y_OPTIONS.forEach((opt) => {
+        if (parsed[opt.id] === true) {
+          toggles[opt.id] = true
+          root().classList.add(opt.cssClass)
+        }
+      })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActive(toggles)
+
+      /*
+       * ⚠️ הגירה מהמצב השמור הישן: עד כה גודל הטקסט נשמר כמתג בוליאני
+       * בשם `increase-text`. מי שהדליקה אותו בעבר (וקיבלה 0 שינוי בפועל,
+       * כי הכלל ישב על body) תקבל עכשיו את הרמה הראשונה במקום שהערך
+       * השמור יידחה בשקט.
+       */
+      const savedIndex = typeof parsed['text-scale'] === 'number'
+        ? (parsed['text-scale'] as number)
+        : parsed['increase-text'] === true ? 1 : DEFAULT_SCALE_INDEX
+      const clamped = Math.min(Math.max(savedIndex, 0), TEXT_SCALES.length - 1)
+      if (clamped !== DEFAULT_SCALE_INDEX) {
+        setScaleIndex(clamped)
+        applyScale(TEXT_SCALES[clamped])
       }
+    } catch {}
+  }, [])
+
+  /** שמירה אחת ואחידה — המתגים והסקאלה חיים באותה רשומה. */
+  const persist = useCallback((toggles: Record<string, boolean>, index: number) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...toggles, 'text-scale': index }))
     } catch {}
   }, [])
 
   const toggle = useCallback((option: A11yOption) => {
     setActive((prev) => {
       const next = { ...prev, [option.id]: !prev[option.id] }
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch {}
-      if (next[option.id]) {
-        document.body.classList.add(option.cssClass)
-      } else {
-        document.body.classList.remove(option.cssClass)
-      }
+      if (next[option.id]) root().classList.add(option.cssClass)
+      else root().classList.remove(option.cssClass)
+      setScaleIndex((i) => { persist(next, i); return i })
       return next
     })
-  }, [])
+  }, [persist])
+
+  const setScale = useCallback((index: number) => {
+    const clamped = Math.min(Math.max(index, 0), TEXT_SCALES.length - 1)
+    setScaleIndex(clamped)
+    applyScale(TEXT_SCALES[clamped])
+    setActive((cur) => { persist(cur, clamped); return cur })
+  }, [persist])
 
   const resetAll = useCallback(() => {
-    A11Y_OPTIONS.forEach((opt) => document.body.classList.remove(opt.cssClass))
+    A11Y_OPTIONS.forEach((opt) => root().classList.remove(opt.cssClass))
+    applyScale(TEXT_SCALES[DEFAULT_SCALE_INDEX])
     setActive({})
+    setScaleIndex(DEFAULT_SCALE_INDEX)
     try {
       localStorage.removeItem(STORAGE_KEY)
     } catch {}
@@ -201,7 +250,14 @@ export default function AccessibilityWidget() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-              className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm bg-white rounded-2xl shadow-soft-lg border border-brand-rose-light overflow-hidden"
+              /*
+                ⚠️ max-h + overflow-y-auto: הפאנל עצמו מודד ב-rem, ולכן הוא
+                גדל יחד עם סקאלת הטקסט. ב-150% על מסך נמוך הוא היה חורג
+                מגובה ה-viewport, וכפתור "איפוס כל ההגדרות" שבתחתיתו היה
+                יוצא מהמסך בלי דרך להגיע אליו — כלומר בדיוק אותו מלכוד
+                שהתיקון הזה נועד לסגור.
+              */
+              className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm max-h-[calc(100dvh-8rem)] overflow-y-auto bg-white rounded-2xl shadow-soft-lg border border-brand-rose-light"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 bg-brand-cream border-b border-brand-rose-light">
@@ -217,6 +273,72 @@ export default function AccessibilityWidget() {
                 >
                   <X className="w-4 h-4" aria-hidden="true" />
                 </button>
+              </div>
+
+              {/*
+                גודל טקסט — פקד סקאלה, לא מתג.
+
+                ⚠️ ה-aria-live מכריז את הרמה החדשה: משתמשת קורא מסך לא
+                "רואה" שהטקסט גדל, ובלי הכרזה הלחיצה על + הייתה חסרת משוב.
+                ⚠️ הכפתורים 40×40 — הרבה מעל מינימום 24×24, כי זה בדיוק
+                הפקד שמשתמשות עם קושי מוטורי או ראייתי ילחצו עליו.
+              */}
+              <div className="px-3 pt-3">
+                <div className="rounded-xl border border-brand-cream-dark bg-brand-cream/50 px-3 py-3">
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <span className="text-sm font-medium text-brand-dark">גודל טקסט</span>
+                    <span className="text-xs font-semibold text-brand-muted tabular-nums">
+                      {Math.round(TEXT_SCALES[scaleIndex] * 100)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setScale(scaleIndex - 1)}
+                      disabled={scaleIndex === 0}
+                      aria-label="הקטנת גודל הטקסט"
+                      className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg border border-brand-linen-dark bg-white text-brand-dark hover:bg-brand-linen disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    >
+                      <Minus className="w-4 h-4" aria-hidden="true" />
+                    </button>
+
+                    {/* מד רמות ויזואלי — קישוט בלבד, הערך מוכרז בטקסט למטה */}
+                    <div className="flex-1 flex items-center gap-1" aria-hidden="true">
+                      {TEXT_SCALES.map((_, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            'h-1.5 flex-1 rounded-full transition-colors duration-200',
+                            i <= scaleIndex ? 'bg-brand-rose' : 'bg-brand-linen-dark'
+                          )}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setScale(scaleIndex + 1)}
+                      disabled={scaleIndex === TEXT_SCALES.length - 1}
+                      aria-label="הגדלת גודל הטקסט"
+                      className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg border border-brand-linen-dark bg-white text-brand-dark hover:bg-brand-linen disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    >
+                      <Plus className="w-4 h-4" aria-hidden="true" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setScale(DEFAULT_SCALE_INDEX)}
+                      disabled={scaleIndex === DEFAULT_SCALE_INDEX}
+                      aria-label="החזרת גודל הטקסט לברירת המחדל"
+                      className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg border border-brand-linen-dark bg-white text-brand-muted hover:bg-brand-linen hover:text-brand-dark disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    >
+                      <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <p className="sr-only" aria-live="polite" aria-atomic="true">
+                    {`גודל הטקסט: ${Math.round(TEXT_SCALES[scaleIndex] * 100)} אחוז`}
+                  </p>
+                </div>
               </div>
 
               {/* Options */}

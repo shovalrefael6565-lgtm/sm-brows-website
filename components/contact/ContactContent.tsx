@@ -70,9 +70,17 @@ export default function ContactContent() {
                 <span className="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-gold/20 transition-colors">
                   <item.icon className="w-5 h-5 text-brand-gold" aria-hidden="true" />
                 </span>
-                <div>
+                {/*
+                  ⚠️ min-w-0 + break-words בגלל הגדלת הטקסט: ברירת המחדל של
+                  פריט flex היא min-width:auto, כלומר הוא לא יורד מתחת לרוחב
+                  ה-min-content שלו — וכתובת המייל היא מילה אחת ארוכה שאי
+                  אפשר לשבור. ב-150% זה דחף את הכרטיס אל מחוץ למכל וגרם
+                  לגלילה אופקית ב-/contact (אומת ע"י bisection). ב-100% יש
+                  מספיק מקום ושום דבר לא משתנה ויזואלית.
+                */}
+                <div className="min-w-0">
                   <p className="text-xs text-brand-muted mb-0.5">{item.label}</p>
-                  <p className="font-semibold text-brand-dark text-sm">{item.value}</p>
+                  <p className="font-semibold text-brand-dark text-sm break-words">{item.value}</p>
                 </div>
               </motion.a>
             ))}

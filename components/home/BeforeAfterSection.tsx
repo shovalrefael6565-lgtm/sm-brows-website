@@ -324,7 +324,14 @@ export default function BeforeAfterSection() {
                 אותן כפתורים בגובה 24 ועם ריפוד אופקי, כך שאזור הלחיצה עצמו
                 עומד בדרישה. ה-gap ירד ל-0 כי הריפוד מספק את המרווח.
               */}
-              <div className="flex gap-0" role="tablist" aria-label="בחירת תמונה">
+              {/*
+                ⚠️ flex-wrap בגלל הגדלת הטקסט: הריפוד של 10 הנקודות הוא rem,
+                ולכן ב-150% השורה מגיעה ל-384px בתוך מכל של 327px — וזו הייתה
+                הסיבה היחידה לגלילה אופקית בעמוד הבית ב-375px (אומת ע"י
+                bisection: הסתרת האלמנט הזה בלבד החזירה את scrollWidth ל-375).
+                ב-100% הנקודות נכנסות בשורה אחת ושום דבר לא משתנה ויזואלית.
+              */}
+              <div className="flex flex-wrap justify-center gap-0" role="tablist" aria-label="בחירת תמונה">
                 {IMAGES.map((_, i) => (
                   <button key={i} type="button" role="tab" aria-selected={i === current} aria-label={`תמונה ${i + 1}`}
                     onClick={() => goTo(i)}

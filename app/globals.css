@@ -59,36 +59,89 @@
 }
 
 /* ── Accessibility Modes ── */
-body.a11y-increase-text {
-  font-size: 120%;
+
+/*
+  🔴 הגדלת טקסט — על <html>, ולא על <body>. באג פרודקשן אמיתי.
+
+  ⚠️ הכלל הקודם היה `body.a11y-increase-text { font-size: 120% }`, והוא
+  לא הגדיל שום דבר באתר. כל גדלי הטקסט מגיעים מ-Tailwind ביחידות rem,
+  כלומר יחסיים ל-<html> — שנשאר 16px. אומת: body עבר מ-16px ל-19.2px,
+  ובאותו רגע כל אלמנט טקסט בפועל נשאר זהה בדיוק (16px / 24px / 14px /
+  10px). המתג נדלק, נשמר ב-localStorage, ולא שינה כלום — ולכן מבחינת
+  המשתמשת פשוט "לא הייתה אפשרות להגדיל טקסט".
+
+  ⚠️ 100% ולא 16px: זה אחוז מגודל הגופן שהמשתמשת הגדירה בדפדפן, כך
+  שהעדפת מערכת קיימת נשמרת ומוכפלת, ולא נדרסת.
+
+  ⚠️ rem גורר גם את הריווח של Tailwind, ולכן הפריסה מתרחבת
+  פרופורציונלית — כמו זום של הדפדפן — במקום שטקסט גדול יישבר בתוך
+  מכלים בגודל קבוע. זו הסיבה שהסקאלה מוגבלת ל-150%: מעבר לכך מתחיל
+  להיווצר גלישה אופקית ב-360px.
+*/
+html {
+  font-size: calc(100% * var(--a11y-text-scale, 1));
 }
 
-body.a11y-high-contrast {
-  filter: contrast(200%);
+/*
+  🔴 המסננים יושבים על <html> ולא על <body> — באג פרודקשן אמיתי.
+
+  ⚠️ `filter` על אלמנט הופך אותו ל-containing block עבור כל צאצא
+  `position: fixed`. כשהוא ישב על <body>, הפעלת "ניגודיות גבוהה" או
+  "גווני אפור" ניתקה **כל** אלמנט fixed באתר מה-viewport והצמידה אותו
+  לגובה המסמך כולו: כפתור הנגישות עצמו קפץ ל-top≈7978px (כלומר ~7300px
+  מתחת לתחתית המסך ולא ניתן להגיע אליו), וכך גם ה-header הדביק, כפתור
+  הוואטסאפ הצף, הודעת העוגיות וכל הדיאלוגים. אומת ב-hit-test בפרודקשן.
+  התוצאה: מי שהפעילה ניגודיות גבוהה לא יכלה לכבות אותה — הכפתור נעלם.
+
+  ⚠️ על אלמנט השורש הדפדפן מחיל את המסנן על ה-canvas ולא יוצר containing
+  block לצאצאים fixed. אומת אמפירית מול שני המצבים: הכפתור וה-header
+  נשארים במקומם בדיוק (btnGapFromBottom=24, headerTop=0).
+  לכן: אין להחזיר את המסננים ל-body.
+*/
+/*
+  ⚠️ שני המצבים מחוברים דרך משתנים ולא דרך שתי הצהרות `filter` נפרדות.
+  כששניהם היו כללים נפרדים, הפעלת "ניגודיות גבוהה" **וגם** "גווני אפור"
+  יחד הפילה את הראשון: `filter` היא תכונה אחת, והכלל המאוחר פשוט דרס.
+  אומת: עם שני המתגים דלוקים getComputedStyle החזיר grayscale(1) בלבד,
+  כלומר הניגודיות נראתה מסומנת בממשק ולא פעלה בפועל.
+
+  ⚠️ ה-fallback הריק ב-var(--x, ) הוא תקין ומכוון — כשמצב אחד כבוי הוא
+  תורם מחרוזת ריקה במקום פונקציית זהות מיותרת.
+*/
+html.a11y-high-contrast,
+html.a11y-grayscale {
+  filter: var(--a11y-contrast, ) var(--a11y-grayscale, );
+}
+
+html.a11y-high-contrast {
+  --a11y-contrast: contrast(200%);
+}
+
+html.a11y-grayscale {
+  --a11y-grayscale: grayscale(100%);
+}
+
+html.a11y-high-contrast body {
   background-color: #000 !important;
   color: #fff !important;
 }
 
-body.a11y-high-contrast nav,
-body.a11y-high-contrast footer {
+html.a11y-high-contrast nav,
+html.a11y-high-contrast footer {
   background-color: #111 !important;
   color: #fff !important;
 }
 
-body.a11y-grayscale {
-  filter: grayscale(100%);
-}
-
-body.a11y-highlight-links a {
+html.a11y-highlight-links a {
   text-decoration: underline !important;
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
   text-decoration-color: currentColor !important;
 }
 
-body.a11y-stop-animations *,
-body.a11y-stop-animations *::before,
-body.a11y-stop-animations *::after {
+html.a11y-stop-animations *,
+html.a11y-stop-animations *::before,
+html.a11y-stop-animations *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
