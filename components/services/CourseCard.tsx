@@ -1,257 +1,129 @@
-'use client'
-
 import Image from 'next/image'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { useRef, useState } from 'react'
-import { Check, Monitor, MapPin, CalendarDays, Users, Video } from 'lucide-react'
-import { courseService } from '@/lib/data'
-import { WHATSAPP_URL, LOCATION } from '@/lib/utils'
+import Link from 'next/link'
+import { ArrowLeft, Check, CalendarDays, MapPin, Users } from 'lucide-react'
+import { course, courseDays, courseOutcomes } from '@/lib/course'
+import CourseCta from '@/components/course/CourseCta'
+import Reveal from '@/components/course/Reveal'
 
-const FRONTAL = {
-  price: null,
-  priceLabel: 'כולל ערכת כלים',
-  sessions: '2 מפגשים',
-  sessionIcon: 'users',
-  description: courseService.description,
-  features: courseService.features,
-}
+const META = [
+  { icon: CalendarDays, label: course.duration },
+  { icon: Users, label: course.format },
+  { icon: MapPin, label: course.location },
+]
 
-const ONLINE = {
-  price: '₪150',
-  priceLabel: 'קורס דיגיטלי',
-  sessions: 'מפגש זום אישי',
-  sessionIcon: 'video',
-  description:
-    'קורס אונליין ממוקד במיוחד לבנות שכבר עובדות בתחום עיצוב הגבות ורוצות לחדד את הטכניקה, להעמיק את הידע ולהגיע לתוצאות מקצועיות יותר בעיצוב גבות טבעיות. ללא צורך לצאת מהבית — הקורס מועבר בנוחות מוחלטת, בזמן שמתאים לך.',
-  features: [
-    'חוברת קורס מקצועית לגבות טבעיות',
-    'מפגש זום אישי אחד על אחד',
-    'חומר לימוד דיגיטלי מקיף ומפורט',
-    'מתאים לבעלות ניסיון שרוצות להשתפר',
-    'ליווי ותמיכה מקצועית לאחר הקורס',
-    'נגישות מכל מקום ובזמן שנוח לך',
-  ],
-}
-
+/**
+ * כרטיס הקורס בעמוד הטיפולים — תצוגה מלאה יותר מזו שבעמוד הבית, אבל
+ * עדיין טיזר: כל הפירוט יושב ב-/course.
+ *
+ * ⚠️ Server Component. הגרסה הקודמת הייתה client עם מתג פרונטלי/אונליין
+ * ומחיר שאינו בתוקף; היום ההצעה היא קורס פרונטלי אחד של יומיים.
+ */
 export default function CourseCard() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-60px' })
-  const [format, setFormat] = useState<'frontal' | 'online'>('frontal')
-
-  const data = format === 'frontal' ? FRONTAL : ONLINE
-
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <Reveal>
       <article
-        aria-label="קורס עיצוב גבות מקצועי – פרימיום"
-        className="relative overflow-hidden rounded-3xl bg-brand-linen shadow-soft-lg border border-brand-cream-dark/60"
+        aria-labelledby="course-card-heading"
+        className="relative overflow-hidden rounded-[1.75rem] bg-brand-linen shadow-soft-lg border border-brand-cream-dark/60"
       >
-        {/* Background image */}
-        <div className="absolute inset-0" aria-hidden="true">
-          <Image
-            src={courseService.image}
-            alt="קורס עיצוב גבות מקצועי"
-            fill
-            sizes="100vw"
-            className="object-cover opacity-10"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-linen via-brand-linen/95 to-brand-linen/70" />
-        </div>
-
-        {/* Gold top border */}
         <div className="absolute top-0 inset-x-0 h-1 bg-gold-gradient" aria-hidden="true" />
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 sm:p-12">
-          {/* Content */}
-          <div className="flex flex-col justify-center">
-            {/* Badge */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center gap-1.5 bg-brand-gold/20 border border-brand-gold/40 text-brand-gold-text text-xs font-bold px-3 py-1.5 rounded-full tracking-wider uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse" aria-hidden="true" />
-                קורס פרימיום
-              </span>
-            </div>
-
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-3 leading-snug">
-              {courseService.name}
-            </h2>
-
-            {/* Format toggle */}
-            <div className="flex gap-2 mb-5" role="group" aria-label="בחרי פורמט קורס">
-              <button
-                type="button"
-                onClick={() => setFormat('frontal')}
-                aria-pressed={format === 'frontal'}
-                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
-                  format === 'frontal'
-                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold-text'
-                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
-                }`}
-              >
-                <MapPin className="w-3 h-3" aria-hidden="true" />
-                פרונטלי
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormat('online')}
-                aria-pressed={format === 'online'}
-                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold ${
-                  format === 'online'
-                    ? 'bg-brand-gold/20 border-brand-gold/50 text-brand-gold-text'
-                    : 'bg-brand-cream-dark/60 border-brand-cream-dark text-brand-medium hover:bg-brand-cream-dark hover:text-brand-dark'
-                }`}
-              >
-                <Monitor className="w-3 h-3" aria-hidden="true" />
-                אונליין
-              </button>
-            </div>
-
-            {/* Description */}
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={format + '-desc'}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.25 }}
-                className="text-brand-medium leading-relaxed mb-5"
-              >
-                {data.description}
-              </motion.p>
-            </AnimatePresence>
-
-            {/* Key details */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              <div className="flex items-center gap-2 bg-brand-cream-dark rounded-xl px-4 py-2">
-                {data.sessionIcon === 'video'
-                  ? <Video className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                  : <Users className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                }
-                <span className="text-sm text-brand-dark font-medium">{data.sessions}</span>
-              </div>
-              {format === 'frontal' && (
-                <div className="flex items-center gap-2 bg-brand-cream-dark rounded-xl px-4 py-2">
-                  <CalendarDays className="w-4 h-4 text-brand-gold flex-shrink-0" aria-hidden="true" />
-                  <span className="text-sm text-brand-dark font-medium">מקומות מוגבלים</span>
-                </div>
-              )}
-            </div>
-
-            {/* Features */}
-            <AnimatePresence mode="wait">
-              <motion.ul
-                key={format + '-features'}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.25 }}
-                className="space-y-2.5 mb-8"
-                aria-label="מה כלול בקורס"
-              >
-                {data.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3">
-                    <span
-                      className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 border border-brand-gold/40 flex items-center justify-center mt-0.5"
-                      aria-hidden="true"
-                    >
-                      <Check className="w-3 h-3 text-brand-gold" />
-                    </span>
-                    <span className="text-sm text-brand-medium">{feature}</span>
-                  </li>
-                ))}
-              </motion.ul>
-            </AnimatePresence>
-
-            {/* Only WhatsApp button */}
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="לפרטים ורישום לקורס עיצוב גבות בוואצאפ"
-              className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-light transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-linen w-full sm:w-auto"
-            >
-              <WhatsAppIcon className="w-5 h-5" />
-              לפרטים ורישום בוואצאפ
-            </a>
+        <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr]">
+          {/* Image */}
+          <div className="relative min-h-[16rem] lg:min-h-full">
+            <Image
+              src={course.image}
+              alt="קורס עיצוב גבות טבעיות של שובל"
+              fill
+              loading="lazy"
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="object-cover"
+            />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-brand-dark/45 to-transparent lg:bg-gradient-to-l lg:from-brand-linen/90 lg:via-brand-linen/10 lg:to-transparent"
+              aria-hidden="true"
+            />
           </div>
 
-          {/* Price panel */}
-          <div className="flex items-center justify-center lg:justify-end">
-            <div className="relative text-center p-8 sm:p-10">
-              <div className="absolute inset-0 rounded-full border-2 border-brand-gold/20 scale-110" aria-hidden="true" />
-              <div className="absolute inset-0 rounded-full border border-brand-gold/10 scale-125" aria-hidden="true" />
+          {/* Content */}
+          <div className="p-8 sm:p-11">
+            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
+              {course.eyebrow}
+            </p>
 
-              <p className="text-brand-muted text-sm uppercase tracking-widest mb-2">מחיר הקורס</p>
-              <AnimatePresence mode="wait">
-                {data.price ? (
-                  <motion.p
-                    key={format + '-price'}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                    className="font-serif text-6xl sm:text-7xl font-bold text-brand-gold leading-none mb-2"
-                    aria-label={`מחיר ${data.price}`}
-                  >
-                    {data.price}
-                  </motion.p>
-                ) : (
-                  <motion.div
-                    key={format + '-price'}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                    className="mb-2"
-                  >
-                    <a
-                      href={WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-sm px-5 py-2.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold"
-                    >
-                      <WhatsAppIcon className="w-4 h-4" />
-                      ליצירת קשר
-                    </a>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <p className="text-brand-muted text-xs">{data.priceLabel}</p>
+            <h3
+              id="course-card-heading"
+              className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark leading-tight mb-3"
+            >
+              {course.name}
+              <span className="block text-brand-rose-text text-2xl sm:text-3xl mt-1.5">
+                {course.tagline}
+              </span>
+            </h3>
 
-              <div className="mt-6 pt-6 border-t border-brand-cream-dark space-y-2">
-                {format === 'frontal' ? (
-                  <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
-                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                    <span>{LOCATION} / אונליין</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
-                    <Monitor className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                    <span>מכל מקום, בזמן שנוח לך</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-center gap-1.5 text-brand-medium text-sm">
-                  <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                  <span>{data.sessions}</span>
+            <div className="w-14 h-px bg-gold-gradient mb-6" aria-hidden="true" />
+
+            <p className="text-brand-medium text-base leading-relaxed mb-7 max-w-2xl">
+              {course.promise}
+            </p>
+
+            {/* Two days */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-7">
+              {courseDays.map((day, i) => (
+                <div
+                  key={day.label}
+                  className="bg-white/70 border border-brand-cream-dark rounded-2xl p-5"
+                >
+                  <p className="text-[0.7rem] tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-1.5">
+                    {day.label}
+                  </p>
+                  <h4 className="font-serif text-lg font-bold text-brand-dark mb-2">{day.title}</h4>
+                  <p className="text-brand-medium text-sm leading-relaxed">
+                    {i === 0
+                      ? 'קריאת פנים, A-B-C ו-mapping, איזון והרמוניה, שיקום, עבודה בטוחה והיגיינה.'
+                      : 'שעווה, חוט, פינצטה, גזירה, צביעה ופינישים — ותהליך מלא על מודליסטית.'}
+                  </p>
                 </div>
-              </div>
+              ))}
+            </div>
+
+            {/* Outcomes preview */}
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-7">
+              {courseOutcomes.slice(0, 4).map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <span
+                    className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 border border-brand-gold/40 flex items-center justify-center mt-0.5"
+                    aria-hidden="true"
+                  >
+                    <Check className="w-3 h-3 text-brand-gold-dark" />
+                  </span>
+                  <span className="text-brand-medium text-sm leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <ul className="flex flex-wrap gap-x-6 gap-y-3 mb-8" aria-label="פרטי הקורס">
+              {META.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-brand-gold-dark flex-shrink-0" aria-hidden="true" />
+                  <span className="text-sm text-brand-dark font-medium">{label}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+              <Link
+                href="/course"
+                aria-label="לעמוד הקורס המלא של עיצוב גבות טבעיות"
+                className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-light transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-linen w-full sm:w-auto"
+              >
+                לתוכנית המלאה
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              </Link>
+              <CourseCta label="לפרטים בוואצאפ" variant="outline" className="w-full sm:w-auto" />
             </div>
           </div>
         </div>
       </article>
-    </motion.div>
-  )
-}
-
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
+    </Reveal>
   )
 }

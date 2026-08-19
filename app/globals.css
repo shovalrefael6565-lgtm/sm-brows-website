@@ -279,3 +279,36 @@ html.a11y-stop-animations *::after {
     }
   }
 }
+
+/* ── details/summary (שאלות הקורס) ──
+   list-none של Tailwind לא מסיר את המשולש ב-Safari/WebKit — שם המחוון
+   מגיע מ-::-webkit-details-marker ודורש כלל נפרד. */
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* ── Reveal on scroll (components/course/Reveal.tsx) ──
+   נשלט ע"י IntersectionObserver בצד לקוח; המעבר עצמו CSS טהור ולא ספריית
+   אנימציה, כך שתוכן הקורס נשאר Server Component במלואו.
+   ⚠️ בלי JS המצב ההתחלתי היה מסתיר את כל תוכן העמוד — לכן העמוד מרנדר
+   <noscript> שמנטרל את .reveal לגמרי. */
+.reveal {
+  opacity: 0.001;
+  transform: translateY(20px);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

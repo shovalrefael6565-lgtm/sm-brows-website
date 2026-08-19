@@ -10,6 +10,7 @@ import { cn, WHATSAPP_URL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSIN
 import GoogleIcon from '@/components/ui/GoogleIcon'
 import { useCart } from '@/lib/cart'
 import { services } from '@/lib/data'
+import { course } from '@/lib/course'
 import SocialIcons from '@/components/ui/SocialIcons'
 import { useDialogA11y } from '@/lib/useDialogA11y'
 
@@ -17,7 +18,7 @@ const navLinks = [
   { href: '/services', label: 'טיפולים', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
-  { href: '/services#course', label: 'קורסים', special: 'course' },
+  { href: '/course', label: 'הקורס', special: 'course' },
   { href: '/contact', label: 'יצירת קשר', special: null },
 ]
 
@@ -25,7 +26,7 @@ const mobileNavLinks = [
   { href: '/services', label: 'טיפולים', special: null },
   { href: '/blog', label: 'מאמרים', special: null },
   { href: '/shop', label: 'חנות', special: null },
-  { href: '/services#course', label: 'קורסים', special: 'course' },
+  { href: '/course', label: 'הקורס', special: 'course' },
   { href: '/contact', label: 'יצירת קשר', special: null },
 ]
 
@@ -176,10 +177,19 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
     if (q.length < 2) return []
     // מוצרי החנות לא מוצגים בחיפוש כל עוד עמוד החנות במצב "בקרוב",
     // כדי לא להוביל לקוחות למוצרים שעדיין לא ניתן לרכוש.
-    return services
+    const serviceHits = services
       .filter((s) => s.name.includes(q) || s.tagline.includes(q) || s.description.includes(q))
       .slice(0, 5)
       .map((s) => ({ type: 'service' as const, id: s.id, name: s.name, sub: s.tagline, href: `/services#${s.id}` }))
+
+    // הקורס אינו חלק ממערך ה-services ולכן לא היה נמצא בחיפוש כלל,
+    // למרות שיש לו עמוד משלו — נוסף כאן במפורש.
+    const courseTerms = `${course.name} ${course.tagline} קורסים לימודים הכשרה`
+    const courseHit = courseTerms.includes(q)
+      ? [{ type: 'course' as const, id: 'course', name: course.name, sub: course.tagline, href: '/course' }]
+      : []
+
+    return [...courseHit, ...serviceHits].slice(0, 6)
   }, [searchQuery])
 
   return (

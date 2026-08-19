@@ -9,6 +9,7 @@ const TestimonialsSection = dynamic(() => import('@/components/home/Testimonials
 const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
 
 const MicrobladingTeaser  = dynamic(() => import('@/components/home/MicrobladingTeaser'))
+const CourseBanner        = dynamic(() => import('@/components/home/CourseBanner'))
 
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
@@ -24,6 +25,7 @@ export default function HomePage() {
       <MicrobladingTeaser />
       <TestimonialsSection />
       <ServicesPreview />
+      <CourseBanner />
       <DeferredSections />
     </>
   )

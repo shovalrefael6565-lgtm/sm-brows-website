@@ -203,6 +203,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">
+        {/*
+          ⚠️ חשיפת התוכן בגלילה (components/course/Reveal.tsx) מתחילה במצב
+          שקוף ונפתחת ע"י IntersectionObserver. בלי JavaScript ה-observer
+          לעולם לא רץ, ולכן הסקשנים היו נשארים בלתי נראים לגמרי — הכלל הזה
+          מנטרל את מצב ההתחלה. מוגדר בפריסה כדי לכסות כל עמוד שמשתמש ב-Reveal.
+        */}
+        <noscript>
+          <style>{`.reveal{opacity:1 !important;transform:none !important}`}</style>
+        </noscript>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:right-4 focus:z-[9999] focus:bg-brand-gold focus:text-brand-dark focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold"

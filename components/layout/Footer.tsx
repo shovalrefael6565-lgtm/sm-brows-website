@@ -16,7 +16,7 @@ const col2Links = [
 
 const col3Links = [
   { href: '/services', label: 'טיפולים' },
-  { href: '/services#course', label: 'קורסים' },
+  { href: '/course', label: 'הקורס' },
   { href: '/blog', label: 'מאמרים' },
 ]
 

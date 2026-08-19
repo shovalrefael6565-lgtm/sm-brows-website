@@ -155,7 +155,7 @@ export default function Hero() {
 
             {/* Course button */}
             <Link
-              href="/services#course"
+              href="/course"
               aria-label="לקורס עיצוב גבות המקצועי"
               className="inline-flex items-center gap-2 bg-brand-dark text-brand-gold font-bold text-base px-6 py-4 rounded-full border-2 border-brand-gold/60 hover:bg-brand-gold hover:text-brand-dark hover:border-brand-gold transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
             >
