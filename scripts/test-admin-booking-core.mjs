@@ -42,7 +42,10 @@ const { verifyAuthUserPhone, findAuthUserIdByPhone } =
   await import('../lib/auth/adminUserResolver.ts')
 
 const { israelWallTimeToUtc } = await import('../lib/israelTime.ts')
-const { NATURAL_SERVICE, LIFTING_SERVICE } = await import('../lib/services.ts')
+const {
+  NATURAL_SERVICE, LIFTING_SERVICE, MICROBLADING_SERVICE, MICROBLADING_CONSULT_SERVICE,
+  ADMIN_ONLY_SERVICES, ADMIN_MIN_DURATION_MIN, ADMIN_MAX_DURATION_MIN, isBookableService,
+} = await import('../lib/services.ts')
 
 const ADMIN = '11111111-1111-4111-8111-111111111111'
 const ADMIN2 = '22222222-2222-4222-8222-222222222222'
@@ -230,7 +233,7 @@ r = resolveManualService(NATURAL_SERVICE, ['עיצוב גבות טבעי', 'תו
 chk('variant מוכר יחד עם לא מוכר → נדחה (לא מושמט בשקט)',
   !r.ok && r.error === 'invalid_variants')
 
-r = resolveManualService('מיקרובליידינג', [])
+r = resolveManualService('טיפול שלא קיים', [])
 chk('טיפול שאינו בקטלוג היומן → נדחה', !r.ok && r.error === 'invalid_service')
 
 r = resolveManualService(NATURAL_SERVICE, 'לא-מערך')
@@ -239,6 +242,80 @@ chk('variants שאינו מערך → נדחה', !r.ok)
 // ⚠️ המחיר לעולם לא מגיע מהדפדפן — אין דרך להעביר אותו בכלל
 r = resolveManualService(NATURAL_SERVICE, ['עיצוב גבות + צביעה'])
 chk('מחיר התוספת נלקח מהקטלוג ולא מהקלט', r.ok && r.data.priceTotal === 85)
+
+// ⚠️ **הגבול המרכזי של שלב 12:** ערכי משך/מחיר מהדפדפן מתקבלים אך ורק
+// בטיפול ניהולי. בטיפולי הקטלוג הם חייבים להיות מתעלמים לחלוטין —
+// אחרת הדפדפן יכול לקבוע מחיר ומשך לתור לקוחה רגיל.
+r = resolveManualService(NATURAL_SERVICE, ['עיצוב גבות טבעי'], { durationMin: 300, priceTotal: 5 })
+chk('קטלוג: durationMin/priceTotal מהדפדפן מתעלמים',
+  r.ok && r.data.durationMin === 20 && r.data.priceTotal === 70 && r.data.manualDuration === false)
+
+r = resolveManualService(LIFTING_SERVICE, [], { durationMin: 300, priceTotal: 5 })
+chk('הרמת גבות: durationMin/priceTotal מהדפדפן מתעלמים',
+  r.ok && r.data.durationMin === 40 && r.data.priceTotal === 250)
+
+// ════════════════════════════════════════════════════════════════════════════
+section('טיפולים ניהוליים — משך ידני (שלב 12)')
+// ════════════════════════════════════════════════════════════════════════════
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 150 })
+chk('מיקרובליידינג: המשך שהוזן נשמר, בלי מחיר',
+  r.ok && r.data.durationMin === 150 && r.data.priceTotal === null &&
+  r.data.manualDuration === true && r.data.variants.length === 0)
+
+r = resolveManualService(MICROBLADING_CONSULT_SERVICE, [], { durationMin: 30, priceTotal: 100 })
+chk('ייעוץ מיקרובליידינג: משך ידני + מחיר אופציונלי',
+  r.ok && r.data.durationMin === 30 && r.data.priceTotal === 100)
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 90, priceTotal: '' })
+chk('מחיר ריק = בלי מחיר, ולא 0', r.ok && r.data.priceTotal === null)
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 90, priceTotal: 0 })
+chk('מחיר 0 מפורש נשמר כ-0 ולא כ-null', r.ok && r.data.priceTotal === 0)
+
+r = resolveManualService(MICROBLADING_SERVICE, [])
+chk('בלי משך → נדחה', !r.ok && r.error === 'invalid_duration')
+
+// 🔒 אותם גבולות בדיוק שה-RPC אוכף (0010). אילו כאן היו רחבים יותר,
+// הבקשה הייתה נופלת ב-DB במקום להציג שגיאה ברורה למנהלת.
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: ADMIN_MIN_DURATION_MIN - 1 })
+chk('משך מתחת למינימום → נדחה', !r.ok && r.error === 'invalid_duration')
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: ADMIN_MAX_DURATION_MIN + 1 })
+chk('משך מעל למקסימום → נדחה', !r.ok && r.error === 'invalid_duration')
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: ADMIN_MIN_DURATION_MIN })
+chk('גבול תחתון עצמו מתקבל', r.ok && r.data.durationMin === ADMIN_MIN_DURATION_MIN)
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: ADMIN_MAX_DURATION_MIN })
+chk('גבול עליון עצמו מתקבל', r.ok && r.data.durationMin === ADMIN_MAX_DURATION_MIN)
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 45.5 })
+chk('משך שאינו שלם → נדחה', !r.ok && r.error === 'invalid_duration')
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 'הרבה' })
+chk('משך שאינו מספר → נדחה', !r.ok && r.error === 'invalid_duration')
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 60, priceTotal: -5 })
+chk('מחיר שלילי → נדחה', !r.ok && r.error === 'invalid_price')
+
+r = resolveManualService(MICROBLADING_SERVICE, [], { durationMin: 60, priceTotal: 12.5 })
+chk('מחיר שאינו שלם → נדחה', !r.ok && r.error === 'invalid_price')
+
+r = resolveManualService(MICROBLADING_SERVICE, ['עיצוב גבות טבעי'], { durationMin: 60 })
+chk('תוספות בטיפול ניהולי → נדחות במפורש', !r.ok && r.error === 'invalid_variants')
+
+// 🔒 הגבול שמפריד בין ניהולי לציבורי: אף מסלול לקוחה לא יכול לבחור בהם.
+chk('מיקרובליידינג אינו bookable ציבורי', isBookableService(MICROBLADING_SERVICE) === false)
+chk('ייעוץ מיקרובליידינג אינו bookable ציבורי',
+  isBookableService(MICROBLADING_CONSULT_SERVICE) === false)
+chk('שני טיפולי הקטלוג נשארו bookable',
+  isBookableService(NATURAL_SERVICE) && isBookableService(LIFTING_SERVICE))
+chk('שני טיפולים ניהוליים בדיוק, שניהם עם ברירת מחדל למשך',
+  ADMIN_ONLY_SERVICES.length === 2 &&
+  ADMIN_ONLY_SERVICES.every(s => Number.isInteger(s.defaultDurationMin) &&
+    s.defaultDurationMin >= ADMIN_MIN_DURATION_MIN &&
+    s.defaultDurationMin <= ADMIN_MAX_DURATION_MIN))
 
 // ════════════════════════════════════════════════════════════════════════════
 section('Auth resolver מול Auth Admin מזויף')

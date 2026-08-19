@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import { Search, Loader2, UserRound, UserRoundX, X, UserPlus } from 'lucide-react'
+import { Search, Loader2, UserRound, UserRoundX, X, UserPlus, AlertCircle } from 'lucide-react'
 import { formatPhoneForDisplay } from '@/lib/phone'
 
 /**
@@ -12,6 +11,17 @@ import { formatPhoneForDisplay } from '@/lib/phone'
  * (מזהה, שם, טלפון, האם יש חשבון) — לא מדדי CRM ולא הערות.
  *
  * חשבונות מנהל מוחרגים ב-DB, ולכן אי אפשר לבחור אותם כאן.
+ *
+ * ─── יצירה מהירה במקום (שלב 12) ─────────────────────────────────────────────
+ *
+ * לקוחה חדשה בטלפון אינה מצדיקה יציאה מהטופס וחזרה אליו. השם והטלפון
+ * נשלחים ל-POST /api/admin/customers — **אותו** מסלול של מסך "לקוחה חדשה",
+ * ולכן אותה התנהגות בדיוק:
+ *
+ *   • הטלפון מנורמל בשרת (lib/phone.ts), ולקוחה קיימת מזוהה לפיו.
+ *   • טלפון שכבר קיים מחזיר את הלקוחה הקיימת ('existing_customer') —
+ *     **לא נוצרת כפילות**, והשם/המקור שלה אינם נדרסים.
+ *   • לקוחה חדשה נכנסת ל-CRM מיד, בלי חשבון התחברות, בלי OTP ובלי SMS.
  */
 
 export interface PickedCustomer {
@@ -32,6 +42,61 @@ export default function CustomerPicker({
   const [items, setItems] = useState<PickedCustomer[]>([])
   const [busy, setBusy] = useState(false)
   const [touched, setTouched] = useState(false)
+
+  // ── יצירה מהירה ──
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newPhone, setNewPhone] = useState('')
+  const [createBusy, setCreateBusy] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [existingNotice, setExistingNotice] = useState(false)
+  // ⚠️ נוצר פעם אחת לכל ניסיון ונשלח שוב בכל retry — disabled על הכפתור
+  // אינו הגנה, כי תגובה יכולה ללכת לאיבוד אחרי שה-DB כבר כתב.
+  const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
+
+  async function createCustomer(e: React.FormEvent) {
+    e.preventDefault()
+    if (createBusy) return
+    setCreateBusy(true)
+    setCreateError(null)
+
+    try {
+      const res = await fetch('/api/admin/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: newName, phone: newPhone, client_request_id: createRequestId,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.customerId) {
+        setCreateError(data.message ?? 'יצירת הלקוחה נכשלה. נסי שוב.')
+        return
+      }
+
+      // ⚠️ הלקוחה נטענת מהשרת ולא נבנית מהקלט: לקוחה קיימת חוזרת עם
+      // **השם השמור שלה**, ולא עם מה שהוקלד עכשיו.
+      const loaded = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(newPhone)}`)
+      const found = loaded.ok
+        ? ((await loaded.json()).items ?? []).find((c: PickedCustomer) => c.id === data.customerId)
+        : null
+
+      onChange(found ?? {
+        id: data.customerId, full_name: newName.trim(),
+        phone_e164: newPhone.trim(), has_login_account: false,
+      })
+      setExistingNotice(data.created === false)
+      setCreating(false)
+      setNewName('')
+      setNewPhone('')
+      setCreateRequestId(crypto.randomUUID())
+    } catch {
+      setCreateError('החיבור נכשל. נסי שוב.')
+    } finally {
+      setCreateBusy(false)
+    }
+  }
   // מזהה הבקשה האחרונה: תגובה של חיפוש ישן שמגיעה באיחור לא תדרוס תוצאה חדשה
   const seq = useRef(0)
 
@@ -63,6 +128,12 @@ export default function CustomerPicker({
 
   if (value) {
     return (
+      <>
+      {existingNotice && (
+        <p className="text-xs text-brand-gold-text mb-2">
+          המספר כבר קיים במערכת — נבחרה הלקוחה הקיימת, ולא נוצרה כפילות.
+        </p>
+      )}
       <div className="flex items-start justify-between gap-3 bg-brand-cream/40 border
                       border-brand-cream-dark rounded-xl p-3.5">
         <div className="min-w-0">
@@ -79,13 +150,92 @@ export default function CustomerPicker({
         </div>
         <button
           type="button"
-          onClick={() => { onChange(null); setQuery(''); setItems([]) }}
+          onClick={() => { onChange(null); setQuery(''); setItems([]); setExistingNotice(false) }}
           aria-label="בחירת לקוחה אחרת"
           className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl
                      text-brand-muted hover:bg-white transition-colors"
         >
           <X className="w-4 h-4" aria-hidden="true" />
         </button>
+      </div>
+      </>
+    )
+  }
+
+  if (creating) {
+    return (
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="newCustomerName" className="block text-sm font-medium text-brand-dark mb-1.5">
+            שם מלא
+          </label>
+          <input
+            id="newCustomerName"
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            autoComplete="off"
+            className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
+                       text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
+          />
+        </div>
+        <div>
+          <label htmlFor="newCustomerPhone" className="block text-sm font-medium text-brand-dark mb-1.5">
+            טלפון
+          </label>
+          <input
+            id="newCustomerPhone"
+            type="tel"
+            inputMode="tel"
+            dir="ltr"
+            value={newPhone}
+            onChange={e => setNewPhone(e.target.value)}
+            autoComplete="off"
+            className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
+                       text-brand-dark text-right focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
+          />
+        </div>
+
+        <p className="text-xs text-brand-muted">
+          לקוחה שכבר קיימת עם אותו מספר תיבחר כפי שהיא — לא נוצרת כפילות.
+          לא נשלחת הודעה ולא נפתח חשבון התחברות.
+        </p>
+
+        {createError && (
+          <div role="alert" className="flex items-start gap-2 bg-rose-50 border border-rose-200
+                                       rounded-xl p-3 text-sm text-rose-800">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{createError}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {/*
+            ⚠️ type="button" ולא submit: הרכיב הזה יושב בתוך טופס יצירת
+            התור, ו-submit כאן היה שולח את טופס התור עצמו.
+          */}
+          <button
+            type="button"
+            onClick={createCustomer}
+            disabled={createBusy || newName.trim().length < 2 || newPhone.trim().length < 9}
+            className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-brand-dark
+                       text-white text-sm font-medium hover:bg-brand-dark/90 transition-colors
+                       disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {createBusy
+              ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />שומרת…</>
+              : <><UserPlus className="w-4 h-4" aria-hidden="true" />שמירה ובחירה</>}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setCreating(false); setCreateError(null) }}
+            className="inline-flex items-center justify-center h-11 px-4 rounded-xl border
+                       border-brand-linen-dark text-sm font-medium text-brand-muted
+                       hover:bg-brand-cream/50 transition-colors"
+          >
+            ביטול
+          </button>
+        </div>
       </div>
     )
   }
@@ -138,15 +288,25 @@ export default function CustomerPicker({
       )}
 
       {touched && !busy && query.trim().length >= 2 && items.length === 0 && (
-        <div className="mt-2 text-sm text-brand-muted">
-          לא נמצאה לקוחה.{' '}
-          <Link href="/admin/customers/new" className="text-brand-dark underline
-                                                       inline-flex items-center gap-1">
-            <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
-            יצירת לקוחה חדשה
-          </Link>
-        </div>
+        <p className="mt-2 text-sm text-brand-muted">לא נמצאה לקוחה בחיפוש הזה.</p>
       )}
+
+      <button
+        type="button"
+        onClick={() => {
+          // מה שכבר הוקלד בחיפוש הוא כמעט תמיד השם או המספר — לא מאבדים אותו.
+          const typed = query.trim()
+          if (/[0-9]/.test(typed)) setNewPhone(typed)
+          else if (typed) setNewName(typed)
+          setCreating(true)
+        }}
+        className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-dark
+                   border border-brand-linen-dark rounded-xl h-11 px-4 hover:bg-brand-cream/50
+                   transition-colors"
+      >
+        <UserPlus className="w-4 h-4" aria-hidden="true" />
+        לקוחה חדשה
+      </button>
     </div>
   )
 }

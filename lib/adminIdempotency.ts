@@ -71,7 +71,12 @@ export interface AppointmentCreateFingerprintInput {
   /** רגע ההתחלה. תמיד מומר ל-UTC ISO, ולכן זהה משני clients באזורי זמן שונים */
   startsAt: Date
   durationMin: number
-  priceTotal: number
+  /**
+   * null = טיפול ניהולי שהמחיר שלו לא נקבע מראש (שלב 12). ערך מובחן
+   * מ-0, וכלול בטביעת האצבע בדיוק כמו כל מחיר אחר: הוספת מחיר ב-retry
+   * היא בקשה אחרת, לא אותה בקשה.
+   */
+  priceTotal: number | null
   policyVersion: string
 }
 

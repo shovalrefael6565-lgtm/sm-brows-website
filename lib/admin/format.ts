@@ -206,6 +206,10 @@ export const ADMIN_ERROR_MESSAGES: Record<string, string> = {
   variants_required:    'יש לבחור לפחות תוספת אחת לטיפול.',
   invalid_variants:     'התוספות שנבחרו אינן מתאימות לטיפול הזה.',
   invalid_slot:         'המועד שנבחר אינו תקין.',
+  // ── שלב 12 ──
+  invalid_price:        'המחיר אינו תקין. יש להזין מספר שלם, או להשאיר ריק.',
+  adopt_event_gone:     'האירוע שסומן כ"אותו תור" אינו קיים יותר ביומן.',
+  adopt_event_taken:    'האירוע שסומן כ"אותו תור" שייך כבר לתור אחר במערכת.',
   start_in_past:        'לא ניתן לקבוע תור במועד שכבר עבר.',
   invalid_duration:     'משך הטיפול אינו תקין.',
   slot_taken:           'המועד הזה כבר תפוס. יש לבחור מועד אחר.',

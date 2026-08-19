@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
   }
 
-  let body: { serviceKey?: unknown; variants?: unknown; isoDate?: unknown; time?: unknown }
+  let body: {
+    serviceKey?: unknown; variants?: unknown; isoDate?: unknown; time?: unknown
+    durationMin?: unknown; priceTotal?: unknown
+  }
   try {
     body = await req.json()
   } catch {
@@ -45,7 +48,12 @@ export async function POST(req: NextRequest) {
       { error: 'invalid_slot', message: ADMIN_ERROR_MESSAGES.invalid_slot }, { status: 400 })
   }
 
-  const service = resolveManualService(body.serviceKey, body.variants)
+  // ⚠️ durationMin/priceTotal נלקחים בחשבון **רק** בטיפולים הניהוליים.
+  // resolveManualService מתעלמת מהם לחלוטין בשני טיפולי הקטלוג.
+  const service = resolveManualService(body.serviceKey, body.variants, {
+    durationMin: body.durationMin,
+    priceTotal: body.priceTotal,
+  })
   if (!service.ok) {
     return NextResponse.json(
       { error: service.error, message: ADMIN_ERROR_MESSAGES[service.error] ?? ADMIN_ERROR_MESSAGES.unknown },
@@ -70,6 +78,13 @@ export async function POST(req: NextRequest) {
     // גולמי מ-Google — רק סיבה מקוטלגת שהממשק יודע לתרגם.
     available: availability.available,
     reason: availability.available ? null : availability.reason,
+    /*
+     * ⚠️ פרטי האירוע החוסם נחשפים **רק** למנהלת מאומתת ורק כשהוא ניתן
+     * לאימוץ. זה המידע המינימלי שדרוש כדי שהיא תזהה אם זה אותו תור:
+     * כותרת האירוע והטווח שלו — לא המשתתפים, לא התיאור ולא כל payload
+     * אחר מ-Google.
+     */
+    adoptable: availability.available ? null : (availability.adoptable ?? null),
     warnings,
   })
 }

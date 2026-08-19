@@ -37,3 +37,46 @@ export type BookableService = typeof NATURAL_SERVICE | typeof LIFTING_SERVICE
 export function isBookableService(name: string): name is BookableService {
   return name === NATURAL_SERVICE || name === LIFTING_SERVICE
 }
+
+// ─── טיפולים ניהוליים בלבד (שלב 12) ─────────────────────────────────────────
+//
+// מיקרובליידינג וייעוץ מיקרובליידינג נקבעים **רק** ממערכת הניהול. הם אינם
+// חלק מהקטלוג הציבורי, isBookableService אינה מכירה אותם, ולכן אף מסלול
+// לקוחה (טופס הזמנה, אזור אישי, בקשת שינוי מועד) אינו יכול לבחור בהם.
+//
+// ⚠️ **המשך נקבע ידנית ע"י שובל בכל תור.** אין לטיפולים האלה משך קבוע:
+// מיקרובליידינג משתנה לפי העבודה בפועל, וייעוץ משתנה לפי הלקוחה. הערך
+// כאן הוא ברירת מחדל שממלאת את השדה בטופס בלבד — מה שנשמר הוא מה ששובל
+// הזינה, אחרי אימות טווח בשרת וב-RPC (5–480 דקות, 0010).
+//
+// ⚠️ המחיר אופציונלי במכוון: מחיר מיקרובליידינג נקבע מול הלקוחה ואינו
+// תמיד ידוע בשעת הקביעה. price_total הוא nullable ב-DB (0001), ותור בלי
+// מחיר מוצג "—" בדיוק כמו תור ישן בלי מחיר.
+
+export const MICROBLADING_SERVICE = 'מיקרובליידינג'
+export const MICROBLADING_CONSULT_SERVICE = 'ייעוץ מיקרובליידינג'
+
+export interface AdminOnlyService {
+  /** נשמר כמות שהוא ב-appointments.service_key, ולכן אסור לשנותו אחרי שנוצרו תורים */
+  key: string
+  label: string
+  /** ברירת מחדל לשדה המשך בטופס בלבד — לא ערך שנאכף */
+  defaultDurationMin: number
+}
+
+export const ADMIN_ONLY_SERVICES: AdminOnlyService[] = [
+  { key: MICROBLADING_SERVICE,         label: 'מיקרובליידינג',       defaultDurationMin: 150 },
+  { key: MICROBLADING_CONSULT_SERVICE, label: 'ייעוץ מיקרובליידינג', defaultDurationMin: 30 },
+]
+
+/** אותם גבולות בדיוק שה-RPC create_manual_appointment אוכף (0010) */
+export const ADMIN_MIN_DURATION_MIN = 5
+export const ADMIN_MAX_DURATION_MIN = 480
+
+export function isAdminOnlyService(name: string): boolean {
+  return ADMIN_ONLY_SERVICES.some(s => s.key === name)
+}
+
+export function adminOnlyService(name: string): AdminOnlyService | null {
+  return ADMIN_ONLY_SERVICES.find(s => s.key === name) ?? null
+}

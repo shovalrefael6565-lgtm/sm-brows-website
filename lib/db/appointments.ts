@@ -1,5 +1,6 @@
 import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { normalizePhone } from '@/lib/phone'
 import {
   BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
   israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
@@ -407,22 +408,139 @@ export const ADMIN_PAGE_SIZE = 20
  * read-only בלבד — אין כאן שום עדכון סטטוס. אישור/דחייה/הזזה מגיעים
  * בשלב הבא.
  */
+export type AdminRange = 'today' | 'tomorrow' | 'week' | 'upcoming' | 'past'
+
+/** תחילת יום ישראלי מסוים, כרגע UTC מדויק (לא חלון מקורב) */
+function israelDayStart(isoDate: string): Date {
+  return israelWallTimeToUtc(isoDate, '00:00')
+}
+
+/** יום ישראלי + n ימים, כמחרוזת ISO. חישוב על התאריך עצמו, בלי שעות. */
+export function shiftIsoDate(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * גבולות התצוגה, בשעון ישראל.
+ *
+ * ⚠️ הגבולות נגזרים מ-israelWallTimeToUtc ולא מחלון מקורב: "היום" חייב
+ * להיות בדיוק היום שעל השעון באשקלון, כולל מעבר שעון קיץ. חלון של 30
+ * שעות (dayBoundsUtc) מספיק לשאילתת יומן, אבל היה מציג כאן תורים של
+ * אתמול ומחר בתוך "היום".
+ *
+ * 'week' = 7 ימים קדימה מתחילת היום, ולא "שבוע קלנדרי": שובל שואלת "מה
+ * יש לי השבוע", לא "מה יש בין ראשון לשבת".
+ */
+function rangeBounds(range: AdminRange): { from?: Date; to?: Date; ascending: boolean } {
+  const now = new Date()
+  const today = israelDateStr(now)
+
+  switch (range) {
+    case 'today':
+      return { from: israelDayStart(today), to: israelDayStart(shiftIsoDate(today, 1)), ascending: true }
+    case 'tomorrow':
+      return {
+        from: israelDayStart(shiftIsoDate(today, 1)),
+        to: israelDayStart(shiftIsoDate(today, 2)),
+        ascending: true,
+      }
+    case 'week':
+      return { from: israelDayStart(today), to: israelDayStart(shiftIsoDate(today, 7)), ascending: true }
+    case 'upcoming':
+      return { from: now, ascending: true }
+    case 'past':
+      return { to: now, ascending: false }
+  }
+}
+
+/**
+ * מזהי הלקוחות שתואמים לחיפוש חופשי — שם או טלפון.
+ *
+ * ⚠️ שלב נפרד ולא JOIN מסונן במכוון. סינון על טבלה משובצת ב-PostgREST
+ * משנה את משמעות ה-count ומתנהג אחרת בין גרסאות; כאן החיפוש הוא שאילתה
+ * אחת קטנה ומפורשת, וה-count של התורים נשאר בדיוק אותו count.
+ *
+ * ⚠️ החיפוש לפי טלפון מנרמל קודם (lib/phone.ts): שובל מקלידה 054-123...,
+ * וב-DB שמור +97254... בלי נירמול היא לא הייתה מוצאת כלום. אם הנירמול
+ * נכשל (הקלדה חלקית) נופלים להתאמת תת-מחרוזת על הספרות שהוקלדו.
+ *
+ * 🔒 מחזירה null כשאין חיפוש כלל, ו-[] כשחיפשו ולא נמצא — שני מצבים
+ * שונים לחלוטין: הראשון "בלי סינון", השני "אפס תוצאות".
+ */
+async function customerIdsForSearch(search: string): Promise<string[]> {
+  const db = createSupabaseAdminClient()
+  const q = search.trim()
+  const digits = q.replace(/[^0-9+]/g, '')
+  const normalized = digits.length >= 6 ? normalizePhone(digits) : null
+
+  const filters = [`full_name.ilike.%${q.replace(/[%,()]/g, ' ')}%`]
+  if (normalized) filters.push(`phone_e164.eq.${normalized}`)
+  else if (digits.replace(/\+/g, '').length >= 3) {
+    filters.push(`phone_e164.ilike.%${digits.replace(/\+/g, '')}%`)
+  }
+
+  const { data, error } = await db
+    .from('customers')
+    .select('id')
+    .or(filters.join(','))
+    .limit(200)
+
+  if (error) {
+    console.error('[appointments] admin search failed', error.message)
+    return []
+  }
+  return (data ?? []).map(r => r.id as string)
+}
+
+/**
+ * כל התורים לתצוגת מנהלת, עם שם וטלפון הלקוחה, מדופדף.
+ *
+ * ⚠️ שלושת הסינונים עצמאיים ומצטברים: סטטוס, טווח תאריכים וחיפוש חופשי.
+ * הם מיושמים על **אותה** שאילתה שמחזירה את ה-count, ולכן אין מצב שהמונה
+ * מתאר קבוצה אחת והשורות קבוצה אחרת.
+ *
+ * ⚠️ סדר המיון תלוי בטווח: תצוגה עתידית ממוינת מהקרוב לרחוק (זה סדר
+ * העבודה של היום), ותצוגת "הכול"/"עבר" מהחדש לישן כמו קודם.
+ *
+ * read-only בלבד — אין כאן שום עדכון סטטוס.
+ */
 export async function listAppointmentsAdmin(opts: {
   status?: string
   page?: number
+  range?: AdminRange
+  search?: string
 }): Promise<PagedResult<AdminAppointmentRow>> {
   const db = createSupabaseAdminClient()
   const page = Math.max(1, opts.page ?? 1)
   const from = (page - 1) * ADMIN_PAGE_SIZE
   const to = from + ADMIN_PAGE_SIZE - 1
 
+  const search = opts.search?.trim() ?? ''
+  let customerIds: string[] | null = null
+  if (search.length >= 2) {
+    customerIds = await customerIdsForSearch(search)
+    // חיפוש שלא מצא אף לקוחה = אפס תורים. אין טעם לשאילתה שנייה, וחשוב
+    // מכך: בלי היציאה הזו ה-.in('customer_id', []) היה מוחזר ריק גם הוא,
+    // אבל דרך שאילתה מיותרת מול ה-DB.
+    if (customerIds.length === 0) {
+      return { rows: [], total: 0, page, pageSize: ADMIN_PAGE_SIZE }
+    }
+  }
+
+  const bounds = opts.range ? rangeBounds(opts.range) : { ascending: false as const }
+
   let query = db
     .from('appointments')
     .select(ADMIN_APPOINTMENT_COLUMNS, { count: 'exact' })
-    .order('starts_at', { ascending: false })
+    .order('starts_at', { ascending: bounds.ascending })
     .range(from, to)
 
   if (opts.status) query = query.eq('status', opts.status)
+  if ('from' in bounds && bounds.from) query = query.gte('starts_at', bounds.from.toISOString())
+  if ('to' in bounds && bounds.to) query = query.lt('starts_at', bounds.to.toISOString())
+  if (customerIds) query = query.in('customer_id', customerIds)
 
   const { data, error, count } = await query
   if (error) {
@@ -433,6 +551,55 @@ export async function listAppointmentsAdmin(opts: {
   const rows = ((data ?? []) as unknown as JoinedAdminRow[]).map(toAdminRow)
 
   return { rows, total: count ?? 0, page, pageSize: ADMIN_PAGE_SIZE }
+}
+
+/**
+ * המונים של מסך התורים: מה דורש טיפול, וכמה יש היום.
+ *
+ * ⚠️ ספירות בלבד (`head: true`) ולא טעינת שורות — המונים נטענים בכל
+ * צפייה במסך, ואין סיבה למשוך בשבילם נתוני לקוחות.
+ *
+ * 🔒 כמו listAppointmentsNeedingAdminAction, כשל בספירה **אינו** אפס:
+ * "0 בקשות ממתינות" הוא טענה, ואסור לטעון אותה כשלא ידוע. ערך null
+ * פירושו "לא ידוע", והמסך מציג זאת ככזה.
+ */
+export interface AdminAppointmentCounters {
+  pending: number | null
+  rescheduleRequests: number | null
+  syncIssues: number | null
+  today: number | null
+}
+
+export async function countAppointmentsForAdmin(): Promise<AdminAppointmentCounters> {
+  const db = createSupabaseAdminClient()
+  const today = israelDateStr(new Date())
+  const dayStart = israelDayStart(today).toISOString()
+  const dayEnd = israelDayStart(shiftIsoDate(today, 1)).toISOString()
+
+  const count = async (build: (q: ReturnType<typeof baseCount>) => ReturnType<typeof baseCount>) => {
+    const { count: n, error } = await build(baseCount())
+    if (error) {
+      console.error('[appointments] counter failed', error.message)
+      return null
+    }
+    return n ?? 0
+  }
+  function baseCount() {
+    return db.from('appointments').select('id', { count: 'exact', head: true })
+  }
+
+  const [pending, rescheduleRequests, syncIssues, todayCount] = await Promise.all([
+    // בקשת תור חדשה בלבד — שורת בקשת שינוי מועד נספרת בנפרד, כי היא
+    // החלטה על תור **קיים** ולא בקשה חדשה (ראה מסך הבית).
+    count(q => q.eq('status', 'pending').is('reschedule_of_appointment_id', null)),
+    count(q => q.eq('status', 'pending').not('reschedule_of_appointment_id', 'is', null)),
+    count(q => q.in('calendar_sync_status', ['pending', 'failed', 'syncing'])
+               .in('status', ['confirmed', 'cancelled_by_customer', 'cancelled_by_business', 'rescheduled'])),
+    count(q => q.gte('starts_at', dayStart).lt('starts_at', dayEnd)
+               .in('status', ['pending', 'confirmed', 'completed'])),
+  ])
+
+  return { pending, rescheduleRequests, syncIssues, today: todayCount }
 }
 
 /**

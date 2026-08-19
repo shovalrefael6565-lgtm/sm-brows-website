@@ -220,6 +220,8 @@ export interface AppointmentCalendarEvent {
   appointmentId: string | null
   start: Date
   end: Date
+  /** כותרת האירוע כפי שהיא ביומן. ריקה כשהאירוע נוצר בלי כותרת. */
+  summary: string
 }
 
 /**
@@ -261,6 +263,7 @@ async function listAppointmentEventsForDate(isoDate: string): Promise<Appointmen
       appointmentId,
       start: new Date(startStr),
       end: new Date(endStr),
+      summary: typeof event.summary === 'string' ? event.summary : '',
     })
   }
   return result
@@ -268,6 +271,17 @@ async function listAppointmentEventsForDate(isoDate: string): Promise<Appointmen
 
 export interface CalendarConflict {
   eventId: string
+  /**
+   * 🔒 שלב 12 — מזהה ה-appointment שהאירוע כבר שייך לו, אם קיים.
+   *
+   * ⚠️ ההבחנה קריטית לזרימת "זה אותו תור": אירוע **ידני** (null) הוא אירוע
+   * שאין לו תור במערכת, ולכן מותר לאמץ אותו. אירוע ששייך כבר לתור אחר הוא
+   * הזמנה כפולה אמיתית, ואין לאמץ אותו בשום מצב.
+   */
+  appointmentId: string | null
+  summary: string
+  start: string
+  end: string
 }
 
 /**
@@ -285,7 +299,15 @@ export async function findConflictingCalendarEvent(
   for (const event of events) {
     if (event.appointmentId === appointmentId) continue // אנחנו — לא התנגשות
     const overlaps = event.start.getTime() < endsAt.getTime() && event.end.getTime() > startsAt.getTime()
-    if (overlaps) return { eventId: event.eventId }
+    if (overlaps) {
+      return {
+        eventId: event.eventId,
+        appointmentId: event.appointmentId,
+        summary: event.summary,
+        start: event.start.toISOString(),
+        end: event.end.toISOString(),
+      }
+    }
   }
   return null
 }
@@ -533,4 +555,74 @@ function parseHebrewDate(hebrewDate: string): string {
   const m = HEBREW_MONTHS[month]
   if (!m) throw new Error(`Unknown Hebrew month: ${month}`)
   return `${year}-${m.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+}
+
+// ============================================================================
+// שלב 12 — אימוץ אירוע ידני קיים ("זה אותו תור")
+//
+// ─── הבעיה ─────────────────────────────────────────────────────────────────
+//
+// שובל קובעת מיקרובליידינג בטלפון, רושמת אותו ביומן Google בעצמה, ורק
+// אחר כך מכניסה אותו למערכת כדי שיהיה CRM ותזכורת. הבדיקה מול היומן
+// רואה את האירוע שלה, ובצדק חוסמת — אבל זה **אותו תור**, לא התנגשות.
+//
+// ─── מה עושים כאן, ומה בכוונה לא ────────────────────────────────────────────
+//
+// האימוץ **אינו יוצר אירוע שני** ואינו מזיז את האירוע הקיים: הוא כותב על
+// האירוע של שובל את חתימת המערכת (extendedProperties.private) ותו לא.
+// המועד, הכותרת והתיאור שלה נשארים מילה במילה כפי שהם.
+//
+// ⚠️ החתימה היא בדיוק מה שהופך את האירוע ל"שלנו" מבחינת כל שאר המנגנון
+// (isOwnedBy): מרגע האימוץ שינוי מועד יעדכן את האירוע הזה, וביטול ימחק
+// אותו — במקום להיכשל ב-'calendar_not_ours' על אירוע יתום.
+//
+// 🔒 אירוע ששייך כבר ל-appointment אחר **לא מאומץ בשום מצב**. זו הזמנה
+// כפולה אמיתית, ואימוץ שלה היה גונב את האירוע מהתור הראשון ומשאיר אותו
+// בלי אירוע ביומן, בלי שאיש ידע.
+// ============================================================================
+
+export type AdoptEventResult =
+  | { ok: true; eventId: string }
+  | { ok: false; reason: 'gone' | 'belongs_to_other_appointment' }
+
+export async function adoptExistingCalendarEvent(
+  appointmentId: string,
+  eventId: string,
+): Promise<AdoptEventResult> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  let existing
+  try {
+    const res = await calendar.events.get({ calendarId, eventId })
+    existing = res.data
+  } catch (err) {
+    const status = googleErrorStatus(err)
+    // האירוע נעלם בין הבדיקה לאישור — אין מה לאמץ, וזה אינו כשל תקשורת.
+    if (status === 404 || status === 410) return { ok: false, reason: 'gone' }
+    throw err
+  }
+
+  if (existing.status === 'cancelled') return { ok: false, reason: 'gone' }
+
+  const props = existing.extendedProperties?.private ?? {}
+  if (props.source === CALENDAR_EVENT_SOURCE && props.appointment_id !== appointmentId) {
+    return { ok: false, reason: 'belongs_to_other_appointment' }
+  }
+
+  // ⚠️ מיזוג ולא החלפה: מאפיינים פרטיים אחרים על האירוע נשמרים. patch
+  // על extendedProperties בלבד — start/end/summary/description לא נשלחים
+  // כלל, ולכן Google אינו נוגע בהם.
+  await calendar.events.patch({
+    calendarId,
+    eventId,
+    requestBody: {
+      extendedProperties: {
+        private: { ...props, appointment_id: appointmentId, source: CALENDAR_EVENT_SOURCE },
+      },
+    },
+  })
+
+  return { ok: true, eventId }
 }

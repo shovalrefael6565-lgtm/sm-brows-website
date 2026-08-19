@@ -12,6 +12,8 @@ export const dynamic = 'force-dynamic'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^\d{2}:\d{2}$/
+/** מזהה אירוע Google חוקי — [a-v0-9] באורך 5–1024, בדיוק כמו שגוגל מגדירה */
+const CALENDAR_EVENT_ID_RE = /^[a-v0-9]{5,1024}$/
 
 /**
  * יצירת תור ידני ע"י מנהלת. התור נוצר confirmed מיד — הוא אינו pending
@@ -39,6 +41,9 @@ export async function POST(req: NextRequest) {
     variants?: unknown
     isoDate?: unknown
     time?: unknown
+    durationMin?: unknown
+    priceTotal?: unknown
+    adoptCalendarEventId?: unknown
     client_request_id?: unknown
   }
   try {
@@ -77,7 +82,12 @@ export async function POST(req: NextRequest) {
   }
 
   // ── השירות נטען מחדש בשרת ───────────────────────────────────────────────
-  const service = resolveManualService(body.serviceKey, body.variants)
+  // ⚠️ המשך והמחיר מהטופס נכנסים לחשבון **רק** בטיפול ניהולי (שלב 12).
+  // בשני טיפולי הקטלוג הם מתעלמים, והערכים נגזרים מ-lib/services.ts כמו קודם.
+  const service = resolveManualService(body.serviceKey, body.variants, {
+    durationMin: body.durationMin,
+    priceTotal: body.priceTotal,
+  })
   if (!service.ok) {
     return NextResponse.json(
       { error: service.error, message: ADMIN_ERROR_MESSAGES[service.error] ?? ADMIN_ERROR_MESSAGES.unknown },
@@ -101,6 +111,11 @@ export async function POST(req: NextRequest) {
     endsAt,
     adminUserId: guard.userId,   // מה-session בלבד
     clientRequestId: body.client_request_id,
+    // ⚠️ מזהה בלבד, ורק כזה שהשרת מוודא שוב שהוא באמת האירוע החוסם.
+    adoptCalendarEventId:
+      typeof body.adoptCalendarEventId === 'string' && CALENDAR_EVENT_ID_RE.test(body.adoptCalendarEventId)
+        ? body.adoptCalendarEventId
+        : null,
   })
 
   if (!res.ok) {
@@ -122,8 +137,11 @@ export async function POST(req: NextRequest) {
     ok: true,
     appointmentId: res.data.appointmentId,
     calendarSynced: res.data.calendarSynced,
+    calendarAdopted: res.data.calendarAdopted ?? false,
     message: res.data.calendarSynced
-      ? 'התור נוצר וסונכרן ליומן.'
+      ? (res.data.calendarAdopted
+          ? 'התור נוצר וקושר לאירוע הקיים ביומן. לא נוצר אירוע נוסף.'
+          : 'התור נוצר וסונכרן ליומן.')
       : `התור נוצר, אך הסנכרון ליומן נכשל. ${res.data.calendarMessage ?? ''}`.trim(),
   })
 }
