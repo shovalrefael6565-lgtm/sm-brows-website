@@ -37,6 +37,36 @@ export default function BeforeAfterSection() {
   const [lightbox, setLightbox] = useState<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  /*
+    ⚡ כל 10 השקופיות של הקרוסלה בנייד יושבות אחת על השנייה ב-absolute inset-0,
+    ולכן loading="lazy" לא עזר בכלל: מבחינת הדפדפן כולן באותו מיקום, וברגע
+    שהאזור מתקרב למסך הוא מוריד את *כולן* — ~190KB של תמונות שאיש לא רואה,
+    בדיוק בחלון שבו נטענת תמונת ה-LCP. במקום זה מרכיבים רק חלון קטן:
+    השקופית הנוכחית + השכנות שלה, בתוספת כל מה שכבר הוצג (כדי שלא ייווצר
+    unmount/refetch כשחוזרים אחורה). השכנה הבאה תמיד מורכבת מראש, ולכן
+    ה-crossfade נשאר זהה ויזואלית.
+  */
+  const [mounted, setMounted] = useState<number[]>(
+    () => [0, 1 % IMAGES.length, (IMAGES.length - 1) % IMAGES.length]
+  )
+
+  /* currentRef — כדי שהטיימר יוכל לחשב את השקופית הבאה בלי להיווצר מחדש */
+  const currentRef = useRef(0)
+
+  /** מעבר לשקופית i + הרחבת חלון התמונות המורכבות סביבה. */
+  const select = useCallback((i: number) => {
+    currentRef.current = i
+    setCurrent(i)
+    setMounted(prev => {
+      const want = [
+        i,
+        (i + 1) % IMAGES.length,
+        (i - 1 + IMAGES.length) % IMAGES.length,
+      ].filter(x => !prev.includes(x))
+      return want.length ? [...prev, ...want] : prev
+    })
+  }, [])
+
   // Escape + לכידת focus + החזרתו לתמונה שממנה נפתח הלייטבוקס.
   const lightboxRef = useDialogA11y<HTMLDivElement>({
     open: lightbox !== null,
@@ -82,15 +112,54 @@ export default function BeforeAfterSection() {
   /* Mobile timer */
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => setCurrent(p => (p + 1) % IMAGES.length), INTERVAL)
-  }, [])
+    timerRef.current = setInterval(
+      () => select((currentRef.current + 1) % IMAGES.length),
+      INTERVAL,
+    )
+  }, [select])
+  /*
+    ⚡ הטיימר התחיל לרוץ מרגע ה-mount, כלומר בזמן שהמבקרת עדיין ב-Hero:
+    כל 4 שניות הוא קידם שקופית ומשך תמונה נוספת ברקע. עכשיו הוא רץ רק
+    כשהקרוסלה באמת במסך.
+
+    ⚠️ ה-observer נרשם רק אחרי אירוע load, ולא ב-mount. בזמן ההידרציה
+    הסקשנים הנדחים (DeferredSections, ssr:false) עדיין ריקים והמסמך קצר
+    בהרבה מגובהו הסופי — אומת: הקרוסלה יושבת ב-top≈1407px בפריסה הסופית,
+    אבל observer שנרשם מוקדם מדווח "בתוך המסך" ומפעיל את הטיימר מיד.
+    זו בדיוק הסיבה ש-useInView({ once: true }) של framer לא התאים כאן:
+    הוא נועל את הערך השגוי לתמיד.
+  */
+  const mobileRef = useRef<HTMLDivElement>(null)
+  const [carouselInView, setCarouselInView] = useState(false)
   useEffect(() => {
+    const el = mobileRef.current
+    if (!el) return
+    let io: IntersectionObserver | undefined
+    const start = () => {
+      io = new IntersectionObserver(
+        ([entry]) => setCarouselInView(entry.isIntersecting),
+        { rootMargin: '100px' },
+      )
+      io.observe(el)
+    }
+    if (document.readyState === 'complete') start()
+    else window.addEventListener('load', start, { once: true })
+    return () => { io?.disconnect(); window.removeEventListener('load', start) }
+  }, [])
+
+  useEffect(() => {
+    if (!carouselInView) return
     startTimer()
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [startTimer])
+  }, [carouselInView, startTimer])
+  /* עצירה בזמן לייטבוקס פתוח; חידוש רק אם הקרוסלה עדיין במסך */
   useEffect(() => {
-    lightbox !== null ? timerRef.current && clearInterval(timerRef.current) : startTimer()
-  }, [lightbox, startTimer])
+    if (lightbox !== null) {
+      if (timerRef.current) clearInterval(timerRef.current)
+    } else if (carouselInView) {
+      startTimer()
+    }
+  }, [lightbox, carouselInView, startTimer])
 
   /* Keyboard for lightbox */
   useEffect(() => {
@@ -104,7 +173,7 @@ export default function BeforeAfterSection() {
     return () => window.removeEventListener('keydown', handler)
   }, [lightbox])
 
-  const goTo  = (i: number) => { setCurrent(i); startTimer() }
+  const goTo  = (i: number) => { select(i); startTimer() }
   const prev  = () => goTo((current - 1 + IMAGES.length) % IMAGES.length)
   const next  = () => goTo((current + 1) % IMAGES.length)
 
@@ -195,7 +264,7 @@ export default function BeforeAfterSection() {
         </motion.div>
 
         {/* ── Mobile: single crossfade carousel ── */}
-        <div className="md:hidden max-w-4xl mx-auto px-4 sm:px-6">
+        <div ref={mobileRef} className="md:hidden max-w-4xl mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 32 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -225,9 +294,19 @@ export default function BeforeAfterSection() {
                   className="absolute inset-0"
                   style={{ opacity: i === current ? 1 : 0, transition: 'opacity 0.7s ease-in-out', willChange: 'opacity' }}
                 >
-                  <Image src={img.src} alt={img.alt} fill className="object-cover"
-                    style={{ objectPosition: img.mobilePos ?? img.pos }}
-                    sizes="(max-width: 768px) 100vw, 896px" priority={i === 0} loading={i === 0 ? 'eager' : 'lazy'} quality={80} />
+                  {mounted.includes(i) && (
+                    /*
+                      ⚠️ נשאר loading="lazy" ולא eager. הקרוסלה הזו יושבת
+                      במכל md:hidden, כלומר display:none בדסקטופ — ו-eager
+                      נמשך גם משם, כך שגולשי דסקטופ שילמו על תמונות נייד
+                      שלעולם לא יוצגו (אומת: 513KB/24 בקשות → 681KB/45).
+                      lazy מדלג עליהן בדסקטופ, ובנייד נטען מיד כי ההרכבה
+                      עצמה כבר מוגבלת לשקופית הנוכחית ולשכנותיה.
+                    */
+                    <Image src={img.src} alt={img.alt} fill className="object-cover"
+                      style={{ objectPosition: img.mobilePos ?? img.pos }}
+                      sizes="(max-width: 768px) 100vw, 896px" priority={i === 0} loading={i === 0 ? 'eager' : 'lazy'} quality={80} />
+                  )}
                 </div>
               ))}
               <div className="absolute top-3 left-3 z-10 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">

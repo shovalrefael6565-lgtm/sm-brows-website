@@ -47,8 +47,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  /*
+    ⚡ ה-favicon הצביע על /logo.png המלא — 294×288, 15KB — והדפדפן מושך
+    אותו ב-priority גבוה בדיוק בחלון שבו נמדד ה-FCP, בכל עמוד באתר.
+    favicon-64.png הוא אותו לוגו ב-64px (3KB): זהה לחלוטין בעין, כי
+    ה-favicon מוצג ממילא ב-16–32px. apple-touch-icon נשאר בגודל המלא —
+    iOS מושך אותו רק בהוספה למסך הבית, לא בטעינת עמוד.
+  */
   icons: {
-    icon: '/logo.png',
+    icon: '/favicon-64.png',
     apple: '/logo.png',
   },
   title: {

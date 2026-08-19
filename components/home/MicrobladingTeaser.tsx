@@ -71,6 +71,14 @@ export default function MicrobladingTeaser() {
             aria-label="לצפייה בכל הפרטים והסרטונים של מיקרובליידינג"
             className="group relative block w-full max-w-[300px] rounded-3xl overflow-hidden shadow-soft-lg ring-2 ring-brand-gold/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold"
           >
+            {/*
+              ⚡ preload="metadata" משך בפועל ~192KB מתוך tizer-1.mp4 כבר
+              בטעינת עמוד הבית, בדיוק בחלון של ה-LCP — Chrome מושך טווח גדול
+              כדי לאתר את ה-moov atom, לא כותרת קטנה. הסרטון ממילא מתנגן רק
+              כשגוללים אליו (IntersectionObserver למעלה) וה-poster נטען בנפרד,
+              ולכן "none" אינו משנה דבר ויזואלית. זהה להתנהגות שכבר נהוגה
+              ב-components/services/MicrobladingSpotlight.tsx.
+            */}
             <video
               ref={videoRef}
               src="/tizer-1.mp4"
@@ -78,7 +86,7 @@ export default function MicrobladingTeaser() {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="none"
               className="w-full h-full object-cover aspect-[9/16]"
             />
             <span

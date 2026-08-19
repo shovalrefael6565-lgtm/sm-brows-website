@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import Image from 'next/image'
 
 const REVIEWS = [
   '/wa-review-1.webp',
@@ -76,12 +77,46 @@ export default function TestimonialsSection() {
     setTimeout(() => { pausedRef.current = false }, 6000)
   }, [])
 
+  /*
+    ⚡ ה-autoplay רץ קודם מרגע ה-mount, גם כשהסקשן רחוק מתחת לקפל: כל 3
+    שניות הוא החליף ביקורת ומשך צילום מסך נוסף (wa-review-N.webp). התוצאה
+    בפועל — הרשת לא נרגעה אף פעם, מדידת Lighthouse בנייד הראתה תמונות
+    שממשיכות להיטען עד ~18 שניות ו-Time to Interactive של 16.8 שניות, וכל
+    מבקרת שילמה על גלישה בתמונות שלא ראתה. עכשיו הקרוסלה מתחילה להתקדם רק
+    כשהסקשן באמת במסך, ונעצרת כשיוצאים ממנו — אותה חוויה בדיוק, בלי
+    להתחרות על רוחב הפס עם הטעינה הראשונית.
+  */
+  /*
+    ⚠️ ה-observer נרשם רק אחרי אירוע load, ולא ב-mount. בזמן ההידרציה
+    הסקשנים הנדחים (DeferredSections, ssr:false) עדיין ריקים והמסמך קצר
+    בהרבה מגובהו הסופי — אומת: הסקשן הזה יושב ב-top≈2983px בפריסה הסופית,
+    אבל observer שנרשם מוקדם מדווח "בתוך המסך" ומפעיל את ה-autoplay מיד.
+  */
+  const sectionRef = useRef<HTMLElement>(null)
+  const [inView, setInView] = useState(false)
   useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    let io: IntersectionObserver | undefined
+    const start = () => {
+      io = new IntersectionObserver(
+        ([entry]) => setInView(entry.isIntersecting),
+        { rootMargin: '200px' },
+      )
+      io.observe(el)
+    }
+    if (document.readyState === 'complete') start()
+    else window.addEventListener('load', start, { once: true })
+    return () => { io?.disconnect(); window.removeEventListener('load', start) }
+  }, [])
+
+  useEffect(() => {
+    if (!inView) return
     const timer = setInterval(() => {
       if (!pausedRef.current) next()
     }, 3000)
     return () => clearInterval(timer)
-  }, [next])
+  }, [inView, next])
 
   const faceStyle = (isFront: boolean): React.CSSProperties => ({
     gridColumn: 1,
@@ -97,15 +132,36 @@ export default function TestimonialsSection() {
 
   return (
     <section
+      ref={sectionRef}
       id="testimonials"
       aria-labelledby="testimonials-heading"
       className="section-padding bg-brand-rose-bg relative overflow-hidden"
     >
-      <div
-        className="absolute inset-0 bg-cover bg-center pointer-events-none"
-        style={{ backgroundImage: "url('/tools-bg.webp')", opacity: 0.4 }}
-        aria-hidden="true"
-      />
+      {/*
+        ⚡ רקע הכלים היה background-image ב-CSS: 47KB של WebP גולמי שנטענו
+        מיד עם רינדור הסקשן, בלי לעבור דרך /_next/image ובלי אפשרות
+        ל-lazy-loading (לרקעי CSS אין loading="lazy"). כ-<Image> הוא עובר
+        המרה ל-AVIF בגודל המתאים למסך ונטען רק כשמגיעים לכאן. object-cover
+        + opacity-40 משחזרים בדיוק את bg-cover bg-center ו-opacity: 0.4.
+      */}
+      <div className="absolute inset-0 pointer-events-none opacity-40" aria-hidden="true">
+        {inView && (
+          /*
+            loading="eager": ה-inView הוא מנגנון הדחייה. תמונה שנוספת ל-DOM
+            אחרי ההידרציה עם loading="lazy" לא נמשכת מיד ועלולה להישאר ריקה.
+            rootMargin של 200px ב-observer מבטיח שהרקע כבר כאן כשמגיעים.
+          */
+          <Image
+            src="/tools-bg.webp"
+            alt=""
+            fill
+            sizes="100vw"
+            quality={75}
+            loading="eager"
+            className="object-cover object-center"
+          />
+        )}
+      </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
