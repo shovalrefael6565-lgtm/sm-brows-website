@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-19T00:00:00.000Z",
+  "title": "Design System: S.M BROWS",
+  "extensions": {
+    "colorMeta": {
+      "cream": {
+        "role": "neutral",
+        "displayName": "Warm Ivory",
+        "canonical": "#FAF7F5",
+        "tonalRamp": ["#1A0F0A", "#3D2520", "#6B4545", "#96534A", "#B8887F", "#D9C0BB", "#EDE8DF", "#FAF7F5"]
+      },
+      "cream-dark": {
+        "role": "neutral",
+        "displayName": "Cream Dark",
+        "canonical": "#F2E8E4",
+        "tonalRamp": ["#1A0F0A", "#3D2520", "#6B4545", "#96534A", "#C4A09A", "#DBBDB8", "#EDE4DF", "#F2E8E4"]
+      },
+      "rose": {
+        "role": "primary",
+        "displayName": "Dusty Petal Rose",
+        "canonical": "#C4847A",
+        "tonalRamp": ["#1F0806", "#3D1510", "#5C2318", "#7D3A32", "#A05A52", "#C4847A", "#D8A9A4", "#EDD5D0"]
+      },
+      "rose-text": {
+        "role": "primary",
+        "displayName": "Rose Text (Accessible)",
+        "canonical": "#96534A",
+        "tonalRamp": ["#1F0806", "#3D1510", "#5C2318", "#7D3A32", "#96534A", "#B87A72", "#D8A9A4", "#EDD5D0"]
+      },
+      "rose-light": {
+        "role": "neutral",
+        "displayName": "Blush Divider",
+        "canonical": "#EDD5D0",
+        "tonalRamp": ["#1F0806", "#3D1510", "#5C2318", "#7D3A32", "#A05A52", "#C4847A", "#D8A9A4", "#EDD5D0"]
+      },
+      "rose-bg": {
+        "role": "neutral",
+        "displayName": "Petal Wash",
+        "canonical": "#FAF0EE",
+        "tonalRamp": ["#1F0806", "#3D1510", "#6B3028", "#9B5248", "#C4847A", "#DEB5B0", "#EDD5D0", "#FAF0EE"]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Soft Champagne Gold",
+        "canonical": "#C9A96E",
+        "tonalRamp": ["#261600", "#4D2E00", "#7A4E10", "#A07840", "#C9A96E", "#D4B87D", "#E0CB96", "#EAD8B5"]
+      },
+      "gold-light": {
+        "role": "secondary",
+        "displayName": "Pale Champagne",
+        "canonical": "#EAD8B5",
+        "tonalRamp": ["#261600", "#4D2E00", "#7A4E10", "#A07840", "#C9A96E", "#D4B87D", "#E0CB96", "#EAD8B5"]
+      },
+      "gold-dark": {
+        "role": "secondary",
+        "displayName": "Deep Burnished Gold",
+        "canonical": "#A07840",
+        "tonalRamp": ["#261600", "#4D2E00", "#7A4E10", "#A07840", "#C9A96E", "#D4B87D", "#E0CB96", "#EAD8B5"]
+      },
+      "gold-text": {
+        "role": "secondary",
+        "displayName": "Accessible Gold Text",
+        "canonical": "#725417",
+        "tonalRamp": ["#261600", "#4D2E00", "#725417", "#9A7030", "#C9A96E", "#D4B87D", "#E0CB96", "#EAD8B5"]
+      },
+      "linen": {
+        "role": "neutral",
+        "displayName": "Natural Linen",
+        "canonical": "#EDE8DF",
+        "tonalRamp": ["#1A1210", "#3D2A25", "#6B5240", "#9A8070", "#BEB0A0", "#D9D0C8", "#E8E2D9", "#EDE8DF"]
+      },
+      "linen-dark": {
+        "role": "neutral",
+        "displayName": "Dark Linen",
+        "canonical": "#DDD6CB",
+        "tonalRamp": ["#1A1210", "#3D2A25", "#6B5240", "#9A8070", "#BEB0A0", "#D0C8BE", "#DDD6CB", "#EDE8DF"]
+      },
+      "dark": {
+        "role": "neutral",
+        "displayName": "Deep Espresso",
+        "canonical": "#2C1810",
+        "tonalRamp": ["#0A0503", "#2C1810", "#4D2C20", "#7A4A38", "#A07868", "#C4A49A", "#DDD0CC", "#F5EFED"]
+      },
+      "medium": {
+        "role": "neutral",
+        "displayName": "Rose Bark",
+        "canonical": "#6B4545",
+        "tonalRamp": ["#1A0808", "#3D1E1E", "#6B4545", "#8C6060", "#A88080", "#C4A09A", "#DBBDB8", "#F0E4E2"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Faded Rose",
+        "canonical": "#6B5252",
+        "tonalRamp": ["#1A0808", "#3D2020", "#6B5252", "#8C7070", "#A88888", "#C4A8A8", "#DBC8C8", "#F0E4E4"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Brand name S.M BROWS only. One per page. Expressed in serif (Dancing Script for Latin, Noto Serif Hebrew for Hebrew)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings. Always serif. Never more than one per section."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings, service names, blog titles. Serif."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All prose, descriptions, and paragraph text. Rubik. Max 65ch line length. Color: Rose Bark Medium (#6B4545)."
+      },
+      "label": {
+        "displayName": "Label / Eyebrow",
+        "purpose": "Eyebrow tags above headings, category chips, section labels. Rubik semibold. Uppercase, tracked at 0.2em. Gold Text (#725417) or Rose Text (#96534A) based on context."
+      }
+    },
+    "shadows": [
+      {
+        "name": "soft",
+        "value": "0 4px 24px -4px rgba(44, 24, 16, 0.08)",
+        "purpose": "Cards and contained surfaces at rest. Warm, barely-there lift."
+      },
+      {
+        "name": "soft-lg",
+        "value": "0 8px 48px -8px rgba(44, 24, 16, 0.12)",
+        "purpose": "Card hover state and hero image container. Earned lift on interaction."
+      },
+      {
+        "name": "rose-glow",
+        "value": "0 4px 24px -4px rgba(196, 132, 122, 0.25)",
+        "purpose": "Optional warm rose halo for featured accent elements."
+      },
+      {
+        "name": "gold-glow",
+        "value": "0 4px 24px -4px rgba(201, 169, 110, 0.3)",
+        "purpose": "Optional warm gold halo for premium or featured surfaces."
+      },
+      {
+        "name": "menu",
+        "value": "0 8px 40px -8px rgba(44, 24, 16, 0.18)",
+        "purpose": "Dropdown menus and modal overlays. Deepest ambient shadow in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-spring",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Primary easing for all entrance and interaction transitions. Spring-like ease-out — fast start, graceful landing."
+      },
+      {
+        "name": "rise",
+        "value": "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Above-fold hero text entrance. Transform-only (no opacity) so LCP content is visible on first paint."
+      },
+      {
+        "name": "fade-up",
+        "value": "opacity 0.6s ease-out, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Section content entrance below the fold. Staggered per child with 80ms delay increments."
+      },
+      {
+        "name": "reveal",
+        "value": "opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Scroll-triggered reveal for section children. y: 22px → 0, opacity 0 → 1. Respects prefers-reduced-motion."
+      },
+      {
+        "name": "float",
+        "value": "transform 3s ease-in-out infinite",
+        "purpose": "Idle decorative float on ambient elements. y: 0 → -8px → 0."
+      },
+      {
+        "name": "nav-transition",
+        "value": "all 300ms ease",
+        "purpose": "Navigation transparency → frosted transition on scroll."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Linen Pill)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "baseline": true,
+      "description": "Main booking and action CTA. Warm linen fill, Deep Espresso text, pill shape. Used in hero and section CTAs.",
+      "html": "<button class=\"ds-btn-primary\">קבעי תור</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; background-color: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px 32px; border-radius: 9999px; border: none; cursor: pointer; text-decoration: none; transition: background-color 200ms ease, transform 200ms ease; outline: none; user-select: none; } .ds-btn-primary:hover { background-color: #DDD6CB; transform: translateY(-2px); } .ds-btn-primary:focus-visible { outline: 2px solid #C9A96E; outline-offset: 2px; border-radius: 9999px; }"
+    },
+    {
+      "name": "CTA Button (Dark-Gold Pill)",
+      "kind": "button",
+      "refersTo": "button-cta",
+      "baseline": true,
+      "description": "Course-specific primary CTA. Deep Espresso fill with gold text and border — inverts to gold on hover. Strong contrast, premium feel.",
+      "html": "<button class=\"ds-btn-cta\">לקורס המקצועי ←</button>",
+      "css": ".ds-btn-cta { display: inline-flex; align-items: center; gap: 8px; background-color: #2C1810; color: #C9A96E; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px 24px; border-radius: 9999px; border: 2px solid rgba(201, 169, 110, 0.6); cursor: pointer; text-decoration: none; transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; outline: none; } .ds-btn-cta:hover { background-color: #C9A96E; color: #2C1810; border-color: #C9A96E; } .ds-btn-cta:focus-visible { outline: 2px solid #C9A96E; outline-offset: 2px; border-radius: 9999px; }"
+    },
+    {
+      "name": "Ghost Button (Outline)",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "baseline": true,
+      "description": "Secondary booking action in service cards. Transparent fill, rose-light border, 12px corner radius. Hover fills with rose-bg.",
+      "html": "<button class=\"ds-btn-ghost\">ביומן</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background-color: transparent; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; padding: 12px 16px; border-radius: 12px; border: 1px solid #EDD5D0; cursor: pointer; text-decoration: none; transition: background-color 200ms ease, border-color 200ms ease; outline: none; } .ds-btn-ghost:hover { background-color: #FAF0EE; border-color: #C4847A; } .ds-btn-ghost:focus-visible { outline: 2px solid #C9A96E; outline-offset: 2px; border-radius: 12px; }"
+    },
+    {
+      "name": "Service Card",
+      "kind": "card",
+      "refersTo": null,
+      "baseline": true,
+      "description": "Treatment cards on the homepage and services page. Top-mounted image, pillow-edged (24px), soft shadow that lifts on hover.",
+      "html": "<article class=\"ds-service-card\" dir=\"rtl\"><div class=\"ds-service-card__image\"><span class=\"ds-service-card__image-placeholder\">תמונה</span></div><div class=\"ds-service-card__body\"><h3 class=\"ds-service-card__title\">הרמת גבות</h3><div class=\"ds-service-card__divider\" aria-hidden=\"true\"><span class=\"ds-service-card__divider-line\"></span><span class=\"ds-service-card__divider-dot\"></span></div><p class=\"ds-service-card__desc\">עיצוב והרמה למראה מסודר, מלא ומודגש יותר.</p><div class=\"ds-service-card__cta\"><button class=\"ds-btn-primary\" style=\"font-size:0.875rem;padding:12px 16px;\">וואצאפ</button><button class=\"ds-btn-ghost\">ביומן</button></div></div></article>",
+      "css": ".ds-service-card { display: flex; flex-direction: column; height: 100%; background: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 24px -4px rgba(44,24,16,0.08); border: 1px solid rgba(242,232,228,0.5); transition: box-shadow 300ms ease, transform 300ms ease; } .ds-service-card:hover { box-shadow: 0 8px 48px -8px rgba(44,24,16,0.12); transform: translateY(-4px); } .ds-service-card__image { position: relative; height: 208px; overflow: hidden; background: #FAF7F5; flex-shrink: 0; display: flex; align-items: center; justify-content: center; } .ds-service-card__image-placeholder { color: #6B5252; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; } .ds-service-card__body { padding: 24px; display: flex; flex-direction: column; flex: 1; } .ds-service-card__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: 1.5rem; font-weight: 700; color: #2C1810; letter-spacing: 0.02em; margin: 0 0 8px; } .ds-service-card__divider { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; } .ds-service-card__divider-line { width: 32px; height: 1px; background: #EDD5D0; } .ds-service-card__divider-dot { width: 6px; height: 6px; border-radius: 50%; background: #C4847A; } .ds-service-card__desc { font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; color: #6B4545; line-height: 1.625; margin: 0 0 24px; flex: 1; } .ds-service-card__cta { display: flex; gap: 8px; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": null,
+      "baseline": true,
+      "description": "Standard text/search input. Warm ivory fill, cream-dark border, 12px radius. Gold focus ring.",
+      "html": "<div class=\"ds-input-wrapper\" dir=\"rtl\"><input class=\"ds-input\" type=\"text\" placeholder=\"חיפוש...\"></div>",
+      "css": ".ds-input-wrapper { display: flex; align-items: center; gap: 8px; background: #FAF7F5; border: 1px solid #F2E8E4; border-radius: 12px; padding: 10px 14px; } .ds-input { background: transparent; border: none; outline: none; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; color: #2C1810; direction: rtl; text-align: right; width: 100%; } .ds-input::placeholder { color: #6B5252; } .ds-input-wrapper:focus-within { outline: 2px solid #C9A96E; outline-offset: 2px; border-radius: 12px; }"
+    },
+    {
+      "name": "Dropdown Menu",
+      "kind": "custom",
+      "refersTo": null,
+      "baseline": true,
+      "description": "Booking and search result dropdowns. White surface, 16px radius, warm ambient shadow. Items divided by cream-dark borders.",
+      "html": "<div class=\"ds-dropdown\" dir=\"rtl\" role=\"menu\"><a class=\"ds-dropdown__item\" href=\"#\" role=\"menuitem\"><span class=\"ds-dropdown__icon ds-dropdown__icon--rose\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#C4847A\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg></span><div><p class=\"ds-dropdown__label\">תור ביומן</p><p class=\"ds-dropdown__sub\">בחרי תאריך ושעה</p></div></a><a class=\"ds-dropdown__item ds-dropdown__item--last\" href=\"#\" role=\"menuitem\"><span class=\"ds-dropdown__icon ds-dropdown__icon--gold\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"#C9A96E\"><path d=\"M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/></svg></span><div><p class=\"ds-dropdown__label\">אזור אישי</p><p class=\"ds-dropdown__sub\">התורים שלך</p></div></a></div>",
+      "css": ".ds-dropdown { background: #FFFFFF; border-radius: 16px; box-shadow: 0 8px 40px -8px rgba(44,24,16,0.18); border: 1px solid rgba(242,232,228,0.6); overflow: hidden; min-width: 210px; } .ds-dropdown__item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none; cursor: pointer; transition: background-color 150ms ease; border-bottom: 1px solid rgba(242,232,228,0.4); } .ds-dropdown__item--last { border-bottom: none; } .ds-dropdown__item:hover { background: #FAF7F5; } .ds-dropdown__icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; } .ds-dropdown__icon--rose { background: rgba(196,132,122,0.1); } .ds-dropdown__icon--gold { background: rgba(201,169,110,0.1); } .ds-dropdown__label { font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; color: #2C1810; margin: 0 0 2px; } .ds-dropdown__sub { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; color: #6B5252; margin: 0; }"
+    },
+    {
+      "name": "Page Hero",
+      "kind": "custom",
+      "refersTo": null,
+      "baseline": true,
+      "description": "Masthead for all secondary pages. Hero gradient background with textured overlay, centered content, eyebrow → h1 → description stack.",
+      "html": "<section class=\"ds-page-hero\" dir=\"rtl\" aria-label=\"כותרת עמוד\"><div class=\"ds-page-hero__content\"><p class=\"ds-page-hero__tag\">הטיפולים שלי</p><h1 class=\"ds-page-hero__title\">גבות <span class=\"ds-page-hero__highlight\">מושלמות</span></h1><p class=\"ds-page-hero__desc\">שלושה טיפולים, כל אחד עם תוצאה אחרת.</p></div></section>",
+      "css": ".ds-page-hero { position: relative; padding: 144px 24px 64px; background: linear-gradient(135deg, #FAF7F5 0%, #F7EBE8 40%, #F0D8D5 70%, #EAD8B5 100%); text-align: center; overflow: hidden; } .ds-page-hero__content { position: relative; z-index: 1; max-width: 768px; margin: 0 auto; } .ds-page-hero__tag { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #725417; margin: 0 0 12px; } .ds-page-hero__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: clamp(2.25rem, 6vw, 3.75rem); font-weight: 700; color: #2C1810; line-height: 1.1; margin: 0 0 16px; } .ds-page-hero__highlight { color: #96534A; } .ds-page-hero__desc { font-family: Rubik, system-ui, sans-serif; font-size: 1rem; color: #6B4545; line-height: 1.625; margin: 0; }"
+    },
+    {
+      "name": "Eyebrow Label",
+      "kind": "chip",
+      "refersTo": null,
+      "baseline": true,
+      "description": "Small uppercase category label placed above a heading. Sets context before the headline. Two variants: gold (prestige/precision) and rose (warmth/care).",
+      "html": "<div style=\"display:flex;gap:12px;flex-wrap:wrap;\"><span class=\"ds-eyebrow ds-eyebrow--gold\">קורס פרימיום · שובל מאירה</span><span class=\"ds-eyebrow ds-eyebrow--rose\">מיקרובליידינג</span></div>",
+      "css": ".ds-eyebrow { display: inline-block; font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; line-height: 1; } .ds-eyebrow--gold { color: #725417; } .ds-eyebrow--rose { color: #96534A; }"
+    },
+    {
+      "name": "Image and Media Container",
+      "kind": "media",
+      "refersTo": null,
+      "description": "Responsive image container with deliberate aspect ratio. Core media primitive — all images must be displayed through this container or an equivalent. Aspect ratio variants are meaningful content decisions, not utility defaults. object-position must be set per image.",
+      "html": "<figure class=\"ds-media-container ds-media-container--portrait\"><img class=\"ds-media-img\" src=\"\" alt=\"תוצאת טיפול גבות\" loading=\"lazy\"></figure>",
+      "css": ".ds-media-container { position: relative; overflow: hidden; border-radius: 24px; margin: 0; background: #FAF7F5; } .ds-media-container--portrait { aspect-ratio: 3/4; } .ds-media-container--square { aspect-ratio: 1/1; } .ds-media-container--landscape { aspect-ratio: 4/3; } .ds-media-container--wide { aspect-ratio: 16/9; } .ds-media-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }"
+    },
+    {
+      "name": "Before/After Comparison Surface",
+      "kind": "comparison",
+      "refersTo": null,
+      "description": "Side-by-side comparison for before/after treatment results from /public/ba-new-*.webp and /public/microblading-*.webp. Both panels must share the same aspect ratio and object-position so the transformation reads clearly. On mobile prefer a slider or stacked format over tiny panels.",
+      "html": "<div class=\"ds-ba-surface\" dir=\"rtl\"><div class=\"ds-ba-panel\"><div class=\"ds-ba-media\"><img class=\"ds-ba-img\" src=\"\" alt=\"לפני עיצוב גבות\" loading=\"lazy\"></div><span class=\"ds-ba-label\">לפני</span></div><div class=\"ds-ba-panel\"><div class=\"ds-ba-media\"><img class=\"ds-ba-img\" src=\"\" alt=\"אחרי עיצוב גבות\" loading=\"lazy\"></div><span class=\"ds-ba-label ds-ba-label--after\">אחרי</span></div></div>",
+      "css": ".ds-ba-surface { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border-radius: 24px; overflow: hidden; } .ds-ba-panel { position: relative; aspect-ratio: 3/4; overflow: hidden; } .ds-ba-media { position: absolute; inset: 0; } .ds-ba-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; } .ds-ba-label { position: absolute; bottom: 12px; inset-inline-end: 12px; font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #FFFFFF; background: rgba(44,24,16,0.55); backdrop-filter: blur(4px); padding: 4px 10px; border-radius: 9999px; } .ds-ba-label--after { background: rgba(196,132,122,0.8); }"
+    },
+    {
+      "name": "Video and Media Card",
+      "kind": "media",
+      "refersTo": null,
+      "description": "Treatment teaser video container for /public/micro-*.mp4 and /public/tizer-1.mp4. Portrait 9/16 ratio for close-up footage. Muted autoplay loop for ambient teaser contexts. Poster frame is a deliberate editorial choice. The container should feel like a cinematic frame, not a raw video element.",
+      "html": "<div class=\"ds-video-card\"><div class=\"ds-video-card__frame\"><video class=\"ds-video-card__video\" muted loop playsinline poster=\"\"></video><div class=\"ds-video-card__overlay\" aria-hidden=\"true\"></div><button class=\"ds-video-card__play\" aria-label=\"נגן סרטון\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"white\" aria-hidden=\"true\"><polygon points=\"6,3 20,12 6,21\"/></svg></button></div></div>",
+      "css": ".ds-video-card { border-radius: 24px; overflow: hidden; box-shadow: 0 8px 48px -8px rgba(44,24,16,0.12); } .ds-video-card__frame { position: relative; aspect-ratio: 9/16; background: #2C1810; } .ds-video-card__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; } .ds-video-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(44,24,16,0.4) 0%, transparent 50%); pointer-events: none; } .ds-video-card__play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 2px solid rgba(255,255,255,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 200ms ease, transform 200ms ease; } .ds-video-card__play:hover { background: rgba(255,255,255,0.25); transform: translate(-50%, -50%) scale(1.06); }"
+    },
+    {
+      "name": "Testimonial and Review Card",
+      "kind": "card",
+      "refersTo": null,
+      "description": "Container for real WhatsApp review screenshots from /public/wa-review-*.webp. The screenshot is the content; the card is its frame. Cropping and scaling of the screenshot image is permitted for readability. Presentation format (carousel, masonry, stack) is open to redesign. No fabricated text.",
+      "html": "<article class=\"ds-review-card\" dir=\"rtl\"><div class=\"ds-review-card__screenshot\"><img class=\"ds-review-card__img\" src=\"\" alt=\"ביקורת לקוחה\"></div><footer class=\"ds-review-card__footer\"><svg class=\"ds-review-card__wa-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"#25D366\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"8\"/></svg><span class=\"ds-review-card__source\">ביקורת WhatsApp אמיתית</span></footer></article>",
+      "css": ".ds-review-card { background: #FFFFFF; border-radius: 24px; box-shadow: 0 4px 24px -4px rgba(44,24,16,0.08); border: 1px solid rgba(242,232,228,0.5); overflow: hidden; } .ds-review-card__screenshot { aspect-ratio: 4/3; overflow: hidden; background: #FAF7F5; } .ds-review-card__img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; } .ds-review-card__footer { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid rgba(242,232,228,0.5); } .ds-review-card__wa-icon { flex-shrink: 0; } .ds-review-card__source { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; color: #6B5252; }"
+    },
+    {
+      "name": "Booking Form Step",
+      "kind": "form",
+      "refersTo": null,
+      "description": "Step-sequential booking UI showing step progress, current step heading, and the active form control. OTP entry shown as the most trust-critical step. Warm palette tuned for clarity over expressiveness in this Operate-mode context.",
+      "html": "<div class=\"ds-booking-step\" dir=\"rtl\"><div class=\"ds-booking-step__indicator\" aria-label=\"שלב 2 מתוך 3\"><span class=\"ds-step-dot ds-step-dot--done\" aria-label=\"שלב 1 הושלם\"></span><span class=\"ds-step-line\"></span><span class=\"ds-step-dot ds-step-dot--active\">2</span><span class=\"ds-step-line ds-step-line--dim\"></span><span class=\"ds-step-dot ds-step-dot--dim\">3</span></div><p class=\"ds-booking-step__eyebrow\">אימות טלפון</p><h2 class=\"ds-booking-step__title\">הזיני את הקוד שנשלח אליך</h2><div class=\"ds-otp-row\" dir=\"ltr\" aria-label=\"שדה קוד חד-פעמי\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 1\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 2\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 3\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 4\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 5\"><input class=\"ds-otp-input\" type=\"text\" inputmode=\"numeric\" maxlength=\"1\" aria-label=\"ספרה 6\"></div><button class=\"ds-booking-confirm\">אמתי קוד</button></div>",
+      "css": ".ds-booking-step { background: #FFFFFF; border-radius: 24px; padding: 32px 28px; box-shadow: 0 4px 24px -4px rgba(44,24,16,0.08); border: 1px solid rgba(242,232,228,0.5); max-width: 400px; } .ds-booking-step__indicator { display: flex; align-items: center; margin-bottom: 24px; } .ds-step-dot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 700; } .ds-step-dot--done { background: #C4847A; } .ds-step-dot--active { background: #2C1810; color: #FAF7F5; } .ds-step-dot--dim { background: #EDE8DF; color: #6B5252; } .ds-step-line { flex: 1; height: 2px; background: #C4847A; } .ds-step-line--dim { background: #EDE8DF; } .ds-booking-step__eyebrow { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #725417; margin: 0 0 6px; } .ds-booking-step__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: 1.375rem; font-weight: 700; color: #2C1810; margin: 0 0 24px; } .ds-otp-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; } .ds-otp-input { width: 44px; height: 52px; border: 2px solid #F2E8E4; border-radius: 12px; background: #FAF7F5; font-family: Rubik, system-ui, sans-serif; font-size: 1.25rem; font-weight: 700; color: #2C1810; text-align: center; outline: none; transition: border-color 200ms ease; } .ds-otp-input:focus { border-color: #C9A96E; } .ds-booking-confirm { width: 100%; display: flex; align-items: center; justify-content: center; background: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px; border-radius: 9999px; border: none; cursor: pointer; transition: background-color 200ms ease; } .ds-booking-confirm:hover { background: #DDD6CB; }"
+    },
+    {
+      "name": "Course Card and Promotional Surface",
+      "kind": "card",
+      "refersTo": null,
+      "description": "Premium promotional surface for the professional course. Deep Espresso background signals premium status and separates it from the treatment booking flow. No price is displayed — CTA leads to WhatsApp. Image source: /public/natural-2.webp.",
+      "html": "<article class=\"ds-course-card\" dir=\"rtl\"><div class=\"ds-course-card__media\"><div class=\"ds-course-card__media-overlay\" aria-hidden=\"true\"></div></div><div class=\"ds-course-card__body\"><p class=\"ds-course-card__eyebrow\">קורס פרימיום · שובל מאירה</p><h2 class=\"ds-course-card__title\">קורס עיצוב גבות טבעיות</h2><p class=\"ds-course-card__promise\">ללמוד לראות, לא רק לעצב</p><ul class=\"ds-course-card__pillars\" aria-label=\"מה תלמדי\"><li class=\"ds-course-card__pillar\"><span class=\"ds-course-card__dot\" aria-hidden=\"true\"></span>עין מקצועית</li><li class=\"ds-course-card__pillar\"><span class=\"ds-course-card__dot\" aria-hidden=\"true\"></span>התאמה אישית</li><li class=\"ds-course-card__pillar\"><span class=\"ds-course-card__dot\" aria-hidden=\"true\"></span>ביטחון בעבודה</li></ul><a class=\"ds-course-card__cta\" href=\"#\" role=\"button\">לפרטים בוואצאפ</a></div></article>",
+      "css": ".ds-course-card { display: flex; flex-direction: column; background: #2C1810; border-radius: 32px; overflow: hidden; color: #FAF7F5; } .ds-course-card__media { aspect-ratio: 16/9; position: relative; background: linear-gradient(135deg, #4D2C20 0%, #7A4A38 100%); overflow: hidden; } .ds-course-card__media-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(44,24,16,0.65) 0%, transparent 55%); } .ds-course-card__body { padding: 32px; display: flex; flex-direction: column; gap: 14px; } .ds-course-card__eyebrow { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #C9A96E; margin: 0; } .ds-course-card__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: 1.875rem; font-weight: 700; color: #FAF7F5; margin: 0; line-height: 1.15; } .ds-course-card__promise { font-family: Rubik, system-ui, sans-serif; font-size: 1rem; color: rgba(250,247,245,0.72); margin: 0; line-height: 1.5; } .ds-course-card__pillars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; } .ds-course-card__pillar { display: flex; align-items: center; gap: 10px; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; color: rgba(250,247,245,0.82); } .ds-course-card__dot { width: 6px; height: 6px; border-radius: 50%; background: #C9A96E; flex-shrink: 0; } .ds-course-card__cta { display: inline-flex; align-items: center; justify-content: center; align-self: flex-start; background: transparent; color: #C9A96E; font-family: Rubik, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 700; padding: 14px 28px; border-radius: 9999px; border: 2px solid rgba(201,169,110,0.5); text-decoration: none; transition: background-color 200ms ease, border-color 200ms ease; } .ds-course-card__cta:hover { background: rgba(201,169,110,0.12); border-color: #C9A96E; }"
+    },
+    {
+      "name": "Treatment and Service Card",
+      "kind": "card",
+      "refersTo": null,
+      "description": "Editorial treatment card with image and service detail side by side. The card composition is open to complete redesign. What must be present: service character, price where known (₪70, ₪250), duration, and a clear CTA. Microblading omits the price and routes to WhatsApp.",
+      "html": "<article class=\"ds-treatment-card\" dir=\"rtl\"><div class=\"ds-treatment-card__image-region\"><span class=\"ds-treatment-card__badge\">הרמת גבות</span></div><div class=\"ds-treatment-card__content\"><div class=\"ds-treatment-card__meta\"><span class=\"ds-treatment-card__duration\">45 דקות</span><span class=\"ds-treatment-card__sep\" aria-hidden=\"true\">·</span><span class=\"ds-treatment-card__price\">₪250</span></div><h3 class=\"ds-treatment-card__title\">הרמת גבות</h3><p class=\"ds-treatment-card__desc\">עיצוב והרמה למראה מסודר, מלא ומודגש. מתאים לגבות שצריכות מבנה חזק יותר.</p><div class=\"ds-treatment-card__actions\"><button class=\"ds-treatment-card__btn\">קביעת תור</button><a class=\"ds-treatment-card__link\" href=\"#\">ביומן ←</a></div></div></article>",
+      "css": ".ds-treatment-card { display: grid; grid-template-columns: 1fr 1fr; background: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 24px -4px rgba(44,24,16,0.08); border: 1px solid rgba(242,232,228,0.5); } .ds-treatment-card__image-region { position: relative; aspect-ratio: 3/4; background: linear-gradient(135deg, #FAF0EE 0%, #F2E8E4 100%); overflow: hidden; } .ds-treatment-card__badge { position: absolute; top: 14px; inset-inline-end: 14px; font-family: Rubik, system-ui, sans-serif; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #96534A; background: rgba(250,247,245,0.88); backdrop-filter: blur(6px); padding: 4px 10px; border-radius: 9999px; } .ds-treatment-card__content { padding: 28px 24px; display: flex; flex-direction: column; justify-content: center; } .ds-treatment-card__meta { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; } .ds-treatment-card__duration { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; color: #6B5252; } .ds-treatment-card__sep { color: #EDD5D0; font-size: 0.75rem; } .ds-treatment-card__price { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 700; color: #96534A; } .ds-treatment-card__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: 1.375rem; font-weight: 700; color: #2C1810; margin: 0 0 10px; } .ds-treatment-card__desc { font-family: Rubik, system-ui, sans-serif; font-size: 0.8125rem; color: #6B4545; line-height: 1.6; margin: 0 0 20px; flex: 1; } .ds-treatment-card__actions { display: flex; align-items: center; gap: 12px; } .ds-treatment-card__btn { display: inline-flex; align-items: center; background: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 700; padding: 10px 18px; border-radius: 9999px; border: none; cursor: pointer; transition: background-color 200ms ease; } .ds-treatment-card__btn:hover { background: #DDD6CB; } .ds-treatment-card__link { font-family: Rubik, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 600; color: #96534A; text-decoration: none; }"
+    },
+    {
+      "name": "CTA Section",
+      "kind": "section",
+      "refersTo": null,
+      "description": "Full-width booking CTA section. Dark Espresso background for maximum contrast and emphasis as a closing section. WhatsApp and online booking presented as a natural choice pair. Both CTAs must have minimum 48px touch targets on mobile.",
+      "html": "<section class=\"ds-cta-section\" dir=\"rtl\" aria-label=\"קריאה לפעולה\"><div class=\"ds-cta-section__inner\"><p class=\"ds-cta-section__eyebrow\">מוכנה להתחיל?</p><h2 class=\"ds-cta-section__title\">הגבות שחלמת עליהן מחכות לך</h2><p class=\"ds-cta-section__body\">כל טיפול מתחיל בהקשבה. שובל תקרא את הפנים שלך לפני שהיא נוגעת בכלום.</p><div class=\"ds-cta-section__actions\"><a class=\"ds-cta-section__btn-wa\" href=\"#\" role=\"button\">וואצאפ</a><a class=\"ds-cta-section__btn-book\" href=\"#\" role=\"button\">קביעת תור</a></div></div></section>",
+      "css": ".ds-cta-section { background: linear-gradient(135deg, #2C1810 0%, #4D2C20 60%, #3D1510 100%); padding: 96px 24px; text-align: center; } .ds-cta-section__inner { max-width: 640px; margin: 0 auto; } .ds-cta-section__eyebrow { font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #C9A96E; margin: 0 0 14px; } .ds-cta-section__title { font-family: 'Dancing Script', 'Noto Serif Hebrew', Georgia, serif; font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; color: #FAF7F5; line-height: 1.15; margin: 0 0 16px; } .ds-cta-section__body { font-family: Rubik, system-ui, sans-serif; font-size: 1rem; color: rgba(250,247,245,0.68); line-height: 1.625; margin: 0 0 40px; } .ds-cta-section__actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; } .ds-cta-section__btn-wa { display: inline-flex; align-items: center; gap: 8px; background: rgba(37,211,102,0.15); color: #6ee7a0; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px 28px; border-radius: 9999px; text-decoration: none; border: 1px solid rgba(37,211,102,0.3); transition: background-color 200ms ease; min-height: 52px; } .ds-cta-section__btn-wa:hover { background: rgba(37,211,102,0.25); } .ds-cta-section__btn-book { display: inline-flex; align-items: center; gap: 8px; background: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px 28px; border-radius: 9999px; text-decoration: none; transition: background-color 200ms ease; min-height: 52px; } .ds-cta-section__btn-book:hover { background: #DDD6CB; }"
+    },
+    {
+      "name": "Mobile Navigation Drawer",
+      "kind": "navigation",
+      "refersTo": null,
+      "description": "Primary navigation surface for real users — most visits are mobile. Non-negotiable: RTL layout direction, WhatsApp booking reachable within 2 taps, keyboard-trap-safe focus management, Escape-to-close. Open to redesign: drawer width, entry direction, link layout, booking CTA presentation, social link treatment, density.",
+      "html": "<nav class=\"ds-mobile-nav\" dir=\"rtl\" role=\"navigation\" aria-label=\"ניווט נייד\"><div class=\"ds-mobile-nav__header\"><img class=\"ds-mobile-nav__logo\" src=\"/logo.png\" alt=\"S.M BROWS\" width=\"80\" height=\"48\" loading=\"eager\"><button class=\"ds-mobile-nav__close\" aria-label=\"סגירת תפריט\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#2C1810\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/></svg></button></div><ul class=\"ds-mobile-nav__links\" role=\"list\"><li><a class=\"ds-mobile-nav__link\" href=\"#\">טיפולים</a></li><li><a class=\"ds-mobile-nav__link\" href=\"#\">קורס מקצועי</a></li><li><a class=\"ds-mobile-nav__link\" href=\"#\">גלריה</a></li><li><a class=\"ds-mobile-nav__link\" href=\"#\">צרי קשר</a></li></ul><div class=\"ds-mobile-nav__cta\"><a class=\"ds-mobile-nav__btn-primary\" href=\"#\">קביעת תור</a><a class=\"ds-mobile-nav__btn-wa\" href=\"#\">וואצאפ</a></div></nav>",
+      "css": ".ds-mobile-nav { position: fixed; top: 0; left: 0; width: 288px; height: 100dvh; background: #FFFFFF; box-shadow: 0 8px 40px -8px rgba(44,24,16,0.18); display: flex; flex-direction: column; z-index: 50; overflow: hidden; } .ds-mobile-nav__header { display: flex; align-items: center; justify-content: space-between; padding: 24px 20px 16px; border-bottom: 1px solid rgba(242,232,228,0.5); flex-shrink: 0; } .ds-mobile-nav__logo { height: 40px; width: auto; object-fit: contain; } .ds-mobile-nav__close { width: 36px; height: 36px; border-radius: 8px; border: none; background: #FAF7F5; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 150ms ease; } .ds-mobile-nav__close:hover { background: #F2E8E4; } .ds-mobile-nav__links { list-style: none; padding: 16px 0; margin: 0; flex: 1; overflow-y: auto; } .ds-mobile-nav__link { display: block; padding: 14px 24px; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 600; color: #2C1810; text-decoration: none; transition: background-color 150ms ease, color 150ms ease; border-inline-end: 3px solid transparent; } .ds-mobile-nav__link:hover { background: #FAF0EE; color: #96534A; border-inline-end-color: #C4847A; } .ds-mobile-nav__cta { padding: 20px 20px 32px; border-top: 1px solid rgba(242,232,228,0.5); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; } .ds-mobile-nav__btn-primary { display: flex; align-items: center; justify-content: center; background: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 700; padding: 14px; border-radius: 9999px; text-decoration: none; transition: background-color 200ms ease; } .ds-mobile-nav__btn-primary:hover { background: #DDD6CB; } .ds-mobile-nav__btn-wa { display: flex; align-items: center; justify-content: center; gap: 8px; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; padding: 12px; border-radius: 9999px; text-decoration: none; border: 1px solid #EDD5D0; transition: background-color 200ms ease; } .ds-mobile-nav__btn-wa:hover { background: #FAF0EE; }"
+    },
+    {
+      "name": "Loading, Disabled, Success, and Error States",
+      "kind": "states",
+      "refersTo": null,
+      "description": "Explicit state definitions required in every redesign. No cold greys or clinical greens/reds — all states use the warm palette. Loading: rose spinner. Disabled: warm palette at 0.45 opacity. Success: gold-accented, calm and warm. Error: Rose Text (#96534A), clear resolution path.",
+      "html": "<div class=\"ds-states-showcase\" dir=\"rtl\"><div class=\"ds-state ds-state--loading\" role=\"status\" aria-live=\"polite\" aria-label=\"טוען\"><div class=\"ds-spinner\" aria-hidden=\"true\"></div><div><p class=\"ds-state__title\">מאמתת קוד...</p><p class=\"ds-state__text\">רגע אחד</p></div></div><button class=\"ds-btn--disabled\" disabled aria-disabled=\"true\">בחרי שירות תחילה</button><div class=\"ds-state ds-state--success\" role=\"status\" aria-live=\"polite\"><div class=\"ds-state__icon ds-state__icon--success\" aria-hidden=\"true\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"/></svg></div><div><p class=\"ds-state__title\">התור נקבע!</p><p class=\"ds-state__text\">SMS יישלח עם פרטי התור.</p></div></div><div class=\"ds-state ds-state--error\" role=\"alert\" aria-live=\"assertive\"><div class=\"ds-state__icon ds-state__icon--error\" aria-hidden=\"true\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" aria-hidden=\"true\"><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"13\"/><circle cx=\"12\" cy=\"17\" r=\"0.5\" fill=\"white\" stroke=\"white\"/></svg></div><div><p class=\"ds-state__title\">הקוד שגוי</p><p class=\"ds-state__text\">בדקי את הSMS ונסי שוב.</p></div></div></div>",
+      "css": ".ds-states-showcase { display: flex; flex-direction: column; gap: 16px; max-width: 400px; direction: rtl; } .ds-state { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border-radius: 16px; } .ds-state--loading { background: #FAF7F5; border: 1px solid rgba(242,232,228,0.8); } .ds-state--success { background: rgba(201,169,110,0.08); border: 1px solid rgba(201,169,110,0.28); } .ds-state--error { background: rgba(196,132,122,0.08); border: 1px solid rgba(196,132,122,0.3); } .ds-spinner { width: 32px; height: 32px; border: 3px solid #EDE8DF; border-top-color: #C4847A; border-radius: 50%; animation: ds-spin 0.8s linear infinite; flex-shrink: 0; } @keyframes ds-spin { to { transform: rotate(360deg); } } .ds-state__icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; } .ds-state__icon--success { background: #C9A96E; } .ds-state__icon--error { background: #96534A; } .ds-state__title { font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; color: #2C1810; margin: 0 0 3px; } .ds-state__text { font-family: Rubik, system-ui, sans-serif; font-size: 0.8125rem; color: #6B4545; margin: 0; line-height: 1.5; } .ds-btn--disabled { display: inline-flex; align-items: center; gap: 8px; background-color: #EDE8DF; color: #2C1810; font-family: Rubik, system-ui, sans-serif; font-size: 1rem; font-weight: 700; padding: 16px 32px; border-radius: 9999px; border: none; opacity: 0.45; cursor: not-allowed; pointer-events: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Warm Atelier",
+    "overview": "S.M BROWS is a single-practitioner studio, and the design system carries that fact structurally. Every surface is warm without being soft, precise without being clinical. There is no corporate polish here — this is a skilled artisan's space, and the interface is its interior: hand-chosen materials, warm light, nothing extraneous. The brand's warmth is not decorative tone applied over a neutral template; it comes from the palette, the corner language, the typefaces, and the weight of every element working together.\n\nThe system lives at a quiet intersection of intimacy and professionalism. Sections breathe with generous vertical rhythm. Cards feel weighted and considered. The typography pairs an expressive Hebrew/Latin serif with a clean, highly legible sans-serif, creating a pairing that is simultaneously personal and credible. The result is a design that does not look like a beauty template — it looks like Shoval.\n\nColor is warm throughout, with no cold neutrals. Depth is conveyed through tonal layering — warm ivory body → linen → white — rather than dramatic shadows. The UI is RTL (Hebrew-first), and the spatial logic flows from right to left.",
+    "keyCharacteristics": [
+      "Warm ivory body with linen and rose-tinted layering; no cold greys or blues",
+      "RTL (Hebrew) spatial logic throughout all surfaces",
+      "Pillow-edged cards (24–32px radius) and pill-shaped primary CTAs; secondary surfaces use 12–16px corners",
+      "Serif headings (Dancing Script / Noto Serif Hebrew) over Rubik body; expressive but readable",
+      "Tonal depth rather than structural shadows; shadows are warm and appear primarily on hover",
+      "Motion is spring-like and purposeful: cubic-bezier(0.22, 1, 0.36, 1), 0.55–0.7s, respects prefers-reduced-motion",
+      "Gold focus rings; accessible rose/gold color pairs confirmed to WCAG AA"
+    ],
+    "redesignFreedom": {
+      "locked": [
+        "Brand identity: name 'S.M BROWS', tagline 'IT'S ALL ABOUT YOUR EYEBROWS', and Shoval's personal voice throughout",
+        "Core color palette: Warm Ivory, Dusty Petal Rose, Soft Champagne Gold, Deep Espresso, and all documented supporting tokens",
+        "Font families: Dancing Script + Noto Serif Hebrew (heading stack) and Rubik (body/label stack) — sizes, weights, and hierarchy are open",
+        "Logo: /public/logo.png — exact asset, never replaced or modified",
+        "Authentic client media: all before/after photos, testimonial screenshots, and treatment videos in /public are real — may be reframed, repositioned, or presented in new layouts; content and authenticity may not be altered",
+        "Factual content: pricing, service names, booking rules, contact details, location, hours, legal text, and the prohibition on displaying a course price",
+        "Hebrew-first RTL: the site is in Hebrew, reads right to left, and is designed for Israeli mobile users"
+      ],
+      "open": [
+        "Card composition and visual design",
+        "Section layouts and overall visual hierarchy",
+        "Spacing rhythm and density",
+        "Typography scale and weights (font families are locked)",
+        "Border and radius usage within the warm visual language",
+        "Shadow intensity and elevation approach",
+        "Button shapes and interactive surface design",
+        "Navigation presentation and structure",
+        "CTA presentation and placement",
+        "Responsive breakpoints and behavior",
+        "Media containers and their aspect ratios",
+        "Image framing and cropping decisions",
+        "Video presentation",
+        "Before/after comparison surface format",
+        "Testimonial presentation format",
+        "Course promotional surface",
+        "Treatment and service card composition",
+        "Booking UI presentation and step flow",
+        "Customer-area UI",
+        "All micro-interactions and transitions"
+      ],
+      "designDirection": "The existing UI is correct in identity but conservative in execution. The redesign should amplify what is already true — precision, warmth, personal craft — and eliminate the generic or safe. A premium boutique studio should feel like one in every detail, from the section rhythm to the way a before/after image is framed to the moment a button responds to a touch."
+    },
+    "mediaPrinciples": [
+      "Never stretch or distort media. object-fit: cover or object-fit: contain, never fill without explicit intent.",
+      "Use deliberate aspect ratios (4/3, 3/4, 1/1, 16/9). Container height must be determined by a meaningful aspect ratio or a content-aware decision — not by an arbitrary fixed pixel value inherited from a utility class.",
+      "object-position must be chosen per image, not defaulted. Faces, brows, and treatment results are always the subject; the framing decision is a design decision made for each image.",
+      "Faces and brows must never be unintentionally cropped. The eyebrows are the product — a portrait that cuts off brows or foreheads is a failed presentation.",
+      "Media must remain sharp and properly framed across breakpoints. Framing decisions made at desktop must be verified at mobile; the subject must remain correctly framed at all sizes.",
+      "A source image may be visually reframed or repositioned. Cropping to better frame the subject, adjusting object-position, or choosing a tighter aspect ratio are valid design decisions that do not alter authenticity.",
+      "Avoid tiny letterboxed images. An image compressed into an oversized container surrounded by bands of background color is worse than no image.",
+      "Video presentation must feel intentional and premium: deliberate poster frames, considered aspect ratios, and presentation contexts that signal craft — not raw embedded media elements dropped into a layout."
+    ],
+    "baselineDisclaimer": "All component entries marked with 'baseline: true' document the current implementation as a starting point for redesign — not a final design to preserve. Card composition, section layout, button shape, image treatment, and every other visual decision are open to significant evolution. What cannot change is the brand identity, palette, font families, and authentic content documented in redesignFreedom.",
+    "rules": [
+      {
+        "name": "The Warm-Only Rule",
+        "body": "No cold greys, blues, or neutral tones are introduced anywhere in the system. Every neutral carries red or yellow warmth. When in doubt, test: the new color's undertone must be warm.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Accent Rule",
+        "body": "Rose and Gold are the only accents. Rose governs emotion, warmth, and interactive hover states. Gold governs prestige, focus, and precision. They do not overlap in function.",
+        "section": "colors"
+      },
+      {
+        "name": "The Script-Serif Rule",
+        "body": "All headings and price displays use the serif stack. Rubik is body only. A heading set in Rubik is incorrect regardless of weight.",
+        "section": "typography"
+      },
+      {
+        "name": "The Eyebrow Rule",
+        "body": "Category labels above headings are always uppercase, tracked at 0.2em, and set in Rubik semibold at 12–14px. They orient the reader; they are never bold enough to compete with the headline.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-at-Rest Rule",
+        "body": "Cards and interactive surfaces carry shadow-soft at rest — present but not assertive. The shadow grows on hover (shadow-soft-lg + -translate-y-1). Depth is earned through interaction, not baked in at full intensity from the start.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Warm Shadow Rule",
+        "body": "All box shadows are derived from Deep Espresso (#2C1810), not neutral black. A neutral black shadow on a warm-toned surface reads as dirty; the warm base shadow disappears into the palette.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Radius Hierarchy Rule",
+        "body": "Corners loosen with surface dominance. Hero image: 32px. Cards: 24px. Menus: 16px. Inputs: 12px. Icon buttons: 8px. Never assign a tighter radius to a more dominant element.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use the serif stack (Dancing Script + Noto Serif Hebrew) for every heading level — display, headline, title. Rubik is body only.",
+      "Do set all layout from RTL (dir=\"rtl\"). Use logical properties (ps, pe, ms, me) instead of pl/pr/ml/mr in new code.",
+      "Do use warm-toned shadows derived from rgba(44, 24, 16, ...) for all depth effects. Never use rgba(0, 0, 0, ...).",
+      "Do use gold (#C9A96E) for all focus rings (outline: 2px solid #C9A96E; outline-offset: 3px).",
+      "Do source new before/after images and testimonials only from real client work. Authenticity is core to the brand.",
+      "Do choose deliberate aspect ratios for every image and video container. A pixel height pulled from a utility class is not a framing decision.",
+      "Do set object-position deliberately for every portrait or treatment image. The brows must always be visible.",
+      "Do verify media framing at mobile sizes, not just desktop. The subject must remain correctly framed after the container reflows.",
+      "Do treat video poster frames as editorial choices — the frame that best represents the content and result."
+    ],
+    "donts": [
+      "Don't introduce any cold grey, blue, or neutral tone. Every surface must carry warm undertone.",
+      "Don't display or invent a price for the course — it is discussed privately via WhatsApp and must remain undisclosed in the UI.",
+      "Don't fabricate or write testimonials, review text, or before/after descriptions. Only real WhatsApp screenshots from /public may be used.",
+      "Don't apply shadows in neutral black. All shadow colors must be warm (espresso-based or rose-based).",
+      "Don't set headings in Rubik. The serif stack is non-negotiable for brand voice.",
+      "Don't introduce a second accent color. Rose and Gold are the entire accent vocabulary.",
+      "Don't stretch, distort, or letterbox media. An image compressed into an oversized container is worse than no image.",
+      "Don't crop a portrait at the forehead or mid-brow. The eyebrows are the product — they must always be visible and properly framed.",
+      "Don't treat the existing component shapes, card layouts, section structures, or spacing rhythm as final. This documentation records where the design is, not where it must stay."
+    ]
+  }
+}
