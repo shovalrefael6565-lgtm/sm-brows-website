@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { PWA_ASSET_DIR } from '@/lib/pwa'
 
 /**
  * שלב 9 — Web App Manifest.
@@ -37,10 +38,10 @@ export default function manifest(): MetadataRoute.Manifest {
     // אין orientation נעול: האתר רספונסיבי, ונעילה לפורטרייט הייתה משנה
     // התנהגות קיימת בטאבלט.
     icons: [
-      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: `${PWA_ASSET_DIR}/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `${PWA_ASSET_DIR}/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: `${PWA_ASSET_DIR}/icon-maskable-192.png`, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: `${PWA_ASSET_DIR}/icon-maskable-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     // רק יעדים ציבוריים שאינם תלויי דגל או התחברות — קיצור שמוביל ל-404
     // (למשל /account כשהמערכת החדשה כבויה) נראה שבור במסך הבית.

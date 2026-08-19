@@ -12,7 +12,7 @@ import {
   SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
 } from '@/lib/utils'
-import { APPLE_SPLASH, splashSrc, splashMedia } from '@/lib/pwa'
+import { APPLE_SPLASH, splashSrc, splashMedia, APPLE_TOUCH_ICON } from '@/lib/pwa'
 
 // weight 300 (light) removed — no font-light class used in the codebase
 const rubik = Rubik({
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   */
   icons: {
     icon: '/favicon-64.png',
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: APPLE_TOUCH_ICON, sizes: '180x180', type: 'image/png' }],
     // מסכי הפתיחה של iOS — iOS בוחר לפי התאמה מדויקת של שאילתת המדיה,
     // וכשאין התאמה הוא נופל למסך ריק בצבע background_color של המניפסט.
     other: APPLE_SPLASH.map((s) => ({

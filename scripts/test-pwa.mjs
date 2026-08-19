@@ -23,7 +23,7 @@ import { readFileSync, existsSync } from 'fs'
 import { execSync } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { APPLE_SPLASH, splashSrc, splashMedia } from '../lib/pwa'
+import { APPLE_SPLASH, splashSrc, splashMedia, PWA_ASSET_DIR, APPLE_TOUCH_ICON } from '../lib/pwa'
 import * as manifestMod from '../app/manifest'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -107,13 +107,13 @@ for (const i of icons) {
   const [w, h] = String(i.sizes).split('x').map(Number)
   assetExists(i.src, { w, h })
 }
-assetExists('/apple-touch-icon.png', { w: 180, h: 180 })
+assetExists(APPLE_TOUCH_ICON, { w: 180, h: 180 })
 assetExists('/favicon-64.png')
 for (const s of APPLE_SPLASH) assetExists(splashSrc(s), { w: s.w, h: s.h })
 
 // iOS מדביק שקיפות על רקע שחור — apple-touch-icon חייב להיות אטום לגמרי.
 {
-  const buf = readFileSync(path.join(PUBLIC, 'apple-touch-icon.png'))
+  const buf = readFileSync(path.join(PUBLIC, APPLE_TOUCH_ICON.replace(/^\//, '')))
   const colorType = buf[25]
   let opaque = colorType !== 6 && colorType !== 4
   if (!opaque) {
@@ -187,18 +187,18 @@ section('אייקונים — מקור, מרכוז, גודל ואיכות')
     }
   }
 
-  const bg = measure('/apple-touch-icon.png').corner
+  const bg = measure(APPLE_TOUCH_ICON).corner
   const icons = [
-    ['/apple-touch-icon.png', 'full'],
-    ['/icons/icon-192.png', 'full'],
-    ['/icons/icon-512.png', 'full'],
-    ['/icons/icon-maskable-192.png', 'maskable'],
-    ['/icons/icon-maskable-512.png', 'maskable'],
+    [APPLE_TOUCH_ICON, 'full'],
+    [`${PWA_ASSET_DIR}/icon-192.png`, 'full'],
+    [`${PWA_ASSET_DIR}/icon-512.png`, 'full'],
+    [`${PWA_ASSET_DIR}/icon-maskable-192.png`, 'maskable'],
+    [`${PWA_ASSET_DIR}/icon-maskable-512.png`, 'maskable'],
   ]
 
   for (const [rel, kind] of icons) {
     const m = measure(rel)
-    const name = rel.replace('/icons/', '').replace(/^\//, '')
+    const name = rel.replace(`${PWA_ASSET_DIR}/`, '')
 
     // מרכוז: גם מרכז התיבה וגם מרכז המסה בתוך 2.5% מהמרכז.
     const tol = m.W * 0.025
@@ -235,7 +235,7 @@ section('אייקונים — מקור, מרכוז, גודל ואיכות')
   }
 
   // הדמיה ישירה של החיתוך שאנדרואיד עושה: אף פיקסל דיו לא נחתך.
-  for (const rel of ['/icons/icon-maskable-192.png', '/icons/icon-maskable-512.png']) {
+  for (const rel of [`${PWA_ASSET_DIR}/icon-maskable-192.png`, `${PWA_ASSET_DIR}/icon-maskable-512.png`]) {
     const img = decodePng(readFileSync(path.join(PUBLIC, rel.replace(/^\//, ''))))
     const { width: W, height: H, data } = img
     let clipped = 0
@@ -246,13 +246,13 @@ section('אייקונים — מקור, מרכוז, גודל ואיכות')
         if (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2] < 215) clipped++
       }
     }
-    chk(`${rel.replace('/icons/', '')} — חיתוך למעגל לא מוריד שום פיקסל לוגו`,
+    chk(`${rel.replace(`${PWA_ASSET_DIR}/`, '')} — חיתוך למעגל לא מוריד שום פיקסל לוגו`,
       clipped === 0, `${clipped} פיקסלים`)
   }
 
   // מסכי הפתיחה נבנים מאותו מאסטר — אותו רקע בדיוק, בלי תפר.
   {
-    const sp = decodePng(readFileSync(path.join(PUBLIC, 'icons', 'splash', 'apple-splash-750x1334.png')))
+    const sp = decodePng(readFileSync(path.join(PUBLIC, splashSrc(APPLE_SPLASH[APPLE_SPLASH.length - 1]).replace(/^\//, ''))))
     chk('מסך פתיחה — אותו רקע קרם כמו האייקונים',
       sp.data[0] === bg[0] && sp.data[1] === bg[1] && sp.data[2] === bg[2],
       `rgb(${sp.data[0]},${sp.data[1]},${sp.data[2]})`)
@@ -268,8 +268,8 @@ chk('appleWebApp.title = S.M BROWS',
   /appleWebApp:\s*\{[^}]*title:\s*'S\.M BROWS'/s.test(layout))
 chk('statusBarStyle מוגדר (סרגל סטטוס תואם לרקע הבהיר)',
   /statusBarStyle:\s*'(default|black)'/.test(layout))
-chk('apple-touch-icon מצביע לקובץ הייעודי ולא ל-logo.png',
-  layout.includes("url: '/apple-touch-icon.png'") && !/apple:\s*'\/logo\.png'/.test(layout))
+chk('apple-touch-icon נמשך מ-lib/pwa ולא מ-logo.png',
+  layout.includes('url: APPLE_TOUCH_ICON') && !/apple:\s*'\/logo\.png'/.test(layout))
 chk('מסכי הפתיחה מוזרקים מ-lib/pwa (מקור אמת יחיד)',
   layout.includes("rel: 'apple-touch-startup-image'") && layout.includes('APPLE_SPLASH.map'))
 chk('applicationName מוגדר', layout.includes("applicationName: 'S.M BROWS'"))
@@ -284,6 +284,28 @@ chk('apple-mobile-web-app-capable ידני (iOS < 15.4 לא מכיר את התק
     new Set(medias).size === medias.length, `${medias.length} מסכים`)
   chk('כל שאילתת מדיה כוללת device-width/height ו-dpr',
     medias.every((q) => /device-width: \d+px/.test(q) && /device-height: \d+px/.test(q) && /-webkit-device-pixel-ratio: \d/.test(q)))
+}
+
+/* ──────────────── 3ב. עקיפת מטמון של נכסים immutable ──────────────── */
+section('מטמון — החלפת אייקון חייבת לקבל כתובת חדשה')
+
+{
+  // ⚠️ הבדיקה הזו נולדה מתקלה אמיתית: next.config מגיש כל .png עם
+  // `immutable` לשנה, וכשהוחלף האייקון הדפדפן המשיך להגיש מאותה כתובת את
+  // הקובץ הישן — fetch רגיל החזיר את הקרם הישן בעוד שעקיפת מטמון החזירה
+  // את החדש. הכתובות חייבות להיות ממוספרות כדי שהחלפה תגיע למי שכבר ביקרה.
+  chk('נתיב הנכסים ממוספר', /^\/icons\/v\d+$/.test(PWA_ASSET_DIR), PWA_ASSET_DIR)
+  const all = [...(m.icons ?? []).map((i) => i.src), APPLE_TOUCH_ICON, ...APPLE_SPLASH.map(splashSrc)]
+  chk('כל נכסי ה-PWA יושבים תחת הנתיב הממוספר',
+    all.every((u) => u.startsWith(`${PWA_ASSET_DIR}/`)),
+    all.filter((u) => !u.startsWith(`${PWA_ASSET_DIR}/`)).join(', ') || `${all.length} נכסים`)
+  // אסור שיישארו נכסים בנתיב הישן — הם מתים, ורק מבלבלים בעת החלפה הבאה.
+  chk('לא נשארו נכסים בנתיב הלא-ממוספר',
+    !existsSync(path.join(PUBLIC, 'apple-touch-icon.png')) &&
+    !existsSync(path.join(PUBLIC, 'icons', 'icon-192.png')) &&
+    !existsSync(path.join(PUBLIC, 'icons', 'splash')))
+  chk("next.config עדיין מגיש .png כ-immutable (ההנחה שהבדיקה מגנה עליה)",
+    nextConfig.includes('max-age=31536000, immutable'))
 }
 
 /* ─────────────────────── 4. אין service worker ─────────────────────── */
@@ -313,7 +335,7 @@ chk("CSP מתיר img-src 'self' (אייקונים ומסכי פתיחה)", next
   // כל נכסי ה-PWA חייבים להגיע ל-Vercel: לא gitignored.
   const assets = [
     ...icons.map((i) => i.src),
-    '/apple-touch-icon.png',
+    APPLE_TOUCH_ICON,
     ...APPLE_SPLASH.map(splashSrc),
   ].map((p) => `public${p}`)
   let ignored = []

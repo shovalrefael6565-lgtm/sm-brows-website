@@ -25,11 +25,12 @@
  *      כלומר הכיתוב SM BROWS היה נחתך. ההקטנה מחושבת מהמדידה בפועל של
  *      הדיו, לא מקבוע.
  *
- * מה נוצר (הכל תחת public/):
- *   icons/icon-192.png, icons/icon-512.png            — purpose "any"
- *   icons/icon-maskable-192.png, -512.png             — purpose "maskable"
+ * מה נוצר (הכל תחת public/icons/v2/ — ראו PWA_ASSET_DIR ב-lib/pwa.ts
+ * להסבר למה הנתיב ממוספר):
+ *   icon-192.png, icon-512.png                        — purpose "any"
+ *   icon-maskable-192.png, icon-maskable-512.png      — purpose "maskable"
  *   apple-touch-icon.png (180×180)                    — iOS Add to Home Screen
- *   icons/splash/apple-splash-<w>x<h>.png             — מסכי פתיחה ל-iOS
+ *   splash/apple-splash-<w>x<h>.png                   — מסכי פתיחה ל-iOS
  *
  * הרצה:  npm run gen:pwa
  */
@@ -38,7 +39,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { deflateSync, inflateSync } from 'zlib'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { APPLE_SPLASH } from '../lib/pwa'
+import { APPLE_SPLASH, PWA_ASSET_DIR } from '../lib/pwa'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PUBLIC = path.join(ROOT, 'public')
@@ -420,7 +421,8 @@ function main() {
   const maskableScale = Math.min(1, MASKABLE_SAFE_RADIUS / inkRadius)
   console.log(`   הקטנה ל-maskable: ${(maskableScale * 100).toFixed(1)}%`)
 
-  mkdirSync(path.join(PUBLIC, 'icons', 'splash'), { recursive: true })
+  const DIR = PWA_ASSET_DIR.replace(/^\//, '')
+  mkdirSync(path.join(PUBLIC, DIR, 'splash'), { recursive: true })
   const write = (rel, img) => {
     const buf = encodePng(img)
     writeFileSync(path.join(PUBLIC, rel), buf)
@@ -439,12 +441,12 @@ function main() {
     return out
   }
 
-  write('icons/icon-192.png', full(192))
-  write('icons/icon-512.png', full(512))
-  write('icons/icon-maskable-192.png', maskable(192))
-  write('icons/icon-maskable-512.png', maskable(512))
+  write(`${DIR}/icon-192.png`, full(192))
+  write(`${DIR}/icon-512.png`, full(512))
+  write(`${DIR}/icon-maskable-192.png`, maskable(192))
+  write(`${DIR}/icon-maskable-512.png`, maskable(512))
   // iOS Add to Home Screen — אטום, בלי שקיפות, והפינות של iOS מעל.
-  write('apple-touch-icon.png', full(180))
+  write(`${DIR}/apple-touch-icon.png`, full(180))
 
   // מסכי הפתיחה: אותו כרטיס במרכז, על הקרם שלו — בלי תפר בין הכרטיס
   // לרקע, כך שהמסך נראה כמו מסך קרם אחד עם הלוגו.
@@ -452,7 +454,7 @@ function main() {
     const side = Math.round(Math.min(w, h) * 0.34)
     const out = canvas(w, h, cream)
     composite(out, resampleBox(master, side, side), Math.round((w - side) / 2), Math.round((h - side) / 2))
-    write(`icons/splash/apple-splash-${w}x${h}.png`, out)
+    write(`${DIR}/splash/apple-splash-${w}x${h}.png`, out)
   }
 }
 
