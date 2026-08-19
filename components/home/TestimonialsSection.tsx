@@ -21,12 +21,72 @@ const REVIEWS = [
   '/wa-review-15.webp',
 ]
 
+/** משך ה-crossfade. חייב להיות זהה ל-transition ב-faceStyle. */
+const FADE_MS = 900
+/** קצב ה-autoplay. */
+const AUTOPLAY_MS = 3000
+/**
+ * ⚠️ תקרה להמתנה לפענוח תמונה. רשת איטית לא תנעל את הקרוסלה: אחרי
+ * התקרה המעבר יוצא בכל מקרה, במקרה הגרוע עם הבהוב אחד — בדיוק ההתנהגות
+ * שהייתה קודם תמיד.
+ */
+const DECODE_TIMEOUT_MS = 2000
+
+/** מקדים-טוען תמונה **מחוץ ל-DOM**. לעולם אינו נכשל ולעולם אינו תוקע. */
+function warm(src: string): Promise<void> {
+  return new Promise<void>(resolve => {
+    if (typeof window === 'undefined') { resolve(); return }
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    const timer = setTimeout(finish, DECODE_TIMEOUT_MS)
+    const img = new window.Image()
+    const end = () => { clearTimeout(timer); finish() }
+    img.onload = end
+    img.onerror = end
+    img.src = src
+    // תמונה שכבר במטמון עשויה להיות complete עוד לפני שה-handlers נרשמו.
+    if (img.complete) end()
+  })
+}
+
+/** ממתין ל-commit של React לפני ההיפוך. rAF **עם נפילה ל-timer**: בטאב
+ *  מוסתר rAF אינו נורה כלל, ובלעדי ה-timer המעבר היה נתקע לנצח. */
+function nextFrame(): Promise<void> {
+  return new Promise<void>(resolve => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    const timer = setTimeout(finish, 60)
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); finish() }))
+    }
+  })
+}
+
+const delay = (ms: number) => new Promise<void>(r => { setTimeout(r, ms) })
+
 /**
  * Double-buffer crossfade: 2 stable <img> elements (face-a / face-b) swap
  * front/back roles on each navigation.  Only 2 images ever exist in the DOM
  * instead of the original 15 — eliminates ~13 unnecessary image downloads.
  *
  * CSS transitions fire because the elements never unmount (stable keys).
+ *
+ * ═══ מה מבטיח שהמעבר חלק ודטרמיניסטי ═══
+ *
+ *   1. **ה-src של פנים נכנס משתנה רק כשהן שקופות לגמרי.** קודם ה-preload
+ *      של התמונה הבאה נכתב לפנים האחוריות **בזמן ה-fade**, כלומר בדיוק
+ *      כשהן עדיין נראות — ולכן נראתה תמונה שלישית מהבהבת באמצע המעבר.
+ *      עכשיו ההקדמה נעשית מחוץ ל-DOM (`warm`), ולא נוגעת באף פנים.
+ *
+ *   2. **התמונה מפוענחת לפני ההיפוך.** קודם ההיפוך קרה אחרי שני frames —
+ *      זמן שאין בו שום קשר לטעינה — ולכן תמונה שלא הייתה במטמון "נכנסה"
+ *      ריקה. זה מה שנראה כמו היתקעות בין מצבים.
+ *
+ *   3. **הנעילה משוחררת בטיימר ולא ב-rAF.** rAF אינו נורה בטאב מוסתר;
+ *      הדגל `navigating` הישן נשאר דלוק לנצח והקרוסלה מתה עד רענון.
+ *
+ *   4. **לחיצות מהירות מתמזגות ליעד האחרון** (`pendingRef`) במקום להיבלע
+ *      בשקט. הלחיצה האחרונה תמיד מנצחת, בכל קצב לחיצה.
  */
 export default function TestimonialsSection() {
   const [slotA, setSlotA] = useState(0)       // index shown in face-a
@@ -37,44 +97,96 @@ export default function TestimonialsSection() {
   const aIsFrontRef   = useRef(true)
   const displayIdxRef = useRef(0)
   const pausedRef     = useRef(false)
-  const navigating    = useRef(false)
+  const pauseTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** נעילה למשך המעבר בפועל — לא דגל שמישהו צריך לזכור לכבות. */
+  const busyRef       = useRef(false)
+  /** היעד שנלחץ בזמן מעבר. האחרון קובע. */
+  const pendingRef    = useRef<number | null>(null)
+  /**
+   * ⚠️ היעד שאליו הקרוסלה **בדרך**, ולא מה שמוצג כרגע. `next`/`prev`
+   * נגזרים ממנו ולא מ-`displayIdx`: חמש לחיצות מהירות על "הבאה" מתקדמות
+   * חמישה צעדים ונוחתות במעבר חלק אחד, במקום להתפרש כולן כ"אחד קדימה"
+   * מאותה ביקורת ולהיבלע.
+   */
+  const targetRef     = useRef(0)
+  const aliveRef      = useRef(true)
 
-  const navigate = useCallback((nextIdx: number) => {
-    if (navigating.current) return
-    navigating.current = true
-
-    const toBack = aIsFrontRef.current ? 'b' : 'a'
-
-    // Paint new image into the back (hidden) face first
-    if (toBack === 'a') setSlotA(nextIdx)
-    else                setSlotB(nextIdx)
-
-    // After 2 frames (browser has started loading the new src) swap front/back
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        const front = toBack === 'a'
-        setAIsFront(front)
-        setDisplayIdx(nextIdx)
-        aIsFrontRef.current   = front
-        displayIdxRef.current = nextIdx
-        navigating.current    = false
-
-        // Preload the image after nextIdx into the now-hidden face
-        const afterNext   = (nextIdx + 1) % REVIEWS.length
-        const newBack     = front ? 'b' : 'a'
-        if (newBack === 'a') setSlotA(afterNext)
-        else                 setSlotB(afterNext)
-      })
-    )
+  /*
+    ⚠️ `aliveRef` **מוחזר ל-true בגוף האפקט**, לא רק מאופס ב-cleanup.
+    ב-StrictMode של הפיתוח האפקטים רצים mount → unmount → mount; ref
+    שרק ה-cleanup נוגע בו נשאר false אחרי ההרכבה השנייה, וכל מעבר היה
+    נוטש בשקט. הקרוסלה פשוט לא זזה, בלי שגיאה אחת.
+  */
+  useEffect(() => {
+    aliveRef.current = true
+    return () => {
+      aliveRef.current = false
+      if (pauseTimer.current) clearTimeout(pauseTimer.current)
+    }
   }, [])
 
-  const next = useCallback(() => navigate((displayIdxRef.current + 1) % REVIEWS.length), [navigate])
-  const prev = useCallback(() => navigate((displayIdxRef.current - 1 + REVIEWS.length) % REVIEWS.length), [navigate])
+  const runRef = useRef<(target: number) => void>(() => {})
+
+  const run = useCallback(async (target: number) => {
+    busyRef.current = true
+    targetRef.current = target
+    /*
+      🔒 `finally` ולא שחרור בסוף הגוף: **כל** יציאה משחררת את הנעילה —
+      גם ניתוק הרכיב וגם חריגה בלתי צפויה. דגל שנשאר דלוק הוא בדיוק
+      התקלה שהייתה כאן (`navigating` שרק rAF כיבה), ואסור להחליף אותה
+      בגרסה חדשה של עצמה.
+    */
+    try {
+      // 1. התמונה נטענת ומפוענחת מחוץ ל-DOM, לפני שנוגעים במשהו נראה.
+      await warm(REVIEWS[target])
+      if (!aliveRef.current) return
+
+      // 2. נכתבת לפנים האחוריות — שקופות לחלוטין ברגע הזה.
+      const backIsA = !aIsFrontRef.current
+      if (backIsA) setSlotA(target)
+      else         setSlotB(target)
+
+      // 3. אחרי ה-commit של React — היפוך.
+      await nextFrame()
+      if (!aliveRef.current) return
+      aIsFrontRef.current = backIsA
+      displayIdxRef.current = target
+      setAIsFront(backIsA)
+      setDisplayIdx(target)
+
+      // 4. הנעילה מוחזקת עד סוף ה-fade, כדי שה-src של הפנים היוצאות
+      //    לא ישתנה בזמן שהן עדיין נראות.
+      await delay(FADE_MS)
+    } finally {
+      busyRef.current = false
+    }
+    if (!aliveRef.current) return
+
+    // 5. מקדימים את הבאה בתור — מחוץ ל-DOM.
+    void warm(REVIEWS[(target + 1) % REVIEWS.length])
+
+    const queued = pendingRef.current
+    pendingRef.current = null
+    if (queued !== null && queued !== displayIdxRef.current) runRef.current(queued)
+  }, [])
+
+  useEffect(() => { runRef.current = t => { void run(t) } }, [run])
+
+  const navigate = useCallback((nextIdx: number) => {
+    if (nextIdx === targetRef.current && !busyRef.current) return
+    targetRef.current = nextIdx
+    if (busyRef.current) { pendingRef.current = nextIdx; return }
+    void run(nextIdx)
+  }, [run])
+
+  const next = useCallback(() => navigate((targetRef.current + 1) % REVIEWS.length), [navigate])
+  const prev = useCallback(() => navigate((targetRef.current - 1 + REVIEWS.length) % REVIEWS.length), [navigate])
 
   const goManual = useCallback((fn: () => void) => {
     pausedRef.current = true
     fn()
-    setTimeout(() => { pausedRef.current = false }, 6000)
+    if (pauseTimer.current) clearTimeout(pauseTimer.current)
+    pauseTimer.current = setTimeout(() => { pausedRef.current = false }, 6000)
   }, [])
 
   /*
@@ -110,11 +222,23 @@ export default function TestimonialsSection() {
     return () => { io?.disconnect(); window.removeEventListener('load', start) }
   }, [])
 
+  /*
+    ⚠️ טיק אוטומטי **אינו** נכנס לתור כשמעבר כבר רץ (`busyRef`): תור
+    שנבנה מטיקים אוטומטיים היה גורם לקרוסלה "להדביק פערים" בקפיצה אחת
+    אחרי כל האטה — למשל חזרה לטאב שהדפדפן חנק את הטיימרים שלו. לחיצה של
+    אדם כן נכנסת לתור, וזה ההבדל: היא בקשה מפורשת.
+
+    ⚠️ **אין כאן בדיקת `document.hidden`.** היא נשקלה ונדחתה: יש סביבות
+    שמדווחות hidden בזמן שהסקשן גלוי בפועל, ובהן ה-autoplay היה מת בשקט —
+    בדיוק סוג התקלה שהתיקון הזה בא לסגור. ההאטה בטאב מוסתר כבר מטופלת
+    ע"י חניקת הטיימרים של הדפדפן ועל ידי ה-IntersectionObserver למעלה.
+  */
   useEffect(() => {
     if (!inView) return
     const timer = setInterval(() => {
-      if (!pausedRef.current) next()
-    }, 3000)
+      if (pausedRef.current || busyRef.current) return
+      next()
+    }, AUTOPLAY_MS)
     return () => clearInterval(timer)
   }, [inView, next])
 
@@ -127,7 +251,7 @@ export default function TestimonialsSection() {
     display: 'block',
     borderRadius: '1rem',
     opacity: isFront ? 1 : 0,
-    transition: 'opacity 0.9s ease-in-out',
+    transition: `opacity ${FADE_MS}ms ease-in-out`,
   })
 
   return (
