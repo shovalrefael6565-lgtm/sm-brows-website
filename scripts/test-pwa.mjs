@@ -128,6 +128,115 @@ for (const s of APPLE_SPLASH) assetExists(splashSrc(s), { w: s.w, h: s.h })
   chk('apple-touch-icon אטום לחלוטין (בלי שקיפות)', opaque)
 }
 
+/* ─────────────────── 2ב. גיאומטריה ואיכות של האייקון ─────────────────── */
+section('אייקונים — מרכוז, גודל ואיכות קצה')
+
+{
+  const { decodePng } = await import('./generate-pwa-assets.mjs')
+  const CREAM_RGB = [0xfa, 0xf7, 0xf5]
+
+  /** מודד את הסימן בתוך אייקון: תיבה חוסמת, מרכז מסה ואיכות הקצה */
+  function measure(rel) {
+    const img = decodePng(readFileSync(path.join(PUBLIC, rel.replace(/^\//, ''))))
+    const { width: W, height: H, data } = img
+    let x0 = W, y0 = H, x1 = -1, y1 = -1
+    let sx = 0, sy = 0, sw = 0
+    let solid = 0, partial = 0
+    const cov = new Float64Array(W * H)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4
+        // "כיסוי" = כמה הפיקסל רחוק מהקרם, בין 0 ל-1
+        const d = (CREAM_RGB[0] - data[i]) / (CREAM_RGB[0] - 109)
+        if (d <= 0.04) continue
+        if (x < x0) x0 = x
+        if (x > x1) x1 = x
+        if (y < y0) y0 = y
+        if (y > y1) y1 = y
+        sx += x * d; sy += y * d; sw += d
+        if (d > 0.96) solid++
+        else partial++
+        cov[y * W + x] = d
+      }
+    }
+    return {
+      W, H, x0, y0, x1, y1,
+      markW: x1 - x0 + 1, markH: y1 - y0 + 1,
+      bboxCx: (x0 + x1) / 2, bboxCy: (y0 + y1) / 2,
+      massCx: sx / sw, massCy: sy / sw,
+      solid, partial,
+      // "פיקסלי גבול" = פיקסלים מלאים שנוגעים במשהו שאינו מלא. אורך
+      // ההיקף בפיקסלים, ולכן מדד שאינו תלוי בגודל הקנבס.
+      boundary: (() => {
+        let n = 0
+        for (let y = 1; y < H - 1; y++) {
+          for (let x = 1; x < W - 1; x++) {
+            if (cov[y * W + x] <= 0.96) continue
+            if (cov[(y - 1) * W + x] <= 0.96 || cov[(y + 1) * W + x] <= 0.96 ||
+                cov[y * W + x - 1] <= 0.96 || cov[y * W + x + 1] <= 0.96) n++
+          }
+        }
+        return n
+      })(),
+      corner: [data[0], data[1], data[2]],
+    }
+  }
+
+  // גובה הסימן כשבר מצלע האייקון — חייב להתאים למה ש-main() מייצר.
+  const expected = [
+    ['/apple-touch-icon.png', 0.70],
+    ['/icons/icon-192.png', 0.70],
+    ['/icons/icon-512.png', 0.70],
+    ['/icons/icon-maskable-192.png', 0.52],
+    ['/icons/icon-maskable-512.png', 0.52],
+  ]
+
+  for (const [rel, ratio] of expected) {
+    const m = measure(rel)
+    const name = rel.replace('/icons/', '').replace(/^\//, '')
+
+    // מרכוז: גם מרכז התיבה וגם מרכז המסה בתוך 2.5% מהמרכז. שני התנאים
+    // יחד הם ההגדרה של "ממורכז אופטית" — התיבה לבדה עברה גם כשהסימן
+    // נראה דחוף הצידה, ומרכז המסה לבדו היה מרשה חיתוך.
+    const tol = m.W * 0.025
+    const dbx = Math.abs(m.bboxCx - m.W / 2), dby = Math.abs(m.bboxCy - m.H / 2)
+    const dmx = Math.abs(m.massCx - m.W / 2), dmy = Math.abs(m.massCy - m.H / 2)
+    chk(`${name} — ממורכז (תיבה ומסה)`,
+      dbx <= tol && dby <= tol && dmx <= tol && dmy <= tol,
+      `תיבה ${dbx.toFixed(1)}/${dby.toFixed(1)}px, מסה ${dmx.toFixed(1)}/${dmy.toFixed(1)}px, סף ${tol.toFixed(1)}`)
+
+    // גודל: לא קטן מדי ולא חתוך.
+    const got = m.markH / m.H
+    chk(`${name} — גובה הסימן ${(got * 100).toFixed(0)}% (צפוי ${(ratio * 100).toFixed(0)}%)`,
+      Math.abs(got - ratio) <= 0.03)
+    chk(`${name} — לא חתוך (יש שוליים בכל צד)`,
+      m.x0 > 0 && m.y0 > 0 && m.x1 < m.W - 1 && m.y1 < m.H - 1,
+      `${m.x0}/${m.W - 1 - m.x1}/${m.y0}/${m.H - 1 - m.y1}`)
+
+    // איכות קצה — מדד דו-כיווני שאינו תלוי בגודל: כמה פיקסלי ביניים יש
+    // על כל פיקסל גבול. קצה מרונדר אנליטית ברוחב פיקסל נותן ~1–2. מסכה
+    // בינארית משוננת (המצב שהיה, שממנו האייקון נראה גס) נותנת הרבה
+    // פחות, והגדלה מטושטשת נותנת הרבה יותר. שני הכיוונים נכשלים כאן.
+    const edge = m.partial / m.boundary
+    chk(`${name} — קצה חד ומוחלק (${edge.toFixed(2)} פיקסלי ביניים לפיקסל גבול)`,
+      edge >= 0.6 && edge <= 2.5)
+
+    chk(`${name} — הרקע הוא brand-cream נקי`,
+      m.corner[0] === 0xfa && m.corner[1] === 0xf7 && m.corner[2] === 0xf5,
+      `rgb(${m.corner.join(',')})`)
+  }
+
+  // maskable: אנדרואיד עשוי לחתוך למעגל ברדיוס 40% מהצלע. כל פיקסל דיו
+  // חייב לשבת בתוכו, אחרת הסימן ייחתך במסך הבית.
+  for (const rel of ['/icons/icon-maskable-192.png', '/icons/icon-maskable-512.png']) {
+    const m = measure(rel)
+    const corners = [[m.x0, m.y0], [m.x1, m.y0], [m.x0, m.y1], [m.x1, m.y1]]
+    const maxR = Math.max(...corners.map(([x, y]) => Math.hypot(x - m.W / 2, y - m.H / 2)))
+    chk(`${rel.replace('/icons/', '')} — בתוך מעגל הבטיחות (40%)`,
+      maxR <= m.W * 0.4, `רדיוס ${(maxR / m.W * 100).toFixed(1)}%`)
+  }
+}
+
 /* ────────────────────── 3. תגיות ה-<head> ב-layout ────────────────── */
 section('layout — metadata של iOS')
 
