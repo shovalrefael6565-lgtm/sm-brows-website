@@ -9,7 +9,7 @@ import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
 import { ConsentProvider } from '@/lib/consentContext'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
-  SITE_URL, PHONE_NUMBER, EMAIL, LOCATION,
+  SITE_URL, PHONE_NUMBER, EMAIL, STREET_ADDRESS,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
 } from '@/lib/utils'
 import { APPLE_SPLASH, splashSrc, splashMedia, APPLE_TOUCH_ICON } from '@/lib/pwa'
@@ -158,7 +158,7 @@ const localBusinessJsonLd = {
   priceRange: '₪₪',
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'הכורמים',
+    streetAddress: STREET_ADDRESS,
     addressLocality: 'אשקלון',
     addressCountry: 'IL',
   },

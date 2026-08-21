@@ -1,5 +1,5 @@
 import 'server-only'
-import { LOCATION, SITE_URL } from '@/lib/utils'
+import { APPOINTMENT_LOCATION, SITE_URL } from '@/lib/utils'
 import { formatDateTimeIL } from '@/lib/admin/format'
 import { REMINDER_SMS } from '@/lib/messageTemplates'
 
@@ -66,7 +66,7 @@ export function twoHoursBeforeReminderBody(): string {
 /** ידנית — הנוסח הכללי ביותר, כי מנהלת יכולה לשלוח בכל זמן לפני התור */
 export function manualReminderBody(p: ReminderTemplateInput): string {
   const { date, time } = formatDateTimeIL(p.startsAt.toISOString())
-  return `תזכורת מ-${BRAND} 🌸\n${p.treatment}\n${date} בשעה ${time}\n${LOCATION}\n\nלשינוי או ביטול: ${ACCOUNT_URL}`
+  return `תזכורת מ-${BRAND} 🌸\n${p.treatment}\n${date} בשעה ${time}\n${APPOINTMENT_LOCATION}\n\nלשינוי או ביטול: ${ACCOUNT_URL}`
 }
 
 export function reminderBodyFor(

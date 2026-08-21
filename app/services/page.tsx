@@ -6,15 +6,33 @@ import CourseCard from '@/components/services/CourseCard'
 import ServiceFaqSection from '@/components/services/ServiceFaqSection'
 import BookingSection from '@/components/home/BookingSection'
 import { services } from '@/lib/data'
+import { SITE_URL } from '@/lib/utils'
 
 // מיקרובליידינג מקבל סקשן ספוטלייט ייעודי עם סרטונים — לכן מוסר מהרשימה הרגילה
 const listedServices = services.filter((s) => s.id !== 'microblading')
 
+/*
+  ⚠️ openGraph מוחלף ולא ממוזג: Next ממזג metadata בין סגמנטים בצורה
+  רדודה בלבד, ולכן שדה openGraph שמוגדר כאן דורס לגמרי את זה שב-app/layout.
+  siteName/locale/type חוזרים כאן בכוונה — בלעדיהם הם פשוט נעלמים מהעמוד.
+*/
 export const metadata: Metadata = {
-  title: 'טיפולים',
+  title: 'טיפולי גבות באשקלון',
   description:
-    'טיפולי עיצוב גבות מקצועיים: מיקרובליידינג, עיצוב גבות טבעיות והרמת גבות. קורס עיצוב גבות מקצועי. S.M BROWS אשקלון.',
+    'מיקרובליידינג, עיצוב גבות טבעיות והרמת גבות — הקליניקה של שובל בעיר היין, אשקלון. מגיעות אליי לקוחות גם מאשדוד, קריית גת, שדרות ונתיבות.',
   alternates: { canonical: '/services' },
+  openGraph: {
+    title: 'טיפולי גבות באשקלון | S.M BROWS',
+    description:
+      'מיקרובליידינג, עיצוב גבות טבעיות והרמת גבות בקליניקה בעיר היין, אשקלון.',
+    url: `${SITE_URL}/services`,
+    type: 'website',
+    locale: 'he_IL',
+    siteName: 'S.M BROWS',
+    images: [
+      { url: '/hero.webp', width: 1200, height: 630, alt: 'S.M BROWS — טיפולי גבות באשקלון' },
+    ],
+  },
 }
 
 export default function ServicesPage() {

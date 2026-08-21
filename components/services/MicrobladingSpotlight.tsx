@@ -112,6 +112,12 @@ export default function MicrobladingSpotlight() {
           <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
             גבות מושלמות מהרגע שקמים בבוקר — הדמיית שערה עדינה, טבעית ומותאמת אישית, שנשארת עד שנה.
           </p>
+          {/* הקשר מקומי — משפט אחד, מתחת לפסקת הפתיחה ולא בתוכה, כדי לא
+              להאריך את הקופי המאושר. אשקלון נשארת המיקום הראשי; שאר הערים
+              הן הקשר בלבד. */}
+          <p className="text-brand-muted text-sm leading-relaxed max-w-xl mx-auto mt-3">
+            הטיפול מתבצע בקליניקה שלי בעיר היין, אשקלון, ומגיעות אליו לקוחות גם מאשדוד, קריית גת, שדרות ונתיבות.
+          </p>
         </motion.div>
 
         {/* Reels */}
