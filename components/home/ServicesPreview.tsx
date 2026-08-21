@@ -2,241 +2,359 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion, useInView } from 'framer-motion'
-import { useRef, useState, useEffect, useCallback } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { services } from '@/lib/data'
-import { WHATSAPP_URL } from '@/lib/utils'
+import { WHATSAPP_BASE } from '@/lib/utils'
+
+const nd = services.find(s => s.id === 'natural-design')!
+const mb = services.find(s => s.id === 'microblading')!
+const bl = services.find(s => s.id === 'brow-lifting')!
+
+const MB_CONSULT = `${WHATSAPP_BASE}?text=${encodeURIComponent('היי שובל 🤍 רציתי לקבל פרטים ולייעוץ על מיקרובליידינג')}`
+
+// Index 0 = natural-design — the only treatment with a video
+const ND_VIDEO_SRC = '/videos/natural-brow-design-home.mp4'
+const ND_POSTER    = nd.homeImages?.[0] ?? nd.images[1] ?? nd.images[0]
+const ND_IMG_POS   = nd.homeImagePositions?.[0] ?? nd.imagePositions?.[1] ?? '50% 30%'
+
+interface Treatment {
+  id: string
+  name: string
+  shortDesc: string
+  image: string
+  imagePos: string
+  meta: string
+  cta: { label: string; href: string; external?: boolean }
+  detailsHref: string
+}
+
+const TREATMENTS: Treatment[] = [
+  {
+    id: 'natural-design',
+    name: nd.name,
+    shortDesc: nd.homeDescription ?? nd.description,
+    image: ND_POSTER,
+    imagePos: ND_IMG_POS,
+    meta: `${nd.duration} · ${nd.price}`,
+    cta: { label: 'קביעת תור', href: '/booking' },
+    detailsHref: '/services',
+  },
+  {
+    id: 'microblading',
+    name: mb.name,
+    shortDesc: mb.homeDescription ?? mb.description,
+    image: mb.homeImages?.[0] ?? mb.images[0],
+    imagePos: mb.homeImagePositions?.[0] ?? mb.imagePositions?.[0] ?? '50% 35%',
+    meta: `${mb.duration} · ייעוץ אישי`,
+    cta: { label: 'לשיחת ייעוץ', href: MB_CONSULT, external: true },
+    detailsHref: '/services#microblading',
+  },
+  {
+    id: 'brow-lifting',
+    name: bl.name,
+    shortDesc: bl.homeDescription ?? bl.description,
+    image: bl.homeImages?.[1] ?? bl.images[1] ?? bl.images[0],
+    imagePos: bl.homeImagePositions?.[1] ?? bl.imagePositions?.[1] ?? '65% 55%',
+    meta: `${bl.duration} · ${bl.price}`,
+    cta: { label: 'קביעת תור', href: '/booking' },
+    detailsHref: '/services',
+  },
+]
 
 /**
- * Double-buffer slider: 2 stable <Image> slots swap front/back.
- * Only 2 images in DOM instead of all 3-5, with identical CSS crossfade.
+ * Double-buffer crossfade — same technique as ImageSlider.
+ * Two image slots swap front/back on each treatment change.
+ * Zero intermediate states; stable across rapid switching.
  */
-function ServiceImageSlider({ images, imagePositions, name, active }: {
-  images: string[]
-  imagePositions?: string[]
-  name: string
-  active?: boolean
-}) {
-  const [slotA, setSlotA]     = useState(0)
-  const [slotB, setSlotB]     = useState(Math.min(1, images.length - 1))
+function useImageStage() {
+  const [slotA, setSlotA] = useState(0)
+  const [slotB, setSlotB] = useState(0)
   const [aIsFront, setAIsFront] = useState(true)
-  const [displayIdx, setDisplayIdx] = useState(0)
+  const navigating = useRef(false)
+  const aIsFrontRef = useRef(true)
 
-  const aIsFrontRef   = useRef(true)
-  const displayIdxRef = useRef(0)
-  const navigating    = useRef(false)
-
-  const navigate = useCallback((nextIdx: number) => {
-    if (navigating.current || images.length <= 1) return
+  const switchImage = useCallback((idx: number) => {
+    if (navigating.current) return
     navigating.current = true
-    const toBack = aIsFrontRef.current ? 'b' : 'a'
 
-    if (toBack === 'a') setSlotA(nextIdx)
-    else                setSlotB(nextIdx)
+    const toBack = aIsFrontRef.current ? 'b' : 'a'
+    if (toBack === 'b') setSlotB(idx)
+    else setSlotA(idx)
 
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const front = toBack === 'a'
         setAIsFront(front)
-        setDisplayIdx(nextIdx)
-        aIsFrontRef.current   = front
-        displayIdxRef.current = nextIdx
-        navigating.current    = false
+        aIsFrontRef.current = front
+        setTimeout(() => { navigating.current = false }, 440)
       })
     )
-  }, [images.length])
+  }, [])
 
+  return { slotA, slotB, aIsFront, switchImage }
+}
+
+export default function ServicesPreview() {
+  const [active, setActive] = useState(0)
+  const reduceMotion = useReducedMotion()
+  const { slotA, slotB, aIsFront, switchImage } = useImageStage()
+
+  // ── Video playback ───────────────────────────────────────────────
+  const videoRef      = useRef<HTMLVideoElement>(null)
+  const stageRef      = useRef<HTMLDivElement>(null)
+  const activeRef     = useRef(0)          // mirrors `active` for callbacks
+  const visibleRef    = useRef(false)      // true when stage is in viewport
+
+  // Single source of truth: play iff active===0 AND section visible
+  const syncVideo = useCallback(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (activeRef.current === 0 && visibleRef.current) {
+      v.play().catch(() => {})
+    } else {
+      v.pause()
+    }
+  }, [])
+
+  // Keep activeRef in sync and resync on every treatment switch
   useEffect(() => {
-    if (!active || images.length <= 1) return
-    const interval = setInterval(() => {
-      navigate((displayIdxRef.current + 1) % images.length)
-    }, 3500)
-    return () => clearInterval(interval)
-  }, [images.length, active, navigate])
+    activeRef.current = active
+    syncVideo()
+  }, [active, syncVideo])
 
-  const slotStyle = (isFront: boolean): React.CSSProperties => ({
+  // Intersection observer — play/pause as section enters/leaves viewport.
+  // threshold 0.25 requires a quarter of the stage to be visible before playback.
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting
+        syncVideo()
+      },
+      { threshold: 0.25 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [syncVideo])
+  // ────────────────────────────────────────────────────────────────
+
+  const handleSelect = useCallback((idx: number) => {
+    if (idx === active) return
+    setActive(idx)
+    switchImage(idx)
+  }, [active, switchImage])
+
+  const xDuration = reduceMotion ? 0 : 0.42
+
+  const slotStyle = (isFront: boolean): CSSProperties => ({
     position: 'absolute',
     inset: 0,
     opacity: isFront ? 1 : 0,
-    transition: 'opacity 380ms ease-in-out',
+    transition: `opacity ${xDuration}s ease-in-out`,
     willChange: 'opacity',
     transform: 'translateZ(0)',
   })
 
-  return (
-    <div className="relative h-52 overflow-hidden flex-shrink-0 bg-brand-cream">
-      <div aria-hidden={!aIsFront} style={slotStyle(aIsFront)}>
-        <Image
-          src={images[slotA]}
-          alt={aIsFront ? name : ''}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover"
-          style={{ objectPosition: imagePositions?.[slotA] ?? '50% 50%' }}
-          loading="lazy"
-        />
-      </div>
-      <div aria-hidden={aIsFront} style={slotStyle(!aIsFront)}>
-        <Image
-          src={images[slotB]}
-          alt={!aIsFront ? name : ''}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover"
-          style={{ objectPosition: imagePositions?.[slotB] ?? '50% 50%' }}
-          loading="lazy"
-        />
-      </div>
-      <div
-        className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 to-transparent pointer-events-none z-10"
-        aria-hidden="true"
-      />
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10" aria-hidden="true">
-        {images.map((_, i) => (
-          <span
-            key={i}
-            className={`rounded-full transition-all duration-300 ${
-              i === displayIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export default function ServicesPreview() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-80px' })
+  // Compute the video layer's front/back state by following whichever
+  // buffer slot currently holds natural-design (index 0).
+  const ndSlot   = slotA === 0 ? 'a' : slotB === 0 ? 'b' : null
+  const ndIsFront = ndSlot === 'a' ? aIsFront : ndSlot === 'b' ? !aIsFront : false
 
   return (
     <section
-      ref={ref}
       id="services"
       aria-labelledby="services-heading"
-      className="section-padding bg-white"
+      className="py-16 sm:py-24 bg-white"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        {/* Heading */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-14"
-        >
-          <h2
-            id="services-heading"
-            className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark mb-4"
-          >
-            הטיפולים שלי
-          </h2>
-          <p className="text-brand-medium max-w-xl mx-auto leading-relaxed">
-            שלושה טיפולים, כל אחד עם תוצאה אחרת — בואי נמצא יחד מה הכי מתאים לך.
-          </p>
-        </motion.div>
 
-        {/* Service cards */}
-        <ul
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
-          role="list"
-          aria-label="רשימת טיפולים"
+        {/* ── Section heading ─────────────────────────────────────── */}
+        <h2
+          id="services-heading"
+          className="font-serif text-4xl sm:text-5xl lg:text-6xl font-medium text-brand-dark text-center mb-10 sm:mb-14"
         >
-          {services.map((service, i) => (
-            <motion.li
-              key={service.id}
-              initial={{ opacity: 0, y: 32 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: i * 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="group"
+          הטיפולים שלי
+        </h2>
+
+        {/* ── Editorial treatment selector ─────────────────────────
+            Not tabs/pills. Large typographic navigation.
+            Active: full opacity + 1px gold bottom rule.
+            Inactive: muted, no rule.
+        ─────────────────────────────────────────────────────────── */}
+        <div
+          role="tablist"
+          aria-label="בחירת טיפול"
+          className="flex items-end border-b border-brand-cream-dark/50 mb-0"
+        >
+          {TREATMENTS.map((t, i) => (
+            <button
+              key={t.id}
+              role="tab"
+              type="button"
+              id={`treatment-tab-${t.id}`}
+              aria-selected={active === i}
+              aria-controls="treatment-stage"
+              onClick={() => handleSelect(i)}
+              className={`
+                relative flex-1 text-center pb-4 pt-0
+                text-sm sm:text-base lg:text-lg font-medium leading-snug
+                transition-colors duration-300
+                cursor-pointer select-none
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-inset
+                ${active === i
+                  ? 'text-brand-dark'
+                  : 'text-brand-medium/80 hover:text-brand-medium'}
+              `}
             >
-              <article
-                className="h-full bg-white rounded-3xl overflow-hidden shadow-soft hover:shadow-soft-lg transition-all duration-300 border border-brand-cream-dark/50 hover:-translate-y-1 flex flex-col"
-                aria-label={`טיפול: ${service.name}`}
+              {t.name}
+              {/* Active indicator — 1px gold rule flush to the section border */}
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 inset-x-0 h-[1.5px] transition-opacity duration-300"
+                style={{
+                  backgroundColor: '#C9A96E',
+                  opacity: active === i ? 1 : 0,
+                }}
+              />
+            </button>
+          ))}
+        </div>
+
+        {/* ── Treatment stage ─────────────────────────────────────
+            Not a card. Full container width, flush to selector.
+            Portrait on mobile, cinematic landscape on desktop.
+        ─────────────────────────────────────────────────────────── */}
+        <div
+          id="treatment-stage"
+          ref={stageRef}
+          role="tabpanel"
+          aria-labelledby={`treatment-tab-${TREATMENTS[active].id}`}
+          className="relative overflow-hidden aspect-[3/4] md:aspect-[16/9] lg:aspect-[21/9]"
+        >
+          {/* Image slot A — renders image only when this slot is NOT natural-design */}
+          <div aria-hidden={!aIsFront} style={slotStyle(aIsFront)}>
+            {slotA !== 0 && (
+              <Image
+                src={TREATMENTS[slotA].image}
+                alt={aIsFront ? TREATMENTS[slotA].name : ''}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1260px"
+                className="object-cover"
+                style={{ objectPosition: TREATMENTS[slotA].imagePos }}
+                loading="lazy"
+              />
+            )}
+          </div>
+
+          {/* Image slot B — renders image only when this slot is NOT natural-design */}
+          <div aria-hidden={aIsFront} style={slotStyle(!aIsFront)}>
+            {slotB !== 0 && (
+              <Image
+                src={TREATMENTS[slotB].image}
+                alt={!aIsFront ? TREATMENTS[slotB].name : ''}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1260px"
+                className="object-cover"
+                style={{ objectPosition: TREATMENTS[slotB].imagePos }}
+                loading="lazy"
+              />
+            )}
+          </div>
+
+          {/* Natural-design video — always mounted, opacity follows the double-buffer
+              slot that currently holds index 0. Plays only when active AND visible. */}
+          <div aria-hidden={!ndIsFront} style={slotStyle(ndIsFront)}>
+            <video
+              ref={videoRef}
+              src={ND_VIDEO_SRC}
+              poster={ND_POSTER}
+              muted
+              loop
+              playsInline
+              preload="none"
+              aria-hidden="true"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: ND_IMG_POS }}
+            />
+          </div>
+
+          {/* Bottom gradient — deep enough that all text sits in solid contrast zone */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 pointer-events-none"
+            style={{
+              height: '68%',
+              background:
+                'linear-gradient(to top, rgba(12,8,6,0.93) 0%, rgba(12,8,6,0.80) 22%, rgba(12,8,6,0.55) 45%, rgba(12,8,6,0.20) 68%, transparent 100%)',
+            }}
+          />
+
+          {/* Text overlay — bottom of image */}
+          <div className="absolute inset-x-0 bottom-0 px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 z-10">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={active}
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                transition={{
+                  duration: reduceMotion ? 0 : 0.30,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
-                {/* Auto-rotating image — paused when section is not in viewport */}
-                <ServiceImageSlider
-                  images={service.homeImages ?? service.images}
-                  imagePositions={service.homeImagePositions ?? service.imagePositions}
-                  name={service.name}
-                  active={isInView}
-                />
+                {/* Meta — duration · price */}
+                <p className="text-white/65 text-xs tracking-widest uppercase font-medium mb-2.5">
+                  {TREATMENTS[active].meta}
+                </p>
 
-                {/* Content */}
-                <div className="p-6 flex flex-col flex-1">
-                  <h3 className="font-serif text-2xl font-bold text-brand-dark tracking-wide">
-                    {service.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mb-3 mt-2" aria-hidden="true">
-                    <span className="w-8 h-px bg-brand-rose-light" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-rose" />
-                  </div>
-                  <p className="text-brand-medium text-sm leading-relaxed mb-6 flex-1">
-                    {service.homeDescription ?? service.description}
-                  </p>
+                {/* Treatment name */}
+                <h3 className="font-serif text-[1.75rem] sm:text-4xl lg:text-5xl font-medium text-white leading-tight mb-3">
+                  {TREATMENTS[active].name}
+                </h3>
 
-                  {/* CTAs */}
-                  <div className="flex gap-2">
+                {/* One supporting sentence */}
+                <p className="text-white/90 text-sm sm:text-base leading-relaxed mb-6 max-w-xs sm:max-w-sm lg:max-w-md">
+                  {TREATMENTS[active].shortDesc}
+                </p>
+
+                {/* CTAs — conversion action + full details */}
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                  {TREATMENTS[active].cta.external ? (
                     <a
-                      href={WHATSAPP_URL}
+                      href={TREATMENTS[active].cta.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label={`קביעת תור לטיפול ${service.name} בוואצאפ`}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-brand-linen text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-linen-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                      aria-label={`${TREATMENTS[active].cta.label} — ${TREATMENTS[active].name}`}
+                      className="inline-flex items-center bg-brand-cream text-brand-dark font-bold text-sm px-5 py-2.5 rounded hover:bg-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/60"
                     >
-                      <WhatsAppSmIcon />
-                      {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'וואצאפ'}
+                      {TREATMENTS[active].cta.label}
                     </a>
-                    {service.name === 'עיצוב גבות טבעיות' && (
-                      <Link
-                        href="/booking"
-                        aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
-                        className="flex-1 flex items-center justify-center gap-1.5 border border-brand-rose-light text-brand-dark font-semibold text-sm py-3 rounded-xl hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
-                      >
-                        <CalendarIcon className="w-3.5 h-3.5 text-brand-rose" />
-                        ביומן
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </article>
-            </motion.li>
-          ))}
-        </ul>
+                  ) : (
+                    <Link
+                      href={TREATMENTS[active].cta.href}
+                      aria-label={`${TREATMENTS[active].cta.label} — ${TREATMENTS[active].name}`}
+                      className="inline-flex items-center bg-brand-cream text-brand-dark font-bold text-sm px-5 py-2.5 rounded hover:bg-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/60"
+                    >
+                      {TREATMENTS[active].cta.label}
+                    </Link>
+                  )}
 
-        {/* View all link */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className="text-center mt-10"
-        >
-          <Link
-            href="/services"
-            aria-label="צפייה בעמוד הטיפולים המלא"
-            className="inline-flex items-center gap-2 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
-          >
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            לכל הטיפולים
-          </Link>
-        </motion.div>
+                  <Link
+                    href={TREATMENTS[active].detailsHref}
+                    aria-label={`לפרטים המלאים על ${TREATMENTS[active].name}`}
+                    className="text-white/60 hover:text-white text-sm font-medium transition-colors underline underline-offset-4 decoration-white/25 hover:decoration-white/55 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+                  >
+                    לכל הפרטים
+                  </Link>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
       </div>
     </section>
-  )
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  )
-}
-
-function WhatsAppSmIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
   )
 }

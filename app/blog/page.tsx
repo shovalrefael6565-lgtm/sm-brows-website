@@ -16,7 +16,7 @@ export default function BlogPage() {
   return (
     <>
       <PageHero
-        tag="הבלוג שלי"
+
         title="טיפים, ידע"
         titleHighlight="ועדכונים"
         description="כל מה שצריך לדעת על גבות – מאמרים מקצועיים, טיפים לטיפול, ועדכונים מהקליניקה."
@@ -30,10 +30,14 @@ export default function BlogPage() {
             role="group"
             aria-label="סינון מאמרים לפי קטגוריה"
           >
-            {CATEGORIES.map((cat) => (
+            {CATEGORIES.map((cat, i) => (
               <span
                 key={cat}
-                className="px-4 py-2 rounded-full text-sm font-medium bg-white text-brand-medium border border-brand-cream-dark cursor-default"
+                className={`px-4 py-2 rounded-full text-sm font-medium border cursor-default ${
+                  i === 0
+                    ? 'bg-brand-gold text-brand-dark border-brand-gold font-bold'
+                    : 'bg-white text-brand-medium border-brand-cream-dark'
+                }`}
                 aria-label={`קטגוריה: ${cat}`}
               >
                 {cat}

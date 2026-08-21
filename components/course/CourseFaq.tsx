@@ -14,12 +14,10 @@ export default function CourseFaq() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <Reveal>
           <div className="text-center mb-11">
-            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-              לפני שנרשמות
-            </p>
+            <div className="w-12 h-px bg-gold-gradient mx-auto mb-6 opacity-70" aria-hidden="true" />
             <h2
               id="course-faq-heading"
-              className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
+              className="font-serif text-3xl sm:text-4xl font-medium text-brand-dark"
             >
               שאלות שחוזרות אליי
             </h2>

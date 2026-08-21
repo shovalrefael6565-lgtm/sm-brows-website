@@ -230,7 +230,7 @@ export default async function AccountPage() {
   if (needsNameCompletion(customer.full_name)) {
     return (
       <>
-        <PageHero tag="אזור אישי" title="ברוכה הבאה" />
+        <PageHero title="ברוכה הבאה" />
         <section className="py-14 sm:py-20 px-4 sm:px-6">
           <div className="w-full max-w-md mx-auto space-y-8">
             <CompleteProfileForm />
@@ -285,7 +285,7 @@ export default async function AccountPage() {
 
   return (
     <>
-      <PageHero tag="אזור אישי" title="שלום," titleHighlight={customer.full_name} />
+      <PageHero title="שלום," titleHighlight={customer.full_name} />
       <section className="py-14 sm:py-20 px-4 sm:px-6">
         <div className="w-full max-w-md mx-auto space-y-8">
           <div>

@@ -1,86 +1,70 @@
 'use client'
 
-import { Clock, Award, ShieldCheck, Heart, Sparkles } from 'lucide-react'
-import { useReveal } from '@/lib/hooks/useReveal'
+import { motion, useInView } from 'framer-motion'
+import { useRef } from 'react'
 
-const FEATURES = [
+const PILLARS = [
   {
-    icon: <Clock className="w-6 h-6" aria-hidden="true" />,
-    title: 'זמינות נוחה',
-    description: 'תורים בימים ראשון–חמישי, בשעות הבוקר והערב — בזמן שמתאים לך.',
+    heading: 'רק אני, כל הזמן',
+    body: 'זה לא סלון עם כמה טכנאיות. מי שמקבלת אותך בפגישת הייעוץ, עושה את הטיפול, ועונה לוואצאפ אחר כך — זה אני. שובל. אחת.',
   },
   {
-    icon: <Award className="w-6 h-6" aria-hidden="true" />,
-    title: '5+ שנות ניסיון',
-    description: 'מאות לקוחות מרוצות וטיפולים מוצלחים לאורך השנים.',
+    heading: 'קוראת פנים לפני שמציירת קו',
+    body: 'לפני כל טיפול אני לוקחת את הזמן לראות אותך — את הסימטריה, הגוון, הבעה הטבעית של הפנים. הגבות שמצוירות בסוף נראות כאילו תמיד היו שם.',
   },
   {
-    icon: <ShieldCheck className="w-6 h-6" aria-hidden="true" />,
-    title: 'ליווי עד לתוצאה',
-    description: 'לא נפרדות עד שאת מרוצה — טיפול חיזוק כלול ומעקב אישי אחרי הטיפול.',
-  },
-  {
-    icon: <Heart className="w-6 h-6" aria-hidden="true" />,
-    title: 'טיפול אישי לכל לקוחה',
-    description: 'כל לקוחה מקבלת ייעוץ אישי, טיפול מותאם ותשומת לב מלאה.',
-  },
-  {
-    icon: <Sparkles className="w-6 h-6" aria-hidden="true" />,
-    title: 'חומרים מהשורה הראשונה',
-    description: 'אני עובדת רק עם מוצרים ופיגמנטים מקצועיים מהמובילים בעולם.',
+    heading: 'תוצאה שאי אפשר לאתר',
+    body: 'אני עובדת בטכניקה שהתוצאה שלה נראית כל כך טבעית עד שאנשים לא מצליחים להבין מה השתנה — הם פשוט יגידו לך שאת נראית מדהים.',
   },
 ]
 
 export default function WhyChooseUs() {
-  const ref = useReveal('-80px')
+  const ref = useRef<HTMLElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
     <section
+      ref={ref}
       id="why-us"
-      ref={ref as React.RefObject<HTMLElement>}
       aria-labelledby="why-heading"
-      className="reveal-group section-padding bg-brand-dark text-white overflow-hidden relative"
+      className="relative overflow-hidden bg-brand-dark py-20 sm:py-28"
     >
-      {/* Decorative blobs */}
-      <div aria-hidden="true" className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-brand-rose/10 blur-3xl pointer-events-none" />
-      <div aria-hidden="true" className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-brand-gold/10 blur-3xl pointer-events-none" />
+      <div aria-hidden="true" className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-30 pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="reveal-item text-center mb-14">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold font-semibold uppercase mb-3">
-            למה <span className="font-serif">S.M BROWS</span>
-          </p>
+        {/* Editorial statement — left-aligned in RTL (leading side) */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-3xl mb-16 sm:mb-20"
+        >
           <h2
             id="why-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4"
+            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium text-white leading-[1.25] text-balance"
           >
-            למה לבחור
-            <span className="text-brand-gold"> בי?</span>
+            כל לקוחה מקבלת את שובל.{' '}
+            <span className="text-brand-gold">לא עוזרת, לא תחליף — אני.</span>
           </h2>
-          <p className="text-white/60 max-w-xl mx-auto leading-relaxed">
-            לא כל הקליניקות שוות. הנה מה שמבדיל אותי מהשאר ומה שתקבלי כשתבחרי ב-S.M BROWS.
-          </p>
-        </div>
+        </motion.div>
 
-        <ul
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5"
-          role="list"
-          aria-label="יתרונות S.M BROWS"
-        >
-          {FEATURES.map(({ icon, title, description }) => (
-            <li key={title} className="reveal-item group">
-              <div className="h-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand-gold/40 rounded-3xl p-6 transition-all duration-300 flex flex-col gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-brand-gold/20 text-brand-gold flex items-center justify-center flex-shrink-0 group-hover:bg-brand-gold/30 transition-colors">
-                  {icon}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-2 leading-snug">{title}</h3>
-                  <p className="text-white/50 text-sm leading-relaxed">{description}</p>
-                </div>
-              </div>
-            </li>
+        {/* Three prose columns — no icons, no cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-16">
+          {PILLARS.map(({ heading, body }, i) => (
+            <motion.div
+              key={heading}
+              initial={{ opacity: 0, y: 32 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.1 + i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="w-8 h-px bg-brand-gold mb-5" aria-hidden="true" />
+              <h3 className="font-serif text-lg sm:text-xl font-medium text-white mb-3 leading-snug">
+                {heading}
+              </h3>
+              <p className="text-white/55 text-sm sm:text-base leading-relaxed">{body}</p>
+            </motion.div>
           ))}
-        </ul>
+        </div>
       </div>
     </section>
   )

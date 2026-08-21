@@ -25,7 +25,7 @@ export default function BlogCard({ post, priority = false, headingLevel = 3 }: P
       <Link
         href={`/blog/${post.slug}`}
         aria-label={`קרא את המאמר: ${post.title}`}
-        className="relative block h-52 overflow-hidden flex-shrink-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold focus-visible:ring-inset"
+        className="relative block aspect-[4/3] overflow-hidden flex-shrink-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold focus-visible:ring-inset"
         tabIndex={-1}
       >
         <Image

@@ -34,7 +34,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ['var(--font-dancing)', 'var(--font-frank)', 'Georgia', 'serif'],
+        serif: ['var(--font-frank)', 'Georgia', 'serif'],
+        script: ['var(--font-dancing)', 'cursive'],
         sans: ['var(--font-rubik)', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {

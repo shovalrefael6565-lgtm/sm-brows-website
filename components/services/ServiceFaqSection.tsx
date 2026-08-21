@@ -104,9 +104,7 @@ export default function ServiceFaqSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-10"
         >
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
-            לפני שקובעים תור
-          </p>
+          <div className="w-12 h-px bg-gold-gradient mx-auto mb-5 opacity-70" aria-hidden="true" />
           <h2
             id="service-faq-heading"
             className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-4"
@@ -145,7 +143,7 @@ export default function ServiceFaqSection() {
             href={WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold px-6 py-3 rounded-full hover:bg-brand-gold-dark transition-colors shadow-gold text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+            className="inline-flex items-center gap-2 bg-brand-dark text-white font-bold px-5 py-2.5 rounded hover:bg-brand-dark/90 transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
           >
             <MessageCircle className="w-4 h-4" />
             שאלי אותי בוואצאפ

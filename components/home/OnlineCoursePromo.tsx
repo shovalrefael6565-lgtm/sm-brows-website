@@ -69,13 +69,9 @@ export default function OnlineCoursePromo() {
                 ))}
               </div>
 
-              <p className="text-xs tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
-                {onlineCourse.category}
-              </p>
-
               <h2
                 id="online-course-heading"
-                className="font-serif text-2xl sm:text-3xl font-bold text-brand-dark mb-3 leading-snug"
+                className="font-serif text-2xl sm:text-3xl font-medium text-brand-dark mb-3 leading-snug"
               >
                 {onlineCourse.name}
               </h2>

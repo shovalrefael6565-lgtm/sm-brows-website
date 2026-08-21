@@ -202,7 +202,7 @@ export default function FaqContent() {
             href={WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold px-7 py-3.5 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 bg-brand-dark text-white font-bold px-6 py-3 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2"
           >
             שאלי אותנו בוואצאפ
           </a>

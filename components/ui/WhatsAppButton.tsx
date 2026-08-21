@@ -15,7 +15,7 @@ export default function WhatsAppButton() {
       transition={{ delay: 1.5, type: 'spring', stiffness: 200, damping: 20 }}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
-      className="fixed bottom-6 left-6 z-40 flex items-center justify-center w-14 h-14 bg-brand-whatsapp-dark text-white rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2"
+      className="fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] left-6 z-40 flex items-center justify-center w-14 h-14 bg-brand-whatsapp-dark text-white rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2"
     >
       <span className="sr-only">וואצאפ – קבעי תור</span>
       <svg

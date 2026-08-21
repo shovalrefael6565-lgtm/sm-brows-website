@@ -6,10 +6,8 @@ import DeferredSections from '@/components/home/DeferredSections'
 // סקשנים קרובים — SSR רגיל (טוב ל-SEO + LCP)
 const BeforeAfterSection  = dynamic(() => import('@/components/home/BeforeAfterSection'))
 const TestimonialsSection = dynamic(() => import('@/components/home/TestimonialsSection'))
-const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
-
 const MicrobladingTeaser  = dynamic(() => import('@/components/home/MicrobladingTeaser'))
-const CourseBanner        = dynamic(() => import('@/components/home/CourseBanner'))
+const ServicesPreview     = dynamic(() => import('@/components/home/ServicesPreview'))
 
 export const metadata: Metadata = {
   title: 'S.M BROWS | עיצוב גבות מקצועי באשקלון',
@@ -22,10 +20,9 @@ export default function HomePage() {
     <>
       <Hero />
       <BeforeAfterSection />
-      <MicrobladingTeaser />
       <TestimonialsSection />
+      <MicrobladingTeaser />
       <ServicesPreview />
-      <CourseBanner />
       <DeferredSections />
     </>
   )

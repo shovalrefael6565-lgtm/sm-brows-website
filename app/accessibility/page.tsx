@@ -12,7 +12,7 @@ export default function AccessibilityPage() {
   return (
     <>
       <PageHero
-        tag="נגישות"
+
         title="הצהרת"
         titleHighlight="נגישות"
         description="אני מחויבת לנגישות דיגיטלית עבור כלל המשתמשים."

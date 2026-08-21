@@ -46,10 +46,7 @@ export default function CourseCard() {
 
           {/* Content */}
           <div className="p-8 sm:p-11">
-            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-              {course.eyebrow}
-            </p>
-
+            <div className="w-12 h-px bg-gold-gradient mb-5 opacity-70" aria-hidden="true" />
             <h3
               id="course-card-heading"
               className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark leading-tight mb-3"
@@ -114,7 +111,7 @@ export default function CourseCard() {
               <Link
                 href="/course"
                 aria-label="לעמוד הקורס המלא של עיצוב גבות טבעיות"
-                className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-light transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-linen w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 bg-brand-dark text-white font-bold text-base px-6 py-3 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2 w-full sm:w-auto"
               >
                 לתוכנית המלאה
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />

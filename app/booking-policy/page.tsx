@@ -13,7 +13,7 @@ export default function BookingPolicyPage() {
   return (
     <>
       <PageHero
-        tag="לפני שקובעים תור"
+
         title="מדיניות תורים"
         titleHighlight="ושינויים"
         description="כל תור נשמר במיוחד עבורך — כאן תמצאי בדיוק מה קורה במקרה של שינוי, ביטול או איחור."

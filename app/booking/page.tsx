@@ -19,20 +19,16 @@ export default function BookingPage() {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
-            S.M BROWS
-          </p>
-          <h1 className="font-serif text-4xl sm:text-5xl font-bold text-brand-dark mb-4">
+          <div className="w-8 h-px bg-brand-gold mx-auto mb-8" aria-hidden="true" />
+          <h1 className="font-serif text-5xl sm:text-6xl font-medium text-brand-dark mb-5 leading-[1.1]">
             קביעת תור
           </h1>
-          <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
+          <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-xl mx-auto mb-4">
             מלאי את הפרטים ואחזור אלייך בהקדם לאישור התור. ייעוץ ראשוני חינם!
           </p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <span className="w-8 h-px bg-brand-rose-light" aria-hidden="true" />
-            <span className="text-brand-rose-text text-sm">זמינות: ראשון–חמישי | 09:00–11:00 ו־15:00–19:00</span>
-            <span className="w-8 h-px bg-brand-rose-light" aria-hidden="true" />
-          </div>
+          <p className="text-brand-muted text-sm">
+            ראשון–חמישי | 09:00–11:00 ו-15:00–19:00
+          </p>
         </div>
 
         {/* Form card */}

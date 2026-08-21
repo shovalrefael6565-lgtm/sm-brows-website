@@ -93,7 +93,7 @@ export default async function BlogPostPage(props: Props) {
             <span className="inline-block bg-brand-gold text-brand-dark text-xs font-bold px-3 py-1.5 rounded-full mb-3">
               {post.category}
             </span>
-            <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-snug">
+            <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-medium text-white leading-snug">
               {post.title}
             </h1>
           </div>
@@ -149,7 +149,7 @@ export default async function BlogPostPage(props: Props) {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="קביעת תור בוואצאפ"
-                    className="w-full flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-semibold py-3 rounded-xl hover:bg-brand-gold-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    className="w-full flex items-center justify-center gap-2 bg-brand-dark text-white font-semibold py-3 rounded-xl hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
                   >
                     <WhatsAppIcon className="w-5 h-5" />
                     קבעי תור עכשיו

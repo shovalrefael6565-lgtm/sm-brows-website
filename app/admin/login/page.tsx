@@ -31,7 +31,7 @@ export default async function AdminLoginPage() {
   return (
     <>
       <PageHero
-        tag="ניהול"
+
         title="כניסת"
         titleHighlight="מנהלים"
         description="התחברות עם מספר הטלפון וקוד אימות — בדיוק כמו כניסת לקוחות."

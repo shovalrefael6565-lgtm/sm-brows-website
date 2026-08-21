@@ -23,6 +23,7 @@ const col3Links = [
 export default function Footer() {
   return (
     <footer className="bg-brand-dark text-white" role="contentinfo" aria-label="פוטר האתר">
+      <div className="relative h-px bg-gold-gradient opacity-20" aria-hidden="true" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
 
@@ -91,9 +92,9 @@ export default function Footer() {
 
           {/* Col 2 — עזרה */}
           <div>
-            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
               עזרה
-            </h2>
+            </p>
             <ul className="space-y-3" role="list">
               {col2Links.map(({ href, label, external }) => (
                 <li key={label}>
@@ -124,9 +125,9 @@ export default function Footer() {
 
           {/* Col 3 — עליי */}
           <div>
-            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
               עליי
-            </h2>
+            </p>
             <ul className="space-y-3" role="list">
               {col3Links.map(({ href, label }) => (
                 <li key={label}>
@@ -143,9 +144,9 @@ export default function Footer() {
 
           {/* Col 4 — הקליניקה */}
           <div>
-            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-5">
+            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
               הקליניקה שלי
-            </h2>
+            </p>
             <ul className="space-y-4" role="list">
               <li>
                 <div className="flex items-start gap-3 text-white/55 text-sm">
@@ -194,7 +195,7 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-white/60 text-xs text-center sm:text-start">
-            © 2025 <span className="font-serif">S.M BROWS</span> — כל הזכויות שמורות
+            © 2026 <span className="font-serif">S.M BROWS</span> — כל הזכויות שמורות
           </p>
           <p className="text-white/55 text-xs">
             עוצב ופותח בישראל

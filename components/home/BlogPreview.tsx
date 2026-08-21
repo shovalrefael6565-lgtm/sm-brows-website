@@ -8,7 +8,7 @@ import { blogPosts } from '@/lib/data'
 import BlogCard from '@/components/blog/BlogCard'
 
 export default function BlogPreview() {
-  const ref = useRef(null)
+  const ref = useRef<HTMLElement>(null)
   const isInView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
@@ -23,28 +23,28 @@ export default function BlogPreview() {
           initial={{ opacity: 0, y: 24 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="flex items-end justify-between mb-10 flex-wrap gap-4"
+          className="mb-12"
         >
-          <div>
-            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
-              המאמרים שלי
-            </p>
-            <h2
-              id="blog-preview-heading"
-              className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
-            >
-              טיפים וידע
-              <span className="text-brand-rose-text"> ממני</span>
-            </h2>
-          </div>
-          <Link
-            href="/blog"
-            aria-label="לכל המאמרים"
-            className="inline-flex items-center gap-1.5 text-brand-rose-text font-semibold hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+          <h2
+            id="blog-preview-heading"
+            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium text-brand-dark mb-4"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            לכל המאמרים
-          </Link>
+            טיפים וידע
+          </h2>
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-px bg-brand-gold" aria-hidden="true" />
+              <p className="text-brand-medium text-sm">ישירות מהמקצוע</p>
+            </div>
+            <Link
+              href="/blog"
+              aria-label="לכל המאמרים"
+              className="inline-flex items-center gap-1.5 text-brand-rose-text font-semibold text-sm hover:text-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              לכל המאמרים
+            </Link>
+          </div>
         </motion.div>
 
         <ul

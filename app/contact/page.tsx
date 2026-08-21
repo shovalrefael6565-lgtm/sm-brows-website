@@ -12,7 +12,7 @@ export default function ContactPage() {
   return (
     <>
       <PageHero
-        tag="דברי איתנו"
+
         title="יצירת"
         titleHighlight="קשר"
         description="שמחה לשמוע ממך – לקביעת תור, שאלות על טיפולים, או כל דבר אחר."

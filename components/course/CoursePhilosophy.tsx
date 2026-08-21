@@ -13,13 +13,10 @@ export default function CoursePhilosophy() {
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <Reveal>
-          <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase text-center mb-6">
-            הגישה
-          </p>
-
+          <div className="w-12 h-px bg-gold-gradient mx-auto mb-6 opacity-70" aria-hidden="true" />
           <h2
             id="course-philosophy-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] font-bold text-brand-dark text-center leading-[1.25] text-balance mb-7"
+            className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] font-medium text-brand-dark text-center leading-[1.25] text-balance mb-7"
           >
             טכניקה אפשר ללמוד מסרטון.
             <span className="block text-brand-rose-text mt-2">עין מקצועית לומדים אצל מישהי.</span>
@@ -46,7 +43,7 @@ export default function CoursePhilosophy() {
                   >
                     {String(i + 1).padStart(2, '0')}
                   </p>
-                  <h3 className="font-serif text-xl font-bold text-brand-dark mb-2">
+                  <h3 className="font-serif text-xl font-medium text-brand-dark mb-2">
                     {pillar.title}
                   </h3>
                   <p className="text-brand-medium text-sm leading-relaxed">{pillar.body}</p>

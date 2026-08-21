@@ -199,7 +199,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
         {/* Main nav */}
         <div className={cn(
           'transition-all duration-300',
-          scrolled ? 'bg-white/95 backdrop-blur-md shadow-soft py-3' : 'bg-transparent py-4'
+          scrolled ? 'bg-white/95 backdrop-blur-md shadow-soft py-3 pt-[max(0.75rem,env(safe-area-inset-top))]' : 'bg-transparent py-4 pt-[max(1rem,env(safe-area-inset-top))]'
         )}>
           <nav
             aria-label="ניווט ראשי"
@@ -235,11 +235,11 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 {/* truncate = רשת ביטחון בלבד. אחרי הסתרת ה-tagline ועיגולי
                     הרשתות השם נכנס בשלמותו גם ב-320px; אם גופן יתרחב
                     בעתיד, עדיף שלוש נקודות על השם מאשר כפתור מחוץ למסך. */}
-                <span className="font-serif text-lg sm:text-2xl font-bold tracking-widest text-brand-dark leading-none truncate max-w-full">
+                <span className="font-script text-lg sm:text-2xl font-bold tracking-widest text-brand-dark leading-none truncate max-w-full">
                   S.M BROWS
                 </span>
                 {/* מוסתר במובייל: 182px — התורם הגדול ביותר לרוחב השורה */}
-                <span className="hidden sm:block font-serif text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold-text font-medium uppercase leading-none">
+                <span className="hidden sm:block font-script text-[9px] sm:text-[10px] tracking-[0.18em] text-brand-gold-text font-medium uppercase leading-none">
                   IT&apos;S ALL ABOUT YOUR EYEBROWS
                 </span>
               </div>
@@ -657,10 +657,10 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl">
                   <Image src="/logo.png" alt="S.M BROWS" width={48} height={48} />
                   <div className="flex flex-col items-start gap-0.5">
-                    <span className="font-serif text-lg font-bold tracking-widest text-brand-dark leading-none">
+                    <span className="font-script text-lg font-bold tracking-widest text-brand-dark leading-none">
                       S.M BROWS
                     </span>
-                    <span className="font-serif text-[8px] tracking-[0.16em] text-brand-gold-text font-medium uppercase leading-none">
+                    <span className="font-script text-[8px] tracking-[0.16em] text-brand-gold-text font-medium uppercase leading-none">
                       IT&apos;S ALL ABOUT YOUR EYEBROWS
                     </span>
                   </div>
@@ -733,7 +733,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                         onClick={() => setMenuOpen(false)}
                         aria-current={pathname === href && !special ? 'page' : undefined}
                         className={cn(
-                          'flex items-center px-4 py-3 rounded-xl text-base font-medium transition-colors cursor-pointer',
+                          'flex items-center px-4 py-3.5 rounded-xl text-[1.0625rem] font-medium transition-colors cursor-pointer',
                           special === 'sale'
                             ? 'font-serif text-brand-gold font-bold hover:bg-brand-gold/10'
                             : special === 'course'
@@ -750,7 +750,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 </ul>
               </nav>
 
-              <div className="p-5 border-t border-brand-rose-light flex flex-col gap-3">
+              <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-brand-rose-light flex flex-col gap-3">
                 <Link
                   href="/shop"
                   onClick={() => setMenuOpen(false)}
@@ -769,7 +769,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="קביעת תור בוואצאפ"
-                  className="flex items-center justify-center gap-2 w-full bg-brand-linen text-brand-dark font-semibold py-3 rounded-xl hover:bg-brand-linen-dark transition-colors cursor-pointer"
+                  className="flex items-center justify-center gap-2 w-full bg-brand-dark text-white font-bold py-3 rounded-xl hover:bg-brand-dark/90 transition-colors cursor-pointer"
                   onClick={() => setMenuOpen(false)}
                 >
                   <WhatsAppIcon className="w-5 h-5" />

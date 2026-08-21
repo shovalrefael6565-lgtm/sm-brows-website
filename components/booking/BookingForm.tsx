@@ -887,7 +887,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 })}
               </div>
               {errors.service && (
-                <p className="text-red-500 text-xs mt-3 text-center">{errors.service}</p>
+                <p className="text-brand-rose-text text-xs mt-3 text-center">{errors.service}</p>
               )}
             </motion.div>
           )}
@@ -935,10 +935,10 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                     )}
                   >
                     <ArrowDown
-                      className={cn('w-5 h-5 flex-shrink-0', errors.variants ? 'text-red-500' : 'text-brand-gold-dark')}
+                      className={cn('w-5 h-5 flex-shrink-0', errors.variants ? 'text-brand-rose-text' : 'text-brand-gold-dark')}
                       aria-hidden="true"
                     />
-                    <p className={cn('text-sm sm:text-base font-bold', errors.variants ? 'text-red-600' : 'text-brand-gold-text')}>
+                    <p className={cn('text-sm sm:text-base font-bold', errors.variants ? 'text-brand-rose-text' : 'text-brand-gold-text')}>
                       {errors.variants
                         ? 'רגע 🙂 יש לבחור סוג טיפול אחד לפחות כדי להמשיך'
                         : 'כדי להמשיך — בחרי לפחות סוג טיפול אחד מהאפשרויות שלמטה'}
@@ -1010,7 +1010,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                     <span className="text-brand-rose me-1" aria-hidden="true">*</span>
                   </span>
                 </div>
-                {errors.date && <p className="text-red-500 text-xs mb-2">{errors.date}</p>}
+                {errors.date && <p className="text-brand-rose-text text-xs mb-2">{errors.date}</p>}
 
                 <div className="bg-white rounded-3xl border border-brand-cream-dark p-4 shadow-soft">
                   <div className="flex items-center justify-between mb-4">
@@ -1114,7 +1114,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                         </span>
                       )}
                     </div>
-                    {errors.time && <p className="text-red-500 text-xs mb-2">{errors.time}</p>}
+                    {errors.time && <p className="text-brand-rose-text text-xs mb-2">{errors.time}</p>}
 
                     {loadingSlots ? (
                       <p className="text-xs text-brand-muted mb-2 animate-pulse">טוענת זמינות...</p>
@@ -1252,7 +1252,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                     errors.name ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
                   )}
                 />
-                {errors.name && <p id="err-name" className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                {errors.name && <p id="err-name" className="text-brand-rose-text text-xs mt-1">{errors.name}</p>}
               </div>
 
               {/* טלפון */}
@@ -1280,7 +1280,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                     errors.phone ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
                   )}
                 />
-                {errors.phone && <p id="err-phone" className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                {errors.phone && <p id="err-phone" className="text-brand-rose-text text-xs mt-1">{errors.phone}</p>}
               </div>
 
               {/* הערות */}
@@ -1384,7 +1384,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   </span>
                 </label>
                 {errors.privacyNoticeAcknowledged && (
-                  <p id="err-privacy" className="text-red-500 text-xs mt-2">{errors.privacyNoticeAcknowledged}</p>
+                  <p id="err-privacy" className="text-brand-rose-text text-xs mt-2">{errors.privacyNoticeAcknowledged}</p>
                 )}
               </div>
 
@@ -1441,7 +1441,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   </span>
                 </label>
                 {errors.policyAccepted && (
-                  <p id="err-policy" className="text-red-500 text-xs mt-2">{errors.policyAccepted}</p>
+                  <p id="err-policy" className="text-brand-rose-text text-xs mt-2">{errors.policyAccepted}</p>
                 )}
               </div>
             </motion.div>
@@ -1456,10 +1456,10 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
           */}
           {saveError && (
             <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-center">
-              <p className="text-red-600 text-sm font-semibold">{saveError.message}</p>
+              <p className="text-brand-rose-text text-sm font-semibold">{saveError.message}</p>
               {saveError.fallback && (
                 <>
-                  <p className="text-red-500/90 text-xs mt-1.5 leading-relaxed">
+                  <p className="text-brand-rose-text/70 text-xs mt-1.5 leading-relaxed">
                     הבקשה לא נשמרה במערכת והשעה אינה שמורה. אפשר לשלוח לנו את הפרטים
                     בוואטסאפ ונחזור אלייך.
                   </p>
@@ -1494,7 +1494,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 <button
                   type="button"
                   onClick={goNext}
-                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-dark text-white font-bold text-base px-7 py-3.5 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2"
                 >
                   המשך
                   <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
@@ -1504,7 +1504,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   type="submit"
                   aria-label="שליחת בקשה לתור"
                   disabled={phase === 'saving'}
-                  className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-gold text-brand-dark font-bold text-base px-8 py-3.5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:-translate-y-0.5 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+                  className="flex-1 inline-flex items-center justify-center gap-2.5 bg-brand-dark text-white font-bold text-base px-7 py-3.5 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2"
                 >
                   {phase === 'saving' ? (
                     <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />

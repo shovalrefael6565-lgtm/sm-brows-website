@@ -35,7 +35,7 @@ const buttons = [
 export default function FloatingSocialButtons() {
   return (
     <div
-      className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center"
+      className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
       aria-label="רשתות חברתיות"
     >
       {buttons.map(({ href, label, bg, icon }, i) => (

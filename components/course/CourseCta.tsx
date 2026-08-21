@@ -13,11 +13,11 @@ interface Props {
  */
 export default function CourseCta({ label = 'לפרטים והרשמה', variant = 'gold', className }: Props) {
   const base =
-    'inline-flex items-center justify-center gap-2 font-bold text-base px-8 py-4 rounded-full transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
+    'inline-flex items-center justify-center gap-2 font-bold text-base px-6 py-3 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
   const styles =
     variant === 'gold'
-      ? 'bg-brand-gold text-brand-dark hover:bg-brand-gold-light shadow-gold hover:-translate-y-0.5 focus-visible:ring-brand-gold'
-      : 'bg-white/70 text-brand-dark border border-brand-gold/40 hover:border-brand-gold hover:bg-white focus-visible:ring-brand-gold'
+      ? 'bg-brand-dark text-white hover:bg-brand-dark/90 focus-visible:ring-brand-dark'
+      : 'bg-transparent text-brand-dark border border-brand-dark/25 hover:border-brand-dark/50 hover:bg-brand-dark/5 focus-visible:ring-brand-dark'
 
   return (
     <a

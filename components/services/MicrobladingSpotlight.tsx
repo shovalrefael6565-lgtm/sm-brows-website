@@ -49,7 +49,7 @@ function Reel({ src, poster }: { src: string; poster: string }) {
   }, [])
 
   return (
-    <div className="relative rounded-3xl overflow-hidden shadow-soft-lg bg-brand-cream-dark cursor-pointer group ring-1 ring-brand-gold/30">
+    <div className="relative rounded-2xl overflow-hidden shadow-soft-lg bg-brand-cream-dark cursor-pointer group">
       <video
         ref={ref}
         src={src}
@@ -90,9 +90,8 @@ export default function MicrobladingSpotlight() {
       className="relative overflow-hidden bg-brand-linen py-16 sm:py-20 scroll-mt-24"
     >
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-60" />
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-brand-gold/8 blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-brand-rose/8 blur-3xl" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-40" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-gold-gradient opacity-20" />
       </div>
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
@@ -103,10 +102,7 @@ export default function MicrobladingSpotlight() {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-10"
         >
-          <span className="inline-flex items-center gap-1.5 bg-brand-gold/20 border border-brand-gold/40 text-brand-gold-text text-xs font-bold px-3 py-1.5 rounded-full tracking-wider uppercase mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse" aria-hidden="true" />
-            הטיפול המבוקש ביותר
-          </span>
+          <div className="w-12 h-px bg-gold-gradient mx-auto mb-6 opacity-70" aria-hidden="true" />
           <h2
             id="microblading-spotlight-heading"
             className="font-serif text-4xl sm:text-5xl font-bold text-brand-dark mb-3"
@@ -154,7 +150,7 @@ export default function MicrobladingSpotlight() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="לשיחת ייעוץ למיקרובליידינג בוואצאפ"
-              className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-gold-dark transition-all duration-200 shadow-gold hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-linen w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-2 bg-brand-dark text-white font-bold text-base px-6 py-3 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2 w-full sm:w-auto justify-center"
             >
               <WhatsAppIcon className="w-5 h-5" />
               לשיחת ייעוץ ללא התחייבות

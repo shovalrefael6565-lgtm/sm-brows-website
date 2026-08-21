@@ -1,33 +1,32 @@
 interface Props {
-  tag?: string
   title: string
   titleHighlight?: string
   description?: string
 }
 
 /**
- * שרת בלבד — בלי framer-motion. הכותרת היא לרוב אלמנט ה-LCP של עמודי
- * המשנה, ולכן חייבת להיות גלויה בציור הראשון ולא ממתינה ל-hydration.
+ * Hero section for secondary pages.
+ * Server Component — no framer-motion, heading is LCP element.
+ * No kicker/tag above the heading (craft-floor: eyebrows banned).
  */
-export default function PageHero({ tag, title, titleHighlight, description }: Props) {
+export default function PageHero({ title, titleHighlight, description }: Props) {
   return (
     <section
       aria-label="כותרת עמוד"
-      className="relative pt-36 pb-16 sm:pt-44 sm:pb-20 bg-hero-gradient text-center overflow-hidden"
+      className="relative pt-36 pb-16 sm:pt-44 sm:pb-20 bg-brand-cream text-center overflow-hidden"
     >
-      {/* Background image at 50% opacity */}
-      <div
-        className="absolute inset-0 bg-cover bg-center pointer-events-none"
-        style={{ backgroundImage: "url('/page-hero-bg.webp')", opacity: 0.5 }}
-        aria-hidden="true"
-      />
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-[0.06]"
+          style={{ backgroundImage: "url('/page-hero-bg.webp')" }}
+        />
+        <div className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-40" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-gold-gradient opacity-20" />
+      </div>
+
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6">
-        {tag && (
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
-            {tag}
-          </p>
-        )}
-        <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark mb-4">
+        <div className="w-8 h-px bg-brand-gold mx-auto mb-8" aria-hidden="true" />
+        <h1 className="font-serif text-5xl sm:text-6xl lg:text-[4.5rem] font-medium text-brand-dark leading-[1.1] mb-6">
           {title}
           {titleHighlight && (
             <>
@@ -37,7 +36,7 @@ export default function PageHero({ tag, title, titleHighlight, description }: Pr
           )}
         </h1>
         {description && (
-          <p className="text-brand-medium text-base sm:text-lg leading-relaxed">
+          <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-lg mx-auto">
             {description}
           </p>
         )}

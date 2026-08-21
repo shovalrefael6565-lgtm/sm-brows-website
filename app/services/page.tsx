@@ -21,7 +21,7 @@ export default function ServicesPage() {
   return (
     <>
       <PageHero
-        tag="מה אני מציעה"
+
         title="הטיפולים"
         titleHighlight="שלי"
         description="טיפולים מקצועיים לגבות מושלמות וקורס פרימיום להפוך את התשוקה למקצוע."
@@ -52,12 +52,10 @@ export default function ServicesPage() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-              השקעה בעצמך
-            </p>
+            <div className="w-8 h-px bg-brand-gold mx-auto mb-8" aria-hidden="true" />
             <h2
               id="course-heading"
-              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark leading-tight text-balance"
+              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium text-brand-dark leading-tight text-balance"
             >
               הפכי את התשוקה
               <span className="text-brand-rose-text"> למקצוע</span>

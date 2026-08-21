@@ -20,22 +20,17 @@ export default function CourseHero() {
       className="relative overflow-hidden bg-hero-gradient pt-32 pb-16 sm:pt-40 sm:pb-24"
     >
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -start-32 w-[28rem] h-[28rem] rounded-full bg-brand-gold/10 blur-3xl" />
-        <div className="absolute -bottom-40 -end-24 w-[24rem] h-[24rem] rounded-full bg-brand-rose/10 blur-3xl" />
-        <div className="absolute bottom-0 inset-x-0 h-px bg-gold-gradient opacity-50" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-gold-gradient opacity-40" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
           {/* Text */}
           <div>
-            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-5">
-              {course.eyebrow}
-            </p>
-
+            <div className="w-12 h-px bg-gold-gradient mb-6 opacity-70" aria-hidden="true" />
             <h1
               id="course-hero-heading"
-              className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-dark leading-[1.15] mb-4 text-balance"
+              className="font-serif text-4xl sm:text-5xl lg:text-6xl font-medium text-brand-dark leading-[1.15] mb-4 text-balance"
             >
               {course.name}
               <span className="block text-brand-rose-text mt-2">{course.tagline}</span>
@@ -60,7 +55,7 @@ export default function CourseHero() {
               <CourseCta className="w-full sm:w-auto" />
               <a
                 href="#course-program"
-                className="inline-flex items-center justify-center gap-2 text-brand-medium font-medium text-base px-6 py-4 rounded-full border border-brand-medium/25 hover:border-brand-medium/60 hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 text-brand-medium font-medium text-base px-5 py-3 rounded border border-brand-medium/25 hover:border-brand-medium/60 hover:text-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark w-full sm:w-auto"
               >
                 לתוכנית הקורס
               </a>
@@ -75,7 +70,7 @@ export default function CourseHero() {
             />
             <div className="relative aspect-[4/5] sm:aspect-[5/5] lg:aspect-[4/5] rounded-[1.75rem] overflow-hidden shadow-soft-lg">
               <Image
-                src={course.image}
+                src="/page32.jpg"
                 alt="עיצוב גבות טבעיות בקורס של שובל"
                 fill
                 priority

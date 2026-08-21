@@ -35,12 +35,10 @@ export default function CourseAudience() {
           {/* Lists column */}
           <div className="space-y-14">
             <Reveal>
-              <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-                למי זה מתאים
-              </p>
+              <div className="w-12 h-px bg-gold-gradient mb-6 opacity-70" aria-hidden="true" />
               <h2
                 id="course-audience-heading"
-                className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark leading-snug mb-7"
+                className="font-serif text-3xl sm:text-4xl font-medium text-brand-dark leading-snug mb-7"
               >
                 הקורס נבנה בשבילך אם...
               </h2>
@@ -59,10 +57,7 @@ export default function CourseAudience() {
 
             <Reveal>
               <div className="bg-white/75 border border-brand-cream-dark rounded-2xl p-7 sm:p-9 shadow-soft">
-                <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-                  מה יוצאים עם זה
-                </p>
-                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-brand-dark leading-snug mb-6">
+                <h3 className="font-serif text-2xl sm:text-3xl font-medium text-brand-dark leading-snug mb-6">
                   בסוף היומיים את יודעת לעשות את זה לבד
                 </h3>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">

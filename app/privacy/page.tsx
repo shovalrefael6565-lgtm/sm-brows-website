@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <>
       <PageHero
-        tag="מסמך משפטי"
+
         title="מדיניות"
         titleHighlight="פרטיות"
         description="אני מחויבת לשמור על פרטיותך בהתאם לחוק הגנת הפרטיות, תשמ״א-1981."

@@ -48,7 +48,7 @@ export default async function LoginPage() {
   return (
     <>
       <PageHero
-        tag="אזור אישי"
+
         title="כניסה"
         titleHighlight="לאזור האישי"
         description="כאן תוכלי לראות את התורים שלך, לשנות מועד או לבטל — בלי להמתין לתשובה."

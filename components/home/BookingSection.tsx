@@ -1,115 +1,66 @@
 'use client'
 
 import Link from 'next/link'
-import { MapPin, Phone, Clock, Calendar } from 'lucide-react'
-import { WHATSAPP_URL, PHONE_NUMBER, LOCATION } from '@/lib/utils'
-import { useReveal } from '@/lib/hooks/useReveal'
+import { motion, useInView } from 'framer-motion'
+import { useRef } from 'react'
+import { WHATSAPP_URL } from '@/lib/utils'
 
 export default function BookingSection() {
-  const ref = useReveal('-80px')
+  const ref = useRef<HTMLElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
     <section
-      ref={ref as React.RefObject<HTMLElement>}
+      ref={ref}
       id="booking"
       aria-labelledby="booking-heading"
-      className="reveal-group section-padding bg-hero-gradient"
+      className="relative overflow-hidden bg-brand-dark py-20 sm:py-28"
     >
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-        <div className="reveal-item">
-          <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-3">
-            קביעת תור
-          </p>
+      <div aria-hidden="true" className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-30 pointer-events-none" />
+
+      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
           <h2
             id="booking-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark mb-4"
+            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium text-white leading-[1.2] mb-6 text-balance"
           >
-            מוכנה לשדרג את הגבות?
+            הגבות שחלמת עליהן{' '}
+            <span className="text-brand-gold">מחכות לך</span>
           </h2>
-          <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-2xl mx-auto mb-8">
-            לקביעת תור שלחי לי הודעה בוואצאפ ואחזור אלייך בהקדם לתיאום מועד מתאים.
-            ייעוץ ראשוני חינם!
+
+          <p className="text-white/60 text-base sm:text-lg leading-relaxed mb-10">
+            שלחי לי הודעה ונקבע. ייעוץ ראשוני חינם — בלי התחייבות.
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <div className="flex flex-col items-center gap-5 mb-12">
             <a
               href={WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="קביעת תור בוואצאפ – S.M BROWS"
-              className="inline-flex items-center gap-3 bg-brand-whatsapp-dark text-white font-bold text-lg px-10 py-5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2"
+              aria-label="קביעת תור ב-S.M BROWS בוואצאפ"
+              className="inline-flex items-center gap-3 bg-brand-cream text-brand-dark font-bold text-base px-7 py-3 rounded hover:bg-white active:scale-[0.97] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
             >
-              <WhatsAppIcon className="w-7 h-7" />
-              שלחי הודעה בוואצאפ
+              <WhatsAppIcon className="w-5 h-5" />
+              לקביעת תור בוואצאפ
             </a>
 
             <Link
               href="/booking"
-              aria-label="קביעת תור דרך הטופס"
-              className="inline-flex items-center gap-3 bg-brand-gold text-brand-dark font-bold text-lg px-10 py-5 rounded-full shadow-gold hover:bg-brand-gold-dark hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+              aria-label="קביעת תור דרך הטופס המקוון"
+              className="text-white/50 hover:text-white/80 text-sm font-medium underline underline-offset-4 decoration-white/25 hover:decoration-white/50 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
             >
-              <Calendar className="w-6 h-6" />
-              קביעת תור בטופס
+              או לקבוע דרך הטופס המקוון
             </Link>
           </div>
 
-          {/* Info cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="list" aria-label="פרטי התקשרות">
-            {[
-              {
-                icon: <WhatsAppIcon className="w-6 h-6 text-brand-whatsapp-dark" />,
-                label: 'וואצאפ',
-                value: PHONE_NUMBER,
-                href: WHATSAPP_URL,
-                isExternal: true,
-                ariaLabel: `פתחי שיחת וואצאפ – ${PHONE_NUMBER}`,
-              },
-              {
-                icon: <Phone className="w-6 h-6 text-brand-rose" aria-hidden="true" />,
-                label: 'טלפון',
-                value: PHONE_NUMBER,
-                href: `tel:${PHONE_NUMBER.replace(/-/g, '')}`,
-                isExternal: false,
-                ariaLabel: `התקשרי אליי – ${PHONE_NUMBER}`,
-              },
-              {
-                icon: <MapPin className="w-6 h-6 text-brand-gold" aria-hidden="true" />,
-                label: 'מיקום',
-                value: `${LOCATION}, ישראל`,
-                href: null,
-                isExternal: false,
-                ariaLabel: `מיקום הקליניקה: ${LOCATION}, ישראל`,
-              },
-            ].map(({ icon, label, value, href, isExternal, ariaLabel }) => (
-              <div key={label} className="glass-card rounded-2xl p-5" role="listitem">
-                <div className="flex items-center gap-3 mb-2">
-                  {icon}
-                  <span className="text-sm font-semibold text-brand-dark">{label}</span>
-                </div>
-                {href ? (
-                  <a
-                    href={href}
-                    target={isExternal ? '_blank' : undefined}
-                    rel={isExternal ? 'noopener noreferrer' : undefined}
-                    aria-label={ariaLabel}
-                    className="text-brand-medium text-sm hover:text-brand-rose transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded"
-                  >
-                    {value}
-                  </a>
-                ) : (
-                  <p className="text-brand-medium text-sm" aria-label={ariaLabel}>{value}</p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Hours note */}
-          <div className="flex items-center justify-center gap-2 mt-8 text-brand-muted text-sm">
-            <Clock className="w-4 h-4" aria-hidden="true" />
-            <span>זמינות: ראשון–חמישי | 09:00–11:00 ו־15:00–19:00</span>
-          </div>
-        </div>
+          <p className="text-white/55 text-sm">
+            זמינות: ראשון–חמישי | 09:00–11:00 ו-15:00–19:00
+          </p>
+        </motion.div>
       </div>
     </section>
   )

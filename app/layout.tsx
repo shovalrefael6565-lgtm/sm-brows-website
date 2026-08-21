@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Rubik, Dancing_Script, Noto_Serif_Hebrew } from 'next/font/google'
+import { Rubik, Dancing_Script, Frank_Ruhl_Libre } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -22,9 +22,9 @@ const rubik = Rubik({
   display: 'swap',
 })
 
-const notoSerifHebrew = Noto_Serif_Hebrew({
+const frankRuhlLibre = Frank_Ruhl_Libre({
   subsets: ['hebrew'],
-  weight: ['400', '500', '700'],
+  weight: ['300', '400', '500', '700'],
   variable: '--font-frank',
   display: 'swap',
 })
@@ -44,6 +44,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#faf7f5',
+  viewportFit: 'cover',
 }
 
 export const metadata: Metadata = {
@@ -193,7 +194,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="he"
       dir="rtl"
-      className={`${rubik.variable} ${dancingScript.variable} ${notoSerifHebrew.variable}`}
+      className={`${rubik.variable} ${dancingScript.variable} ${frankRuhlLibre.variable}`}
       data-scroll-behavior="smooth"
     >
       <head>

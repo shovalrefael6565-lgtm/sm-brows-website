@@ -12,7 +12,7 @@ export default function FaqPage() {
   return (
     <>
       <PageHero
-        tag="שאלות נפוצות"
+
         title="שאלות"
         titleHighlight="ותשובות"
         description="כל מה שרצית לדעת על הטיפולים, ההכנה, ההחלמה ועוד."

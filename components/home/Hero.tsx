@@ -1,301 +1,222 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef } from 'react'
 import Image from 'next/image'
-import { motion, useScroll, useTransform, useReducedMotion, AnimatePresence } from 'framer-motion'
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
-import { ChevronDown } from 'lucide-react'
-import { WHATSAPP_URL } from '@/lib/utils'
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 32 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] },
-  }),
-}
 
 export default function Hero() {
   const ref = useRef<HTMLElement>(null)
   const prefersReduced = useReducedMotion()
-  const [bookingOpen, setBookingOpen] = useState(false)
-  const bookingRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (bookingRef.current && !bookingRef.current.contains(e.target as Node)) {
-        setBookingOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start start', 'end start'],
   })
-  const y = useTransform(scrollYProgress, [0, 1], ['0%', prefersReduced ? '0%' : '20%'])
+  const imageY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    ['0%', prefersReduced ? '0%' : '8%'],
+  )
 
   return (
     <section
       id="hero"
       ref={ref}
       aria-label="עמוד הבית – S.M BROWS"
-      className="relative min-h-screen flex items-center overflow-hidden bg-hero-gradient"
+      className="relative overflow-hidden bg-brand-cream"
     >
-      {/* Decorative blobs */}
-      <div
-        aria-hidden="true"
-        className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-brand-rose/10 blur-3xl pointer-events-none"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full bg-brand-gold/10 blur-3xl pointer-events-none"
-      />
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full flex flex-col items-center gap-10">
-        {/* Text content */}
-        <div className="order-2 text-center w-full mt-8 sm:mt-0">
-          {/* Brand name — plain h1, visible in first paint (no framer-motion hydration wait) */}
-          <h1
-            className="font-serif text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold text-brand-dark leading-none tracking-wide mb-2 motion-safe:animate-rise"
+      {/* ── MOBILE hero: full-viewport cinematic frame ──────────────────────
+          Image fills 100svh. Shoval's face sits in the upper ~55%.
+          A cream gradient rises from the bottom (brand-cream, not dark) —
+          the headline and CTA live inside this gradient zone, fully legible.
+          No dark overlay; no text competing with the face.
+      */}
+      <div className="relative min-h-[100svh] lg:hidden">
+        <Image
+          src="/hero.webp"
+          alt="תוצאת עיצוב גבות טבעיות ב-S.M BROWS"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+          style={{ objectPosition: 'center 10%' }}
+        />
+
+        {/* Cream gradient — rises from bottom, preserving face in upper half */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-brand-cream via-brand-cream/90 to-transparent pointer-events-none"
+        />
+
+        {/* Text anchored to bottom of viewport inside the gradient zone */}
+        <div className="absolute inset-x-0 bottom-0 px-6 pb-10 flex flex-col items-start">
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="font-serif text-[2.6rem] font-medium leading-[1.08] mb-3 text-brand-dark"
           >
-            S.M BROWS
-          </h1>
+            גבות
+            <span className="block text-brand-rose-text">שמדברות</span>
+            בעד עצמן
+          </motion.h1>
 
-          {/* Tagline */}
-          <p
-            className="font-serif text-xs sm:text-sm tracking-[0.25em] text-brand-gold-text font-medium uppercase mb-8 lg:mb-10 motion-safe:animate-rise [animation-delay:150ms]"
-            lang="en"
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className="text-brand-medium text-sm leading-relaxed mb-6 max-w-[320px]"
           >
-            IT&apos;S ALL ABOUT YOUR EYEBROWS
-          </p>
+            מומחית לגבות טבעיות • 5 שנות ניסיון • קליניקה באשקלון
+          </motion.p>
 
-          {/* Description */}
-          <p
-            className="text-brand-medium text-base sm:text-lg leading-relaxed mb-8 max-w-lg mx-auto motion-safe:animate-rise [animation-delay:300ms]"
-          >
-            מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות — הגבות שחלמת עליהן
-            מחכות לך בקליניקה שלי באשקלון.
-          </p>
-
-          {/* CTA buttons */}
-          <div
-            className="flex flex-col sm:flex-row items-center gap-3 justify-center motion-safe:animate-rise [animation-delay:450ms]"
-          >
-            {/* Single booking button with dropdown */}
-            <div ref={bookingRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setBookingOpen((v) => !v)}
-                aria-haspopup="true"
-                aria-expanded={bookingOpen}
-                aria-label="קביעת תור"
-                className="inline-flex items-center gap-3 bg-brand-linen text-brand-dark font-bold text-base px-8 py-4 rounded-full hover:bg-brand-linen-dark transition-all duration-200 hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 select-none"
-              >
-                <CalendarIcon className="w-5 h-5" />
-                לקביעת תורים
-                <motion.span
-                  animate={{ rotate: bookingOpen ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </motion.span>
-              </button>
-
-              <AnimatePresence>
-                {bookingOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                    className="absolute top-full mt-3 right-0 lg:right-auto lg:left-0 z-30 bg-white rounded-2xl shadow-[0_8px_40px_-8px_rgba(44,24,16,0.18)] border border-brand-cream-dark/60 overflow-hidden min-w-[220px]"
-                    role="menu"
-                  >
-                    {/* WhatsApp option */}
-                    <a
-                      href={WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      role="menuitem"
-                      onClick={() => setBookingOpen(false)}
-                      className="flex items-center gap-3 px-5 py-4 hover:bg-brand-cream transition-colors cursor-pointer group border-b border-brand-cream-dark/40"
-                    >
-                      <span className="w-9 h-9 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
-                        <WhatsAppIcon className="w-4.5 h-4.5 text-brand-whatsapp-dark" />
-                      </span>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-brand-dark">תור בוואצאפ</p>
-                        <p className="text-xs text-brand-muted">מענה מהיר</p>
-                      </div>
-                    </a>
-
-                    {/* Calendar option */}
-                    <Link
-                      href="/booking"
-                      role="menuitem"
-                      onClick={() => setBookingOpen(false)}
-                      className="flex items-center gap-3 px-5 py-4 hover:bg-brand-cream transition-colors cursor-pointer group"
-                    >
-                      <span className="w-9 h-9 rounded-xl bg-brand-rose/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-rose/20 transition-colors">
-                        <CalendarIcon className="w-4 h-4 text-brand-rose" />
-                      </span>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-brand-dark">תור ביומן</p>
-                        <p className="text-xs text-brand-muted">בחרי תאריך ושעה</p>
-                      </div>
-                    </Link>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Course button */}
-            <Link
-              href="/course"
-              aria-label="לקורס עיצוב גבות המקצועי"
-              className="inline-flex items-center gap-2 bg-brand-dark text-brand-gold font-bold text-base px-6 py-4 rounded-full border-2 border-brand-gold/60 hover:bg-brand-gold hover:text-brand-dark hover:border-brand-gold transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-            >
-              לקורס המקצועי ←
-            </Link>
-          </div>
-
-          {/* Trust badges */}
           <motion.div
-            custom={4}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            className="flex items-center gap-6 mt-10 justify-center"
-            role="list"
-            aria-label="יתרונות S.M BROWS"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.34, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className="self-stretch"
           >
-            {[
-              { num: '500+', label: 'לקוחות מרוצות' },
-              { num: '5+', label: 'שנות ניסיון' },
-              { num: '100%', label: 'שביעות רצון' },
-            ].map(({ num, label }) => (
-              <div key={num} className="text-center" role="listitem">
-                <p className="font-serif text-xl font-bold text-brand-rose-text">{num}</p>
-                <p className="text-xs text-brand-muted">{label}</p>
-              </div>
-            ))}
+            <div className="flex gap-2.5">
+              <Link
+                href="/booking"
+                className="flex flex-1 items-center justify-center whitespace-nowrap bg-brand-dark text-white font-bold text-base px-5 py-3 rounded hover:bg-brand-dark/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2 active:scale-[0.97]"
+              >
+                לקביעת תור
+              </Link>
+              <Link
+                href="/login"
+                className="flex flex-1 items-center justify-center whitespace-nowrap bg-brand-rose text-white font-bold text-base px-5 py-3 rounded hover:bg-brand-rose/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose focus-visible:ring-offset-2 active:scale-[0.97]"
+              >
+                אזור אישי
+              </Link>
+            </div>
+            <div className="flex justify-center mt-4">
+              <Link
+                href="/course"
+                className="text-[0.875rem] font-medium text-brand-medium/80 hover:text-brand-rose transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose focus-visible:rounded-sm whitespace-nowrap"
+              >
+                S.M BROWS ACADEMY · לקורסים והכשרות ←
+              </Link>
+            </div>
           </motion.div>
         </div>
-
-        {/* Hero image — no opacity fade so the bio-card paragraph (LCP element) is visible from first paint */}
-        <motion.div
-          className="order-1 relative mx-auto w-full flex justify-center"
-          initial={{ scale: 0.98 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <motion.div style={{ y }} className="relative w-80 sm:w-[430px] lg:w-[640px]">
-            {/* Logo brand seal */}
-            <div className="absolute top-4 start-4 z-10 hidden sm:block">
-              <Image
-                src="/logo.png"
-                alt="S.M BROWS"
-                width={72}
-                height={72}
-                className="rounded-2xl shadow-soft opacity-90"
-              />
-            </div>
-
-            {/* Main image container — shrunk slightly from the original frame,
-                object-contain so the full photo shows with no cropping. */}
-            <div className="relative w-72 h-[22rem] sm:w-[390px] sm:h-[510px] lg:w-[580px] lg:h-[510px] rounded-[2rem] overflow-hidden shadow-soft-lg bg-brand-cream">
-              <Image
-                src="/hero.webp?v=2"
-                alt="לקוחה עם גבות מושלמות – תוצאת מיקרובליידינג ב-S.M BROWS"
-                fill
-                priority
-                sizes="(max-width: 640px) 288px, (max-width: 1024px) 390px, 580px"
-                className="object-contain"
-              />
-              <div
-                className="absolute inset-0 bg-gradient-to-t from-brand-dark/20 to-transparent"
-                aria-hidden="true"
-              />
-            </div>
-
-            {/* Bio card — plain div so quote paragraph (LCP) renders on first paint */}
-            <div className="mt-4 relative">
-              <div className="px-6 py-6 sm:px-8 sm:py-7">
-                {/* Name + tag */}
-                <div className="flex flex-col items-center gap-1.5 mb-4">
-                  <p className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark tracking-wide">
-                    שובל מאירה
-                  </p>
-                  <p className="text-brand-muted text-sm sm:text-base font-medium">אמא של לוי משה 🤍</p>
-                </div>
-
-                {/* Divider with title */}
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="flex-1 h-px bg-brand-gold/30" />
-                  <span className="text-xs sm:text-sm text-brand-gold-text font-semibold tracking-[0.2em] uppercase whitespace-nowrap">
-                    מומחית גבות · 5 שנות ניסיון
-                  </span>
-                  <div className="flex-1 h-px bg-brand-gold/30" />
-                </div>
-
-                {/* Quote */}
-                <div className="relative">
-                  <span className="absolute -top-2 -right-1 font-serif text-6xl text-brand-rose/20 leading-none select-none" aria-hidden="true">&quot;</span>
-                  <p className="text-brand-medium text-base sm:text-lg leading-relaxed text-center relative z-10 px-2">
-                    תמיד היה לי משהו עם גבות — שלי תמיד היו עבות, טבעיות, מסודרות. אנשים היו עוצרים אותי ברחוב ושואלים מה עשיתי להן. מתישהו הבנתי שזה לא סתם מחמאה — זו התשוקה שלי.
-                  </p>
-                </div>
-
-                {/* Closing line */}
-                <div className="mt-4 pt-4 border-t border-brand-cream-dark/60 text-center">
-                  <p className="text-brand-dark text-xl sm:text-2xl font-serif">
-                    כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות —
-                    <span className="text-brand-rose-text"> גבות שמדברות בעד עצמן.</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
       </div>
 
-      {/* Scroll indicator */}
+      {/* ── DESKTOP hero: two-column split (text right / image left in RTL) ── */}
+      <div className="hidden lg:flex flex-row min-h-[100svh]">
+
+        {/* TEXT — 1st DOM child → right panel in RTL flex-row */}
+        <div className="flex flex-col justify-center ps-16 pe-12 py-24 bg-brand-cream w-[46%] flex-shrink-0">
+          <div className="w-full max-w-md">
+
+            <motion.h1
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="font-serif text-5xl xl:text-[4.25rem] 2xl:text-[5rem] font-medium leading-[1.05] mb-4 text-brand-dark"
+            >
+              גבות
+              <span className="block text-brand-rose-text">שמדברות</span>
+              בעד עצמן
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.22, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="text-brand-medium text-base leading-relaxed mb-8"
+            >
+              מומחית לגבות טבעיות • 5 שנות ניסיון • קליניקה באשקלון
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.34, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="flex gap-3">
+                <Link
+                  href="/booking"
+                  className="inline-flex items-center justify-center whitespace-nowrap bg-brand-dark text-white font-bold text-base px-6 py-3 rounded hover:bg-brand-dark/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2 min-w-[9.5rem]"
+                >
+                  לקביעת תור
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center whitespace-nowrap bg-brand-rose text-white font-bold text-base px-6 py-3 rounded hover:bg-brand-rose/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose focus-visible:ring-offset-2 min-w-[9.5rem]"
+                >
+                  אזור אישי
+                </Link>
+              </div>
+              <div className="flex justify-center mt-4">
+                <Link
+                  href="/course"
+                  className="text-[0.875rem] font-medium text-brand-medium/70 hover:text-brand-rose transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose focus-visible:rounded-sm whitespace-nowrap"
+                >
+                  S.M BROWS ACADEMY · לקורסים והכשרות ←
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.blockquote
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.62, duration: 0.9, ease: 'easeOut' }}
+              className="mt-8 pt-7 border-t border-brand-cream-dark/60"
+            >
+              <p className="font-serif text-lg leading-relaxed text-brand-dark">
+                &ldquo;כל טיפול הוא שילוב של דיוק, טבעיות וקלאסיות.&rdquo;
+              </p>
+              <footer className="mt-2">
+                <cite className="not-italic text-sm font-medium text-brand-muted">— שובל מאירה</cite>
+              </footer>
+            </motion.blockquote>
+          </div>
+        </div>
+
+        {/* IMAGE — 2nd DOM child → left panel in RTL flex-row */}
+        <div className="relative flex-1 overflow-hidden">
+          <motion.div
+            style={{ y: imageY }}
+            className="absolute inset-0"
+          >
+            <Image
+              src="/hero.webp"
+              alt="תוצאת עיצוב גבות טבעיות ב-S.M BROWS"
+              fill
+              priority
+              sizes="55vw"
+              className="object-cover"
+              style={{ objectPosition: 'center 18%' }}
+            />
+          </motion.div>
+
+          {/* Column hairline separator */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-0 end-0 w-px bg-brand-cream-dark/25 pointer-events-none"
+          />
+        </div>
+      </div>
+
+      {/* Scroll indicator — desktop only */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
+        transition={{ delay: 2, duration: 0.7 }}
+        className="absolute bottom-7 start-[23%] hidden lg:flex flex-col items-center"
         aria-hidden="true"
       >
-        <span className="text-xs text-brand-muted tracking-wider">גלול למטה</span>
         <motion.div
-          animate={{ y: [0, 6, 0] }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-          className="w-4 h-4 rounded-full border-2 border-brand-rose/40 flex items-center justify-center"
+          animate={{ y: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 1.7, ease: 'easeInOut' }}
+          className="w-5 h-8 rounded-full border border-brand-rose/30 flex items-start justify-center pt-1.5"
         >
-          <div className="w-1 h-1 rounded-full bg-brand-rose" />
+          <div className="w-1 h-1.5 rounded-full bg-brand-rose/50" />
         </motion.div>
       </motion.div>
     </section>
-  )
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  )
-}
-
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
   )
 }

@@ -15,12 +15,10 @@ export default function CourseProgram() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <Reveal>
           <div className="text-center mb-16">
-            <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-5">
-              תוכנית הקורס
-            </p>
+            <div className="w-12 h-px bg-gold-gradient mx-auto mb-6 opacity-70" aria-hidden="true" />
             <h2
               id="course-program-heading"
-              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark leading-tight text-balance mb-5"
+              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium text-brand-dark leading-tight text-balance mb-5"
             >
               יומיים. אחד לראש,
               <span className="text-brand-rose-text"> אחד לידיים.</span>
@@ -50,7 +48,7 @@ export default function CourseProgram() {
                       <p className="text-[0.7rem] tracking-[0.24em] text-brand-gold-text font-semibold uppercase mb-1">
                         {day.label}
                       </p>
-                      <h3 className="font-serif text-2xl sm:text-3xl font-bold text-brand-dark">
+                      <h3 className="font-serif text-2xl sm:text-3xl font-medium text-brand-dark">
                         {day.title}
                       </h3>
                     </div>
@@ -67,7 +65,7 @@ export default function CourseProgram() {
                       key={block.title}
                       className="bg-white/70 border border-brand-cream-dark rounded-2xl p-6 sm:p-7 shadow-soft"
                     >
-                      <h4 className="font-serif text-lg sm:text-xl font-bold text-brand-dark mb-4 flex items-center gap-2.5">
+                      <h4 className="font-serif text-lg sm:text-xl font-medium text-brand-dark mb-4 flex items-center gap-2.5">
                         <span
                           className="w-1.5 h-1.5 rounded-full bg-brand-gold flex-shrink-0"
                           aria-hidden="true"

@@ -92,7 +92,7 @@ function ImageSlider({ images, alt, objectPositions, aspectRatio }: {
   return (
     <div
       className="relative rounded-3xl overflow-hidden shadow-soft-lg group bg-brand-cream"
-      style={{ aspectRatio: aspectRatio ?? '4/2.04' }}
+      style={{ aspectRatio: aspectRatio ?? '3/4' }}
       onClick={handleTouch}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -215,11 +215,6 @@ export default function ServiceCard({ service, index }: Props) {
 
       {/* Content */}
       <div>
-        {service.tagline && (
-          <p className="text-xs tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
-            {service.tagline}
-          </p>
-        )}
         <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark mb-4">
           {service.name}
         </h2>
@@ -256,21 +251,21 @@ export default function ServiceCard({ service, index }: Props) {
         </ul>
 
         {/* Price */}
-        <div className="flex items-center gap-4 mb-6 p-4 bg-brand-rose-bg rounded-2xl border border-brand-rose-light/50">
+        <div className="flex items-center gap-6 mb-6 py-4 border-t border-b border-brand-cream-dark/60">
           {service.price && (
             <>
               <div>
-                <p className="text-xs text-brand-muted">מחיר הטיפול</p>
+                <p className="text-[0.7rem] text-brand-muted uppercase tracking-wider mb-1">מחיר</p>
                 <p className="font-serif text-2xl font-bold text-brand-dark">{service.price}</p>
                 {service.priceNote && (
                   <p className="text-xs text-brand-rose-text font-semibold mt-0.5">{service.priceNote}</p>
                 )}
               </div>
-              <div className="h-10 w-px bg-brand-rose-light" aria-hidden="true" />
+              <div className="h-10 w-px bg-brand-cream-dark" aria-hidden="true" />
             </>
           )}
           <div>
-            <p className="text-xs text-brand-muted">משך הטיפול</p>
+            <p className="text-[0.7rem] text-brand-muted uppercase tracking-wider mb-1">משך טיפול</p>
             <p className="font-semibold text-brand-dark">{service.duration}</p>
           </div>
         </div>
@@ -281,7 +276,7 @@ export default function ServiceCard({ service, index }: Props) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`קביעת תור לטיפול ${service.name} בוואצאפ`}
-            className="inline-flex items-center gap-2 bg-brand-linen text-brand-dark font-bold px-8 py-4 rounded-full hover:bg-brand-linen-dark transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 bg-brand-dark text-white font-bold px-6 py-3 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2"
           >
             <WhatsAppIcon className="w-5 h-5" />
             {service.name === 'מיקרובליידינג' ? 'לשיחת ייעוץ ללא התחייבות' : 'קבעי תור בוואצאפ'}
@@ -290,7 +285,7 @@ export default function ServiceCard({ service, index }: Props) {
             <Link
               href="/booking"
               aria-label={`קביעת תור לטיפול ${service.name} ביומן`}
-              className="inline-flex items-center gap-2 text-brand-dark font-medium px-6 py-4 rounded-full border border-brand-rose-light hover:bg-brand-rose-bg hover:border-brand-rose transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
+              className="inline-flex items-center gap-2 text-brand-dark font-medium px-5 py-3 rounded border border-brand-rose-light hover:bg-brand-rose-bg hover:border-brand-rose transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose"
             >
               <Calendar className="w-4 h-4 text-brand-rose" />
               קביעת תור ביומן

@@ -8,7 +8,7 @@ export default function ShopPage() {
   return (
     <>
       <PageHero
-        tag="החנות שלי"
+
         title="מוצרי גבות"
         titleHighlight="מקצועיים"
         description="כל מה שצריך לשמור על הגבות מושלמות בין הטיפולים."

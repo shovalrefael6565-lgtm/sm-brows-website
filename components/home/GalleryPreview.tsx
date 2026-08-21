@@ -28,12 +28,9 @@ export default function GalleryPreview() {
           className="flex items-end justify-between mb-10 flex-wrap gap-4"
         >
           <div>
-            <p className="text-xs sm:text-sm tracking-[0.2em] text-brand-gold-text font-semibold uppercase mb-2">
-              הגלריה שלי
-            </p>
             <h2
               id="gallery-preview-heading"
-              className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark"
+              className="font-serif text-3xl sm:text-4xl font-medium text-brand-dark"
             >
               עבודות שאני
               <span className="text-brand-rose-text"> גאה בהן</span>

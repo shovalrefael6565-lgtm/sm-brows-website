@@ -12,7 +12,7 @@ export default function TermsPage() {
   return (
     <>
       <PageHero
-        tag="מסמך משפטי"
+
         title="תקנון"
         titleHighlight="ותנאי שימוש"
         description="אנא קראי את התנאים הבאים בעיון לפני קבלת שירותים מהקליניקה."

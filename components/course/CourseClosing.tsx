@@ -18,10 +18,7 @@ export default function CourseClosing() {
       aria-labelledby="course-closing-heading"
       className="relative overflow-hidden bg-brand-cream py-20 sm:py-28 scroll-mt-24"
     >
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -end-32 w-[26rem] h-[26rem] rounded-full bg-brand-gold/10 blur-3xl" />
-        <div className="absolute -bottom-32 -start-32 w-[22rem] h-[22rem] rounded-full bg-brand-rose/10 blur-3xl" />
-      </div>
+      <div aria-hidden="true" className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-30 pointer-events-none" />
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
         {/* Image strip */}
@@ -48,12 +45,10 @@ export default function CourseClosing() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 p-8 sm:p-12">
               <div>
-                <p className="text-[0.7rem] sm:text-xs tracking-[0.28em] text-brand-gold-text font-semibold uppercase mb-4">
-                  הצעד הבא
-                </p>
+                <div className="w-12 h-px bg-gold-gradient mb-5 opacity-70" aria-hidden="true" />
                 <h2
                   id="course-closing-heading"
-                  className="font-serif text-3xl sm:text-4xl font-bold text-brand-dark leading-tight mb-5 text-balance"
+                  className="font-serif text-3xl sm:text-4xl font-medium text-brand-dark leading-tight mb-5 text-balance"
                 >
                   אם את מרגישה שזה הזמן —
                   <span className="block text-brand-rose-text mt-1">בואי נדבר.</span>
@@ -66,7 +61,7 @@ export default function CourseClosing() {
               </div>
 
               <div className="lg:border-s lg:border-brand-cream-dark lg:ps-10">
-                <h3 className="font-serif text-xl font-bold text-brand-dark mb-5">מה כלול</h3>
+                <h3 className="font-serif text-xl font-medium text-brand-dark mb-5">מה כלול</h3>
                 <ul className="space-y-3.5">
                   {courseIncludes.map((item) => (
                     <li key={item} className="flex items-start gap-3">
