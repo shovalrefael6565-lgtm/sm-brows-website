@@ -123,6 +123,38 @@ export default function ServicesPreview() {
     syncVideo()
   }, [active, syncVideo])
 
+  // Warm-up observer — starts the fetch while the stage is still off-screen.
+  //
+  // ⚠️ Two observers, not one, and the reason is the whole point: they need
+  // different rootMargins. The stage used to make its very first byte request
+  // at the moment it became 25% visible, so the download and the decoder
+  // spin-up both happened while the viewer was already looking at it — a
+  // visible hitch on arrival. This one fires a screenful early and does
+  // nothing but `load()`, so by the time the playback observer says "go" the
+  // data is already there.
+  //
+  // 🔒 `preload` stays "none" in the markup and is only raised here. That is
+  // what keeps the video off the homepage's initial load entirely: a visitor
+  // who never scrolls past the testimonials never requests a single byte of
+  // it. Setting preload="auto" on the element instead would fetch it for
+  // everyone, on every page load — 4.3MB nobody asked for.
+  useEffect(() => {
+    const el = stageRef.current
+    const v = videoRef.current
+    if (!el || !v) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        v.preload = 'auto'
+        v.load()
+        io.disconnect()   // one-shot: the fetch only needs starting once
+      },
+      { rootMargin: '600px 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   // Intersection observer — play/pause as section enters/leaves viewport.
   // threshold 0.25 requires a quarter of the stage to be visible before playback.
   useEffect(() => {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import Hero from '@/components/home/Hero'
 import DeferredSections from '@/components/home/DeferredSections'
+import CourseBanner from '@/components/home/CourseBanner'
 
 // סקשנים קרובים — SSR רגיל (טוב ל-SEO + LCP)
 const BeforeAfterSection  = dynamic(() => import('@/components/home/BeforeAfterSection'))
@@ -23,6 +24,7 @@ export default function HomePage() {
       <TestimonialsSection />
       <MicrobladingTeaser />
       <ServicesPreview />
+      <CourseBanner />
       <DeferredSections />
     </>
   )
