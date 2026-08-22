@@ -92,9 +92,9 @@ export default function Footer() {
 
           {/* Col 2 — עזרה */}
           <div>
-            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
+            <h2 className="font-serif text-base italic text-brand-gold/60 mb-5">
               עזרה
-            </p>
+            </h2>
             <ul className="space-y-3" role="list">
               {col2Links.map(({ href, label, external }) => (
                 <li key={label}>
@@ -125,9 +125,9 @@ export default function Footer() {
 
           {/* Col 3 — עליי */}
           <div>
-            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
+            <h2 className="font-serif text-base italic text-brand-gold/60 mb-5">
               עליי
-            </p>
+            </h2>
             <ul className="space-y-3" role="list">
               {col3Links.map(({ href, label }) => (
                 <li key={label}>
@@ -144,9 +144,9 @@ export default function Footer() {
 
           {/* Col 4 — הקליניקה */}
           <div>
-            <p className="font-serif text-base italic text-brand-gold/60 mb-5">
+            <h2 className="font-serif text-base italic text-brand-gold/60 mb-5">
               הקליניקה שלי
-            </p>
+            </h2>
             <ul className="space-y-4" role="list">
               <li>
                 <div className="flex items-start gap-3 text-white/55 text-sm">
