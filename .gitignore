@@ -25,7 +25,12 @@ npm-debug.log*
 .idea/
 
 # claude internals
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+# vendored SEO skills are tracked (see each skill's PROVENANCE.md)
+!.claude/skills/seo-mastery/
+!.claude/skills/ai-visibility-optimizer/
 
 # service account keys
 sm-brows-*.json
