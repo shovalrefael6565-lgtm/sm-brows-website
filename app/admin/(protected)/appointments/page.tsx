@@ -6,6 +6,7 @@ import {
 import { formatPhoneForDisplay, E164_IL_MOBILE } from '@/lib/phone'
 import { formatDateTimeIL, treatmentLabel, STATUS_LABELS, BOOKING_SOURCE_LABELS } from '@/lib/admin/format'
 import { israelDateStr, fmtIsrael } from '@/lib/israelTime'
+import { isGoogleTimeLocked } from '@/lib/calendarLink'
 import { buildReminderWhatsAppMessage, buildWhatsAppLinkToCustomer } from '@/lib/whatsappTemplates'
 import Pagination from '@/components/admin/Pagination'
 import CancelAppointmentButton from '@/components/admin/CancelAppointmentButton'
@@ -293,7 +294,17 @@ function AppointmentCard({ appt }: { appt: AdminAppointmentRow }) {
    * שינוי מועד ממתינה של הלקוחה או lease סנכרון פעיל — שני מצבים שאי אפשר
    * לדעת עליהם מכאן בלי שאילתה נוספת, ולכן הם מוחזרים כהודעה ברורה.
    */
-  const canReschedule = canCancel
+  /**
+   * 🔒 15I — תור שהמועד שלו נקבע ביומן Google (אירוע של שובל שאומץ) נעול:
+   * תאריך, שעת התחלה, שעת סיום ומשך אינם ניתנים לעריכה כאן. שינוי מתחיל
+   * ביומן ומגיע למערכת דרך הסנכרון הנכנס, ולא הפוך.
+   *
+   * ⚠️ הסתרה בלבד. ה-route חוסם את הבקשה בעצמו (409 calendar_time_locked)
+   * ואינו סומך על מה שהוצג במסך.
+   */
+  const googleTimeLocked = isGoogleTimeLocked(appt.id, appt.google_event_id)
+
+  const canReschedule = canCancel && !googleTimeLocked
 
   /**
    * 🔒 (0034) סימון "הושלם" — רק לתור **מאושר שכבר הסתיים**. תור שכבר
@@ -360,6 +371,11 @@ function AppointmentCard({ appt }: { appt: AdminAppointmentRow }) {
               currentTime={fmtIsrael(new Date(appt.starts_at))}
               currentDurationMin={appt.duration_min}
             />
+          )}
+          {googleTimeLocked && appt.status === 'confirmed' && (
+            <span className="text-xs text-brand-muted">
+              המועד נקבע ביומן Google — לשינוי יש להזיז את האירוע ביומן.
+            </span>
           )}
           {canMarkCompleted && (
             <MarkCompletedButton

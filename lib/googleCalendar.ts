@@ -3,6 +3,7 @@ import {
   BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
   israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
 } from './israelTime'
+import { CALENDAR_EVENT_SOURCE, deterministicEventId } from './calendarLink'
 
 const SERVICE_DURATIONS: Record<string, number> = {
   'עיצוב גבות טבעיות': 20,
@@ -137,37 +138,15 @@ export async function createBookingEvent(params: {
 // הוא GET רגיל על אותו מזהה — לא חיפוש, לא ניחוש.
 // ============================================================================
 
-export const CALENDAR_EVENT_SOURCE = 'sm_brows_website'
-
-/**
- * Google Calendar event IDs must be lowercase, match [a-v0-9]{5,1024}.
- * UUID hex digits (0-9a-f) are already a subset of that range, so a prefix +
- * the UUID without hyphens is always valid — and always the same for the
- * same appointment, which is the whole point.
- *
- * ⚠️ The prefix itself must also stay inside a-v — no w/x/y/z. "smbappt"
- * was chosen specifically to avoid the 'w' in "smbrows" (w=23rd letter,
- * outside a-v which stops at v=22), which Google rejected outright.
- */
-export function deterministicEventId(appointmentId: string): string {
-  return `smbappt${appointmentId.replace(/-/g, '')}`
-}
-
-const DETERMINISTIC_EVENT_ID_RE = /^smbappt([0-9a-f]{32})$/
-
-/**
- * ההיפוך של deterministicEventId — מזהה אירוע → appointment UUID, או null
- * אם הוא אינו בצורה הזו כלל.
- *
- * ⚠️ ההחזרה אינה הוכחה שה-appointment קיים, רק שהמזהה *נגזר* מ-UUID.
- * הקישור בפועל נבדק מול ה-DB (שלב 8, סיווג בעלות בסנכרון הנכנס).
- */
-export function appointmentIdFromDeterministicEventId(eventId: string): string | null {
-  const m = DETERMINISTIC_EVENT_ID_RE.exec(eventId)
-  if (!m) return null
-  const h = m[1]
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
-}
+// ⚠️ זהות האירוע (המזהה הדטרמיניסטי וההיפוך שלו) עברה ל-lib/calendarLink.ts
+// — מודול טהור בלי googleapis, כדי שגם server components ובדיקות יוכלו
+// לענות על "האם האירוע הזה שלנו" בלי לטעון את מנוע ה-API. הייצוא מחדש כאן
+// שומר על כל ה-imports הקיימים בדיוק כפי שהם.
+export {
+  CALENDAR_EVENT_SOURCE,
+  deterministicEventId,
+  appointmentIdFromDeterministicEventId,
+} from './calendarLink'
 
 function isGoogleApiError(err: unknown): err is { code?: number | string; response?: { status?: number } } {
   return typeof err === 'object' && err !== null
@@ -294,10 +273,20 @@ export async function findConflictingCalendarEvent(
   startsAt: Date,
   endsAt: Date,
   appointmentId: string,
+  /**
+   * 🔒 15I — אירוע שכבר אושר מפורשות כ"זה אותו תור" ושהמועד נלקח **ממנו**.
+   * הוא אינו התנגשות בהגדרה: הוא התור עצמו, רק שעדיין אין לו את חתימת
+   * המערכת. בלי החרגה מפורשת הוא היה חוסם את התור שנגזר ממנו.
+   *
+   * ⚠️ מחריג אירוע **אחד** ולפי מזהה. כל אירוע אחר שחופף — כולל אירוע שני
+   * ביומן באותה שעה — ממשיך לחסום בדיוק כמו קודם.
+   */
+  ignoreEventId: string | null = null,
 ): Promise<CalendarConflict | null> {
   const events = await listAppointmentEventsForDate(isoDate)
   for (const event of events) {
     if (event.appointmentId === appointmentId) continue // אנחנו — לא התנגשות
+    if (ignoreEventId && event.eventId === ignoreEventId) continue // האירוע שאומץ
     const overlaps = event.start.getTime() < endsAt.getTime() && event.end.getTime() > startsAt.getTime()
     if (overlaps) {
       return {
@@ -310,6 +299,110 @@ export async function findConflictingCalendarEvent(
     }
   }
   return null
+}
+
+// ============================================================================
+// 15I — גילוי אירועים לאימוץ, וקריאת אירוע בודד כמקור אמת למועד.
+//
+// ─── למה זה קיים ───────────────────────────────────────────────────────────
+//
+// עד כאן אפשר היה לאמץ אירוע קיים רק במקרה: המנהלת הקלידה שעה, השעה
+// התנגשה באירוע, והמערכת הציעה "זה אותו תור". מי שיודעת שהתור כבר ביומן
+// לא צריכה לנחש את השעה כדי למצוא אותו — היא צריכה לראות את אירועי היום
+// ולבחור. וברגע שבחרה, **המועד הוא של Google** ולא של הטופס.
+//
+// ⚠️ שתי הפונקציות כאן **קוראות בלבד**. אף אחת מהן אינה יוצרת, מזיזה או
+// מוחקת אירוע, ואף אחת מהן אינה כותבת ליומן את מה שהוזן באתר.
+// ============================================================================
+
+/** אירוע ביומן שאפשר לאמץ — בדיוק המידע שדרוש לזהות אותו, ולא יותר */
+export interface AdoptableCalendarEvent {
+  eventId: string
+  /** כותרת האירוע כפי שהיא ביומן. ריקה כשהאירוע נוצר בלי כותרת. */
+  summary: string
+  start: string
+  end: string
+  durationMin: number
+}
+
+/**
+ * כל אירועי היום שניתן לאמץ: אירועים בעלי שעה (לא ימים שלמים), לא
+ * מבוטלים, **שאין עליהם חתימת מערכת** — כלומר אירועים ששובל יצרה ביומן
+ * בעצמה ואין להם תור באתר.
+ *
+ * ⚠️ אירוע שנושא חתימת מערכת מושמט כאן לגמרי, ולא מוחזר כ"תפוס": הוא כבר
+ * מייצג תור קיים, ובחירה בו הייתה גוזלת אותו מהתור ההוא.
+ *
+ * ⚠️ מוחזרים רק מזהה, כותרת וטווח. לא משתתפים, לא תיאור, לא מיקום ולא
+ * שום payload אחר מ-Google.
+ */
+export async function listAdoptableCalendarEvents(
+  isoDate: string,
+): Promise<AdoptableCalendarEvent[]> {
+  const events = await listAppointmentEventsForDate(isoDate)
+  return events
+    // רק אירועים שמתחילים ביום המבוקש עצמו — אירוע שנמשך מאתמול אינו
+    // "תור של היום הזה", והצגתו הייתה מזמינה בחירה שגויה.
+    .filter(e => e.appointmentId === null && israelDateStr(e.start) === isoDate)
+    .map(e => ({
+      eventId: e.eventId,
+      summary: e.summary,
+      start: e.start.toISOString(),
+      end: e.end.toISOString(),
+      durationMin: Math.round((e.end.getTime() - e.start.getTime()) / 60000),
+    }))
+}
+
+export type CalendarEventReadResult =
+  | { ok: true; event: AppointmentCalendarEvent }
+  /** 'gone' = נמחק/בוטל · 'unsupported' = יום שלם או אירוע בלי טווח שעות */
+  | { ok: false; reason: 'gone' | 'unsupported' }
+
+/**
+ * קריאת אירוע בודד מהיומן — **מקור האמת** למועד של תור מאומץ.
+ *
+ * ⚠️ נקראת שוב רגע לפני השמירה, ולא מסתמכת על מה שהוצג במסך: בין הבחירה
+ * לשליחה שובל יכולה להזיז את האירוע ביומן, ומה שנשמר חייב להיות מה
+ * שביומן **עכשיו**.
+ */
+export async function readCalendarEvent(eventId: string): Promise<CalendarEventReadResult> {
+  const auth = getAuth()
+  const calendar = google.calendar({ version: 'v3', auth })
+  const calendarId = getCalendarId()
+
+  let data
+  try {
+    const res = await calendar.events.get({ calendarId, eventId })
+    data = res.data
+  } catch (err) {
+    const status = googleErrorStatus(err)
+    if (status === 404 || status === 410) return { ok: false, reason: 'gone' }
+    throw err
+  }
+
+  if (data.status === 'cancelled') return { ok: false, reason: 'gone' }
+
+  const startStr = data.start?.dateTime
+  const endStr = data.end?.dateTime
+  // אירוע "יום שלם" אין לו שעת התחלה וסיום, ולכן אין ממה לגזור תור.
+  if (!startStr || !endStr || !data.id) return { ok: false, reason: 'unsupported' }
+
+  const props = data.extendedProperties?.private
+  const appointmentId =
+    props?.source === CALENDAR_EVENT_SOURCE && typeof props?.appointment_id === 'string'
+      ? props.appointment_id
+      : null
+
+  return {
+    ok: true,
+    event: {
+      eventId: data.id,
+      appointmentId,
+      start: new Date(startStr),
+      end: new Date(endStr),
+      summary: typeof data.summary === 'string' ? data.summary : '',
+    },
+  }
 }
 
 /**

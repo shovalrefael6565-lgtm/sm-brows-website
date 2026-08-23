@@ -1,9 +1,15 @@
 import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import { israelWallTimeToUtc, israelDateStr, israelMinutes, BUSINESS_START_MIN, BUSINESS_END_MIN } from '@/lib/israelTime'
+import {
+  israelWallTimeToUtc, israelDateStr, israelMinutes, fmtIsrael,
+  BUSINESS_START_MIN, BUSINESS_END_MIN,
+} from '@/lib/israelTime'
 import {
   findConflictingCalendarEvent, logGoogleCalendarError, adoptExistingCalendarEvent,
+  listAdoptableCalendarEvents, readCalendarEvent,
+  type AdoptableCalendarEvent, type AppointmentCalendarEvent,
 } from '@/lib/googleCalendar'
+import { lookupAppointmentsByEventIds } from '@/lib/db/calendarSync'
 import {
   claimCalendarSync, completeCalendarSync, failCalendarSync, getAppointmentForAdmin,
 } from '@/lib/db/appointments'
@@ -186,6 +192,215 @@ export function manualSlotWarnings(startsAt: Date, endsAt: Date): SlotWarnings {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// 15I — אימוץ אירוע Google כמקור האמת למועד (מיקרובליידינג בלבד)
+//
+// ─── התקלה שנסגרת כאן ──────────────────────────────────────────────────────
+//
+// עד 15I האימוץ ("זה אותו תור") **קישר** את האירוע אבל שמר את המועד שהוקלד
+// בטופס. אירוע ביומן 10:20–11:20 שאומץ מול הקלדה של 10:30 + 150 דקות נשמר
+// במערכת כ-10:30–13:00, בעוד האירוע ביומן נשאר 10:20–11:20 — שני מועדים
+// שונים לאותו תור, לנצח. התזכורות, ה-CRM וההיסטוריה כולם ירשו את המועד
+// השגוי, והיומן — שהוא מה ששובל באמת מסתכלת עליו — לא סתר אותם בשום מסך.
+//
+// ─── הכלל ──────────────────────────────────────────────────────────────────
+//
+// כשנבחר אירוע Google קיים: **תאריך, התחלה, סיום ומשך נלקחים מהאירוע**,
+// והמשך הוא end − start. מה שהוזן בטופס לפני כן אינו רלוונטי ואינו נשמר.
+// האתר אינו מעדכן את האירוע ביומן לפי הטופס, ואינו יוצר אירוע שני.
+//
+// 🔒 החריגה חלה **רק** על מיקרובליידינג וייעוץ מיקרובליידינג (הטיפולים
+// הניהוליים). לשני טיפולי הקטלוג הציבוריים דבר לא השתנה, וההזמנה הציבורית
+// לא נגעה כאן בכלל.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * רק טיפול ניהולי (מיקרובליידינג / ייעוץ) זכאי לזרימת "Google הוא מקור
+ * האמת". זו הנקודה היחידה שקובעת זאת, והשרת מכריע לפי ה-service_key —
+ * לא לפי דגל מהדפדפן.
+ */
+export function supportsGoogleSourcedSlot(serviceKey: unknown): boolean {
+  return typeof serviceKey === 'string' && isAdminOnlyService(serviceKey)
+}
+
+/** מועד תור שנגזר במלואו מאירוע Google — אין בו שום ערך שהגיע מהטופס */
+export interface AdoptedGoogleSlot {
+  eventId: string
+  /** כותרת האירוע ביומן, לתצוגה בלבד. אינה נשמרת על התור. */
+  summary: string
+  isoDate: string
+  startTime: string
+  endTime: string
+  startsAt: Date
+  endsAt: Date
+  /** תמיד end − start. לא ברירת מחדל מהקטלוג ולא מה שהוקלד. */
+  durationMin: number
+}
+
+export type AdoptedSlotError =
+  | 'adopt_not_supported'
+  | 'adopt_event_gone'
+  | 'adopt_event_taken'
+  | 'adopt_event_invalid'
+  | 'calendar_unavailable'
+
+/**
+ * גזירת המועד מהאירוע — פונקציה טהורה, בלי רשת ובלי DB.
+ *
+ * ⚠️ המשך מחושב ולא מתקבל: `end − start`. אירוע שמשכו חורג מהגבולות
+ * שה-RPC אוכף (5–480 דקות) נדחה כאן במפורש, ולא נשמר "בערך".
+ */
+export function googleEventToSlot(event: {
+  eventId: string
+  summary: string
+  start: Date
+  end: Date
+}): { ok: true; data: AdoptedGoogleSlot } | { ok: false; error: 'adopt_event_invalid' } {
+  const startsAt = event.start
+  const endsAt = event.end
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    return { ok: false, error: 'adopt_event_invalid' }
+  }
+
+  const durationMin = Math.round((endsAt.getTime() - startsAt.getTime()) / 60000)
+  if (
+    !Number.isInteger(durationMin) ||
+    durationMin < ADMIN_MIN_DURATION_MIN ||
+    durationMin > ADMIN_MAX_DURATION_MIN
+  ) {
+    return { ok: false, error: 'adopt_event_invalid' }
+  }
+
+  return {
+    ok: true,
+    data: {
+      eventId: event.eventId,
+      summary: event.summary,
+      isoDate: israelDateStr(startsAt),
+      startTime: fmtIsrael(startsAt),
+      endTime: fmtIsrael(endsAt),
+      startsAt,
+      endsAt,
+      durationMin,
+    },
+  }
+}
+
+/**
+ * 🔒 הכלל עצמו, במקום אחד: כשיש אירוע מאומץ — **הוא** קובע את המועד.
+ *
+ * ⚠️ נקראת בתוך createManualAppointment, כלומר בפונקציה שכותבת בפועל, ולא
+ * רק ב-route. גם קורא עתידי שיעביר בטעות את מה שהוקלד בטופס לא יוכל
+ * לשמור מועד שאינו זה שביומן.
+ */
+export function applyGoogleSourcedSlot(
+  form: { startsAt: Date; endsAt: Date; durationMin: number },
+  adopted: AdoptedGoogleSlot | null,
+): { startsAt: Date; endsAt: Date; durationMin: number; googleSourced: boolean } {
+  if (!adopted) return { ...form, googleSourced: false }
+  return {
+    startsAt: adopted.startsAt,
+    endsAt: adopted.endsAt,
+    durationMin: adopted.durationMin,
+    googleSourced: true,
+  }
+}
+
+/**
+ * התלויות החיצוניות של האימוץ, מוזרקות כדי שההחלטות יהיו ניתנות לבדיקה
+ * בלי Google ובלי Supabase.
+ */
+export interface AdoptionDeps {
+  readEvent: (eventId: string) => Promise<
+    { ok: true; event: AppointmentCalendarEvent } | { ok: false; reason: 'gone' | 'unsupported' }
+  >
+  listEvents: (isoDate: string) => Promise<AdoptableCalendarEvent[]>
+  /** מזהי אירועים שכבר מקושרים לתור במערכת. 'unknown' = ה-DB לא ענה. */
+  linkedEventIds: (eventIds: string[]) => Promise<Set<string> | 'unknown'>
+}
+
+export function defaultAdoptionDeps(): AdoptionDeps {
+  return {
+    readEvent: readCalendarEvent,
+    listEvents: listAdoptableCalendarEvents,
+    linkedEventIds: async ids => {
+      const res = await lookupAppointmentsByEventIds(ids)
+      if (!res.ok) return 'unknown'
+      return new Set(res.map.keys())
+    },
+  }
+}
+
+/**
+ * אירועי היום שניתן להציג לבחירה.
+ *
+ * שני סינונים בלתי תלויים, ושניהם נחוצים:
+ *   1. חתימת מערכת על האירוע (Google) — אירוע שכבר מייצג תור.
+ *   2. `appointments.google_event_id` שמצביע עליו (DB) — אירוע שאומץ בעבר,
+ *      גם אם החתימה ביומן נמחקה או שונתה ידנית.
+ *
+ * ⚠️ כשל בקריאת ה-DB אינו "אין קישורים": במצב כזה כל האירועים מסומנים
+ * כלא-זמינים, כדי שלא ייבחר אירוע ששייך לתור אחר.
+ */
+export async function listAdoptableEventsForDate(
+  isoDate: string,
+  deps: AdoptionDeps = defaultAdoptionDeps(),
+): Promise<
+  | { ok: true; events: AdoptableCalendarEvent[] }
+  | { ok: false; error: 'calendar_unavailable' }
+> {
+  let events: AdoptableCalendarEvent[]
+  try {
+    events = await deps.listEvents(isoDate)
+  } catch (err) {
+    logGoogleCalendarError('[adminBooking] adoptable events listing failed', err)
+    return { ok: false, error: 'calendar_unavailable' }
+  }
+
+  const linked = await deps.linkedEventIds(events.map(e => e.eventId))
+  if (linked === 'unknown') return { ok: false, error: 'calendar_unavailable' }
+
+  // אירוע שכבר מקושר פשוט אינו מוצג. הוא אינו "אפשרות אפורה" — הצגתו
+  // הייתה חושפת ללא צורך שקיים תור אחר באותה שעה.
+  return { ok: true, events: events.filter(e => !linked.has(e.eventId)) }
+}
+
+/**
+ * קריאת האירוע שנבחר וגזירת המועד ממנו — נקראת שוב **רגע לפני השמירה**,
+ * ולא סומכת על מה שהוצג במסך.
+ */
+export async function resolveAdoptedGoogleSlot(
+  serviceKey: unknown,
+  eventId: string,
+  deps: AdoptionDeps = defaultAdoptionDeps(),
+): Promise<{ ok: true; data: AdoptedGoogleSlot } | { ok: false; error: AdoptedSlotError }> {
+  // 🔒 שער הטיפולים. טיפול אחר שיבקש אימוץ-לפי-Google נדחה כאן, לפני כל
+  // קריאה חיצונית — ולכן החריגה אינה יכולה לזלוג לקטלוג הציבורי.
+  if (!supportsGoogleSourcedSlot(serviceKey)) return { ok: false, error: 'adopt_not_supported' }
+
+  let read
+  try {
+    read = await deps.readEvent(eventId)
+  } catch (err) {
+    logGoogleCalendarError('[adminBooking] adopted event read failed', err)
+    return { ok: false, error: 'calendar_unavailable' }
+  }
+
+  if (!read.ok) {
+    return { ok: false, error: read.reason === 'gone' ? 'adopt_event_gone' : 'adopt_event_invalid' }
+  }
+
+  // 🔒 אירוע שנושא חתימת מערכת שייך כבר לתור. אימוצו היה גוזל אותו מהתור
+  // ההוא ומשאיר אותו בלי אירוע ביומן, בלי שאיש ידע.
+  if (read.event.appointmentId !== null) return { ok: false, error: 'adopt_event_taken' }
+
+  const linked = await deps.linkedEventIds([eventId])
+  if (linked === 'unknown') return { ok: false, error: 'calendar_unavailable' }
+  if (linked.has(eventId)) return { ok: false, error: 'adopt_event_taken' }
+
+  return googleEventToSlot(read.event)
+}
+
 export type AvailabilityResult =
   | { available: true }
   | {
@@ -214,6 +429,12 @@ export async function checkManualSlotAvailability(
   startsAt: Date,
   endsAt: Date,
   appointmentId: string,
+  /**
+   * 🔒 15I — האירוע שממנו נגזר המועד. הוא אינו התנגשות אלא התור עצמו,
+   * ולכן מוחרג מהבדיקה מול היומן. **אינו** מוחרג מהבדיקה מול ה-DB: תור
+   * אחר במערכת באותה שעה ממשיך לחסום.
+   */
+  ignoreEventId: string | null = null,
 ): Promise<AvailabilityResult> {
   if (startsAt.getTime() <= Date.now()) return { available: false, reason: 'past' }
 
@@ -236,7 +457,7 @@ export async function checkManualSlotAvailability(
 
   try {
     const conflict = await findConflictingCalendarEvent(
-      israelDateStr(startsAt), startsAt, endsAt, appointmentId,
+      israelDateStr(startsAt), startsAt, endsAt, appointmentId, ignoreEventId,
     )
     if (conflict) {
       return {
@@ -320,6 +541,15 @@ export interface CreateManualAppointmentInput {
    * כי שם מדובר בשתי לקוחות ולא בשני ייצוגים של אותו תור.
    */
   adoptCalendarEventId?: string | null
+  /**
+   * 🔒 15I — המועד כפי שנקרא מהאירוע ב-Google. כשהוא קיים הוא **דורס**
+   * את startsAt/endsAt/durationMin שלמעלה: הם מה שהוזן בטופס, וזה מה
+   * שביומן. ראה applyGoogleSourcedSlot.
+   *
+   * ⚠️ תקף רק לטיפול ניהולי. הפונקציה מוודאת זאת בעצמה ואינה סומכת על
+   * הקורא.
+   */
+  adoptedSlot?: AdoptedGoogleSlot | null
 }
 
 /**
@@ -347,13 +577,30 @@ export async function createManualAppointment(
 ): Promise<{ ok: true; data: ManualAppointmentOk } | { ok: false; error: ManualAppointmentError }> {
   const db = createSupabaseAdminClient()
 
+  /*
+   * 🔒 15I — Google קודם לטופס, וזה קורה **לפני** טביעת האצבע.
+   *
+   * ⚠️ הסדר אינו קוסמטי: ה-fingerprint חייב להיות של מה שבאמת נכתב. אילו
+   * חושב על מה שהוזן בטופס, retry לגיטימי היה נראה כ"payload שונה" ונופל
+   * על IDEMPOTENCY_KEY_REUSED, ורשומת ה-idempotency הייתה מתעדת מועד שלא
+   * נשמר מעולם.
+   *
+   * ⚠️ שער הטיפולים נאכף כאן שוב, ולא רק ב-route: adoptedSlot שהגיע עם
+   * טיפול מהקטלוג הציבורי מתעלם לחלוטין, והמועד נשאר של הטופס.
+   */
+  const adoptedSlot = supportsGoogleSourcedSlot(input.serviceKey) ? (input.adoptedSlot ?? null) : null
+  const slot = applyGoogleSourcedSlot(
+    { startsAt: input.startsAt, endsAt: input.endsAt, durationMin: input.durationMin },
+    adoptedSlot,
+  )
+
   const fingerprint = appointmentCreateFingerprint({
     actorAdminId: input.adminUserId,
     customerId: input.customerId,
     serviceKey: input.serviceKey,
     variants: input.variants,
-    startsAt: input.startsAt,
-    durationMin: input.durationMin,
+    startsAt: slot.startsAt,
+    durationMin: slot.durationMin,
     priceTotal: input.priceTotal,
     policyVersion: POLICY_VERSION,
   })
@@ -384,7 +631,9 @@ export async function createManualAppointment(
   // עוד אין מזהה, ולכן שום אירוע קיים לא ייחשב בטעות כשלנו.
   const adoptEventId = input.adoptCalendarEventId?.trim() || null
   const availability = await checkManualSlotAvailability(
-    input.startsAt, input.endsAt, '00000000-0000-0000-0000-000000000000',
+    slot.startsAt, slot.endsAt, '00000000-0000-0000-0000-000000000000',
+    // המועד נגזר מהאירוע הזה עצמו — הוא אינו יכול להתנגש בעצמו.
+    slot.googleSourced ? adoptEventId : null,
   )
   if (!availability.available) {
     if (availability.reason === 'past') return { ok: false, error: 'start_in_past' }
@@ -414,8 +663,8 @@ export async function createManualAppointment(
     p_service_key: input.serviceKey,
     p_variants: input.variants,
     p_price_total: input.priceTotal,
-    p_starts_at: input.startsAt.toISOString(),
-    p_duration_min: input.durationMin,
+    p_starts_at: slot.startsAt.toISOString(),
+    p_duration_min: slot.durationMin,
     p_policy_version: POLICY_VERSION,
     p_admin_id: input.adminUserId,
     p_client_request_id: input.clientRequestId,

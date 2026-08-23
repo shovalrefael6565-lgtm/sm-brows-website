@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Loader2, CheckCircle2, AlertCircle, AlertTriangle, CalendarPlus } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, AlertTriangle, CalendarPlus, Lock } from 'lucide-react'
 import CustomerPicker, { type PickedCustomer } from '@/components/admin/CustomerPicker'
 import {
   NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS,
@@ -23,6 +23,19 @@ import {
  *
  * חריגה משעות הפעילות או יום סגור מציגה אזהרה שדורשת אישור מודע — היא
  * אינה חוסמת. חפיפה עם תור קיים או עם אירוע ביומן **כן** חוסמת.
+ *
+ * ═══ 15I — "המועד מגיע מהיומן" (מיקרובליידינג בלבד) ═══════════════════════
+ *
+ * שובל קובעת מיקרובליידינג בטלפון ורושמת אותו ביומן לפני שהוא מגיע לאתר.
+ * במקרה הזה אין מה להקליד: בוחרים תאריך, רואים את אירועי היום שאפשר
+ * לקשר, ובוחרים את האירוע. מהרגע הזה **התאריך, ההתחלה, הסיום והמשך
+ * מוצגים לקריאה בלבד** ונלקחים מ-Google.
+ *
+ * ⚠️ אין כאן "גם וגם": ברגע שנבחר אירוע, שדות השעה והמשך אינם ניתנים
+ * לעריכה — לא מוסתרים אלא נעולים, כדי ששובל תראה בדיוק מה יישמר.
+ *
+ * ⚠️ אירוע מחוץ לשעות הפעילות **אינו** דורש אישור חריגה ואינו חוסם: הוא
+ * כבר קיים ביומן, והשאלה "האם המועד חריג" כבר הוכרעה שם.
  */
 
 interface AdoptableEvent {
@@ -32,6 +45,21 @@ interface AdoptableEvent {
   end: string
 }
 
+/** אירוע מרשימת הגילוי — כמו AdoptableEvent, עם המשך שכבר חושב בשרת */
+interface DiscoveredEvent extends AdoptableEvent {
+  durationMin: number
+}
+
+/** המועד כפי שנקרא מהיומן — זה מה שיישמר, ולא מה שהוקלד */
+interface GoogleSlot {
+  eventId: string
+  summary: string
+  isoDate: string
+  startTime: string
+  endTime: string
+  durationMin: number
+}
+
 interface Availability {
   durationMin: number
   priceTotal: number | null
@@ -39,6 +67,8 @@ interface Availability {
   reason: string | null
   /** פרטי האירוע החוסם ביומן, רק כשהוא ניתן לאימוץ (שלב 12) */
   adoptable: AdoptableEvent | null
+  /** 15I — לא null ⟹ המועד נגזר מהיומן והשדות נעולים */
+  googleSlot: GoogleSlot | null
   warnings: { outsideBusinessHours: boolean; closedDay: boolean }
 }
 
@@ -71,11 +101,17 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   const [priceTotal, setPriceTotal] = useState('')
 
   /**
-   * 🔒 "זה אותו תור" — אישור מפורש של שובל שהאירוע החוסם ביומן הוא בעצם
-   * התור הזה. מאופס בכל שינוי של הצירוף (ראה ה-effect למטה), כדי שאישור
-   * שניתן על אירוע אחד לא יזלוג למועד אחר לגמרי.
+   * 🔒 האירוע שנבחר לקישור. מגיע משני מקומות ומתנהג זהה בשניהם:
+   * רשימת אירועי היום (15I), או הסימון "זה אותו תור" על אירוע חוסם (שלב 12).
+   * מאופס בכל שינוי של הטיפול או התאריך, כדי שבחירה שניתנה על אירוע אחד
+   * לא תזלוג ליום אחר.
    */
   const [adoptEventId, setAdoptEventId] = useState<string | null>(null)
+
+  // ── 15I: אירועי היומן של היום שנבחר ──
+  const [events, setEvents] = useState<DiscoveredEvent[] | null>(null)
+  const [eventsBusy, setEventsBusy] = useState(false)
+  const [eventsError, setEventsError] = useState<string | null>(null)
 
   const [availability, setAvailability] = useState<Availability | null>(null)
   const [checking, setChecking] = useState(false)
@@ -86,16 +122,62 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   const [done, setDone] = useState<{ appointmentId: string; calendarSynced: boolean; message: string } | null>(null)
 
   const seq = useRef(0)
+  const eventsSeq = useRef(0)
 
-  const slotReady = Boolean(isoDate && time)
+  /** מצב "המועד מהיומן": טיפול ניהולי + אירוע שנבחר */
+  const googleMode = Boolean(adminService && adoptEventId)
+
   const durationNum = Number(durationMin)
   const durationValid =
     Number.isInteger(durationNum) &&
     durationNum >= ADMIN_MIN_DURATION_MIN &&
     durationNum <= ADMIN_MAX_DURATION_MIN
+
+  // ⚠️ במצב Google אין שעה להקליד ואין משך להקליד — שניהם מגיעים מהאירוע.
+  const slotReady = googleMode ? Boolean(isoDate) : Boolean(isoDate && time)
   const serviceReady = adminService
-    ? durationValid
+    ? (googleMode || durationValid)
     : serviceKey === LIFTING_SERVICE || variants.length > 0
+
+  /*
+   * ── 15I: טעינת אירועי היום שאפשר לקשר ────────────────────────────────────
+   *
+   * ⚠️ רץ רק לטיפול ניהולי. לשני טיפולי הקטלוג אין זרימת אימוץ מהיומן,
+   * ולכן אין קריאה ל-Google בכלל — ההתנהגות שלהם לא השתנתה.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAdoptEventId(null)
+    setEvents(null)
+    setEventsError(null)
+    if (!adminService || !isoDate) return
+
+    const mine = ++eventsSeq.current
+    setEventsBusy(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/admin/appointments/calendar-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isoDate, serviceKey }),
+        })
+        const data = await res.json()
+        if (mine !== eventsSeq.current) return
+        if (res.ok) setEvents(data.events ?? [])
+        else { setEvents([]); setEventsError(data.message ?? 'לא הצלחנו לטעון את אירועי היומן.') }
+      } catch {
+        if (mine === eventsSeq.current) {
+          setEvents([])
+          setEventsError('לא הצלחנו לטעון את אירועי היומן.')
+        }
+      } finally {
+        if (mine === eventsSeq.current) setEventsBusy(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(t)
+    // adminService נגזר מ-serviceKey; התלות בו היא התלות בטיפול.
+  }, [serviceKey, adminService, isoDate])
 
   // בדיקת זמינות בכל שינוי של הצירוף. תגובה ישנה שמגיעה באיחור לא דורסת חדשה.
   // לא ניתן להעביר להתאמה בזמן ה-render בלי לפצל את ה-fetch לזרימה נפרדת,
@@ -104,7 +186,6 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAvailability(null)
     setAck(false)
-    setAdoptEventId(null)
     if (!slotReady || !serviceReady) return
 
     const mine = ++seq.current
@@ -115,9 +196,13 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            serviceKey, variants, isoDate, time,
-            durationMin: durationMin === '' ? undefined : Number(durationMin),
+            serviceKey, variants, isoDate,
+            // ⚠️ במצב Google השעה והמשך אינם נשלחים כלל. אין ערך בטופס
+            // שיכול להשפיע על המועד שיישמר.
+            time: googleMode ? undefined : time,
+            durationMin: googleMode || durationMin === '' ? undefined : Number(durationMin),
             priceTotal: priceTotal === '' ? undefined : Number(priceTotal),
+            adoptCalendarEventId: adoptEventId ?? undefined,
           }),
         })
         const data = await res.json()
@@ -130,10 +215,21 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
     }, 300)
 
     return () => clearTimeout(t)
-  }, [serviceKey, variants, isoDate, time, durationMin, priceTotal, slotReady, serviceReady])
+  }, [
+    serviceKey, variants, isoDate, time, durationMin, priceTotal,
+    slotReady, serviceReady, adoptEventId, googleMode,
+  ])
 
+  const googleSlot = availability?.googleSlot ?? null
+
+  /*
+   * ⚠️ אירוע קיים ביומן אינו דורש אישור חריגה. הוא כבר נקבע שם, והמועד
+   * שלו הוא נתון ולא בחירה שנעשית עכשיו בטופס. זו בדיוק החריגה שנדרשה:
+   * business-hours אינו חוסם אימוץ.
+   */
   const needsAck = Boolean(
-    availability?.warnings.outsideBusinessHours || availability?.warnings.closedDay,
+    !googleSlot &&
+    (availability?.warnings.outsideBusinessHours || availability?.warnings.closedDay),
   )
   /*
    * ⚠️ מועד עם התנגשות יומן ניתן לשליחה **רק** אחרי שסומן "זה אותו תור",
@@ -162,10 +258,13 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId: customer.id, serviceKey, variants, isoDate, time,
-          durationMin: durationMin === '' ? undefined : Number(durationMin),
+          customerId: customer.id, serviceKey, variants, isoDate,
+          // ⚠️ אותו כלל כמו בבדיקת הזמינות: במצב Google לא נשלחת שעה ולא
+          // נשלח משך. השרת קורא אותם מהאירוע.
+          time: googleMode ? undefined : time,
+          durationMin: googleMode || durationMin === '' ? undefined : Number(durationMin),
           priceTotal: priceTotal === '' ? undefined : Number(priceTotal),
-          adoptCalendarEventId: adoptedNow ? adoptEventId : undefined,
+          adoptCalendarEventId: (googleMode || adoptedNow) ? adoptEventId : undefined,
           client_request_id: requestId,
         }),
       })
@@ -230,7 +329,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             type="button"
             onClick={() => {
               setDone(null); setIsoDate(''); setTime(''); setVariants([])
-              setAvailability(null); setAdoptEventId(null)
+              setAvailability(null); setAdoptEventId(null); setEvents(null)
             }}
             className="inline-flex items-center justify-center h-11 px-4 rounded-xl border
                        border-brand-linen-dark text-sm font-medium text-brand-muted
@@ -291,21 +390,39 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
               <label htmlFor="durationMin" className="block text-sm font-medium text-brand-dark mb-1.5">
                 משך הטיפול (דקות)
               </label>
-              <input
-                id="durationMin"
-                type="number"
-                inputMode="numeric"
-                min={ADMIN_MIN_DURATION_MIN}
-                max={ADMIN_MAX_DURATION_MIN}
-                step={5}
-                required
-                value={durationMin}
-                onChange={e => setDurationMin(e.target.value)}
-                className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
-                           text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
-              />
+              {/*
+                ⚠️ במצב Google המשך אינו שדה קלט אלא תצוגה: הוא end − start
+                של האירוע, ואי אפשר לשנות אותו כאן.
+              */}
+              {googleMode ? (
+                <div
+                  className="flex items-center gap-2 h-12 px-3 rounded-xl border border-brand-cream-dark
+                             bg-brand-cream/50 text-brand-dark"
+                  aria-live="polite"
+                >
+                  <Lock className="w-3.5 h-3.5 text-brand-muted shrink-0" aria-hidden="true" />
+                  <span>{googleSlot ? `${googleSlot.durationMin} דקות` : '—'}</span>
+                  <span className="text-xs text-brand-muted">לפי היומן</span>
+                </div>
+              ) : (
+                <input
+                  id="durationMin"
+                  type="number"
+                  inputMode="numeric"
+                  min={ADMIN_MIN_DURATION_MIN}
+                  max={ADMIN_MAX_DURATION_MIN}
+                  step={5}
+                  required
+                  value={durationMin}
+                  onChange={e => setDurationMin(e.target.value)}
+                  className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
+                             text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
+                />
+              )}
               <p className="text-xs text-brand-muted mt-1">
-                בטיפול הזה המשך נקבע ידנית ({ADMIN_MIN_DURATION_MIN}–{ADMIN_MAX_DURATION_MIN} דקות).
+                {googleMode
+                  ? 'המשך נגזר מהאירוע ביומן ואינו ניתן לעריכה.'
+                  : `בטיפול הזה המשך נקבע ידנית (${ADMIN_MIN_DURATION_MIN}–${ADMIN_MAX_DURATION_MIN} דקות).`}
               </p>
             </div>
             <div>
@@ -376,21 +493,121 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             <label htmlFor="time" className="block text-sm font-medium text-brand-dark mb-1.5">
               שעה
             </label>
-            <input
-              id="time"
-              type="time"
-              required
-              step={300}
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
-                         text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
-            />
+            {/*
+              ⚠️ במצב Google השעה אינה שדה קלט. מוצג הטווח שנקרא מהיומן —
+              בדיוק מה שיישמר.
+            */}
+            {googleMode ? (
+              <div
+                className="flex items-center gap-2 h-12 px-3 rounded-xl border border-brand-cream-dark
+                           bg-brand-cream/50 text-brand-dark"
+                aria-live="polite"
+              >
+                <Lock className="w-3.5 h-3.5 text-brand-muted shrink-0" aria-hidden="true" />
+                <span dir="ltr">
+                  {googleSlot ? `${googleSlot.startTime}–${googleSlot.endTime}` : '—'}
+                </span>
+                <span className="text-xs text-brand-muted">לפי היומן</span>
+              </div>
+            ) : (
+              <input
+                id="time"
+                type="time"
+                required
+                step={300}
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="w-full h-12 px-3 rounded-xl border border-brand-linen-dark bg-white
+                           text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-rose/40"
+              />
+            )}
           </div>
         </div>
         <p className="text-xs text-brand-muted">
-          כמנהלת אפשר לקבוע גם מחוץ לשעות הפעילות ובימים סגורים. המועד מפורש לפי שעון ישראל.
+          {googleMode
+            ? 'המועד נלקח מהאירוע ביומן Google — תאריך, שעת התחלה, שעת סיום ומשך. האירוע ביומן לא ישונה ולא ייווצר אירוע נוסף.'
+            : 'כמנהלת אפשר לקבוע גם מחוץ לשעות הפעילות ובימים סגורים. המועד מפורש לפי שעון ישראל.'}
         </p>
+
+        {/*
+          ── 15I: בחירת אירוע קיים ביומן ────────────────────────────────────
+          מוצג רק לטיפולים הניהוליים, ורק אחרי שנבחר תאריך. אירוע שכבר
+          מקושר לתור אחר אינו מופיע כאן כלל.
+        */}
+        {adminService && isoDate && (
+          <fieldset className="border-t border-brand-linen-dark pt-4">
+            <legend className="text-sm font-medium text-brand-dark mb-1.5">
+              אירוע קיים ביומן Google
+            </legend>
+
+            {eventsBusy && (
+              <p className="flex items-center gap-2 text-sm text-brand-muted">
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                טוענת את אירועי היום…
+              </p>
+            )}
+
+            {eventsError && !eventsBusy && (
+              <div role="alert" className="flex items-start gap-2 bg-rose-50 border border-rose-200
+                                           rounded-xl p-3 text-sm text-rose-800">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+                <span>{eventsError} אפשר להמשיך בהזנה ידנית של המועד.</span>
+              </div>
+            )}
+
+            {events && !eventsBusy && events.length === 0 && !eventsError && (
+              <p className="text-sm text-brand-muted">
+                אין ביומן אירועים פנויים לקישור בתאריך הזה. אפשר להזין מועד ידנית.
+              </p>
+            )}
+
+            {events && events.length > 0 && !eventsBusy && (
+              <div className="space-y-2">
+                {events.map(ev => (
+                  <label
+                    key={ev.eventId}
+                    className="flex items-start gap-2.5 p-3 rounded-xl border border-brand-linen-dark
+                               cursor-pointer hover:bg-brand-cream/30 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="adoptEvent"
+                      checked={adoptEventId === ev.eventId}
+                      onChange={() => setAdoptEventId(ev.eventId)}
+                      className="w-4 h-4 accent-brand-rose shrink-0 mt-0.5"
+                    />
+                    <span className="text-sm text-brand-dark">
+                      <span className="font-medium">{ev.summary || 'אירוע ללא כותרת'}</span>
+                      <span className="block text-xs text-brand-muted mt-0.5" dir="ltr">
+                        {eventTimeLabel(ev.start)}–{eventTimeLabel(ev.end)} · {ev.durationMin} min
+                      </span>
+                    </span>
+                  </label>
+                ))}
+
+                {/* ⚠️ המסלול הידני נשאר זמין במלואו ולא השתנה. */}
+                <label
+                  className="flex items-start gap-2.5 p-3 rounded-xl border border-brand-linen-dark
+                             cursor-pointer hover:bg-brand-cream/30 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="adoptEvent"
+                    checked={adoptEventId === null}
+                    onChange={() => setAdoptEventId(null)}
+                    className="w-4 h-4 accent-brand-rose shrink-0 mt-0.5"
+                  />
+                  <span className="text-sm text-brand-dark">
+                    ללא קישור ליומן
+                    <span className="block text-xs text-brand-muted mt-0.5">
+                      הזנת שעה ומשך ידנית, ואירוע חדש ייווצר ביומן.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            )}
+          </fieldset>
+        )}
 
         {checking && (
           <p className="flex items-center gap-2 text-sm text-brand-muted">
@@ -407,6 +624,26 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
                 {availability.priceTotal != null ? `מחיר: ₪${availability.priceTotal}` : 'ללא מחיר'}
               </span>
             </div>
+
+            {googleSlot && (
+              <div className="bg-brand-cream/60 border border-brand-cream-dark rounded-xl p-3.5">
+                <p className="flex items-center gap-2 text-sm text-brand-dark">
+                  <Lock className="w-4 h-4 text-brand-muted shrink-0" aria-hidden="true" />
+                  המועד נלקח מהאירוע ביומן ואינו ניתן לעריכה.
+                </p>
+                <p className="text-sm font-medium text-brand-dark mt-1.5">
+                  {googleSlot.summary || 'אירוע ללא כותרת'} · {googleSlot.isoDate} ·{' '}
+                  <span dir="ltr">{googleSlot.startTime}–{googleSlot.endTime}</span> ·{' '}
+                  {googleSlot.durationMin} דקות
+                </p>
+                {(availability.warnings.outsideBusinessHours || availability.warnings.closedDay) && (
+                  // ⚠️ מידע בלבד. אירוע קיים ביומן נוצר גם מחוץ לשעות הפעילות.
+                  <p className="text-xs text-brand-muted mt-1">
+                    המועד מחוץ לשעות הפעילות המוצגות ללקוחות — וזה בסדר, הוא נקבע ביומן.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/*
               🔒 שלב 12 — "זה אותו תור".
@@ -436,6 +673,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
                     <span className="block text-xs text-brand-muted mt-0.5">
                       התור יישמר במערכת, ב-CRM ובתזכורות. לא ייווצר אירוע נוסף ביומן,
                       והאירוע הקיים לא יוזז ולא ישונה.
+                      {adminService && ' המועד יילקח מהאירוע ביומן.'}
                     </span>
                   </span>
                 </label>
@@ -496,7 +734,12 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             </div>
             <div className="flex gap-2">
               <dt className="text-brand-muted w-20 shrink-0">מועד</dt>
-              <dd className="text-brand-dark">{isoDate} · {time}</dd>
+              {/* ⚠️ הסיכום מציג את מה שיישמר — במצב Google זה המועד מהיומן. */}
+              <dd className="text-brand-dark">
+                {googleSlot
+                  ? `${googleSlot.isoDate} · ${googleSlot.startTime}–${googleSlot.endTime}`
+                  : `${isoDate} · ${time}`}
+              </dd>
             </div>
             <div className="flex gap-2">
               <dt className="text-brand-muted w-20 shrink-0">סה״כ</dt>
@@ -531,7 +774,8 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
         </button>
         <p className="text-xs text-brand-muted">
           התור נוצר מאושר. לא נשלחת הודעה ללקוחה.
-          {adoptedNow && ' האירוע הקיים ביומן יקושר לתור הזה, בלי ליצור אירוע נוסף.'}
+          {(googleMode || adoptedNow) && ' האירוע הקיים ביומן יקושר לתור הזה, בלי ליצור אירוע נוסף.'}
+          {googleMode && ' לאחר היצירה המועד ניתן לשינוי ביומן Google בלבד.'}
         </p>
       </section>
     </form>

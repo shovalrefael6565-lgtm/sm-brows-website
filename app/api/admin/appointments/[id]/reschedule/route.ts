@@ -3,6 +3,8 @@ import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { isSameOrigin } from '@/lib/auth/originGuard'
 import { rescheduleByAdmin } from '@/lib/appointmentApproval'
 import { manualSlotInstants } from '@/lib/adminBooking'
+import { getAppointmentForAdmin } from '@/lib/db/appointments'
+import { isGoogleTimeLocked } from '@/lib/calendarLink'
 import { ADMIN_MIN_DURATION_MIN, ADMIN_MAX_DURATION_MIN } from '@/lib/services'
 import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
 
@@ -76,6 +78,29 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (Number.isNaN(startsAt.getTime())) {
     return NextResponse.json(
       { error: 'invalid_slot', message: ADMIN_ERROR_MESSAGES.invalid_slot }, { status: 400 })
+  }
+
+  /*
+   * 🔒 15I — תור שהמועד שלו נקבע ביומן Google אינו ניתן להזזה מכאן.
+   *
+   * ─── למה זה חסימה ולא אזהרה ───────────────────────────────────────────
+   *
+   * הזזה כאן הייתה עושה patch על האירוע של שובל ומכריחה את היומן להסכים
+   * עם האתר — בדיוק ההיפך מהכלל שהתור הזה נוצר תחתיו. כל עוד הקישור קיים,
+   * כיוון הזרימה הוא Google → מערכת: שובל מזיזה ביומן, והסנכרון הנכנס
+   * (שלב 8) מעדכן את התור ואת התזכורות.
+   *
+   * ⚠️ הבדיקה כאן היא ההגנה. הכפתור מוסתר ברשימה, אבל הסתרה בממשק אינה
+   * אכיפה — הבקשה יכולה להגיע גם מלשונית ישנה.
+   */
+  const existing = await getAppointmentForAdmin(id)
+  if (!existing) {
+    return NextResponse.json({ error: 'not_found', message: 'התור לא נמצא.' }, { status: 404 })
+  }
+  if (isGoogleTimeLocked(existing.id, existing.google_event_id)) {
+    return NextResponse.json(
+      { error: 'calendar_time_locked', message: ADMIN_ERROR_MESSAGES.calendar_time_locked },
+      { status: 409 })
   }
 
   const result = await rescheduleByAdmin({

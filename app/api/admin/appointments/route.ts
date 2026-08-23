@@ -4,6 +4,7 @@ import { isSameOrigin } from '@/lib/auth/originGuard'
 import { getBookingCustomer } from '@/lib/db/manualCustomers'
 import {
   resolveManualService, manualSlotInstants, createManualAppointment,
+  resolveAdoptedGoogleSlot, supportsGoogleSourcedSlot, type AdoptedGoogleSlot,
 } from '@/lib/adminBooking'
 import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
 
@@ -64,9 +65,39 @@ export async function POST(req: NextRequest) {
       { status: 404 })
   }
 
+  // ⚠️ מזהה בלבד, ורק כזה שהשרת מוודא שוב מול היומן בעצמו.
+  const adoptEventId =
+    typeof body.adoptCalendarEventId === 'string' && CALENDAR_EVENT_ID_RE.test(body.adoptCalendarEventId)
+      ? body.adoptCalendarEventId
+      : null
+
+  /*
+   * ─── 15I: Google הוא מקור האמת למועד ─────────────────────────────────────
+   *
+   * 🔒 השרת מכריע לפי ה-service_key שנשלח, ולא לפי דגל מהדפדפן: רק
+   * מיקרובליידינג וייעוץ מיקרובליידינג נכנסים למצב הזה.
+   *
+   * ⚠️ האירוע נקרא **עכשיו** ולא מסתמך על מה שהוצג במסך. בין הבחירה
+   * ללחיצה שובל יכולה להזיז אותו ביומן, ומה שנשמר חייב להיות מה שביומן
+   * ברגע השמירה.
+   */
+  const googleSourced = Boolean(adoptEventId) && supportsGoogleSourcedSlot(body.serviceKey)
+  let adopted: AdoptedGoogleSlot | null = null
+  if (googleSourced) {
+    const res = await resolveAdoptedGoogleSlot(body.serviceKey, adoptEventId!)
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: res.error, message: ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown },
+        { status: res.error === 'calendar_unavailable' ? 502 : 409 })
+    }
+    adopted = res.data
+  }
+
   const isoDate = typeof body.isoDate === 'string' ? body.isoDate : ''
   const time = typeof body.time === 'string' ? body.time : ''
-  if (!ISO_DATE_RE.test(isoDate) || !TIME_RE.test(time)) {
+  // ⚠️ במצב Google אין להזין שעה כלל, ולכן גם אין לדרוש אותה. התאריך
+  // שנשלח משמש לניווט בלבד — מה שנשמר הוא התאריך של האירוע.
+  if (!ISO_DATE_RE.test(isoDate) || (!adopted && !TIME_RE.test(time))) {
     return NextResponse.json(
       { error: 'invalid_slot', message: ADMIN_ERROR_MESSAGES.invalid_slot }, { status: 400 })
   }
@@ -85,7 +116,9 @@ export async function POST(req: NextRequest) {
   // ⚠️ המשך והמחיר מהטופס נכנסים לחשבון **רק** בטיפול ניהולי (שלב 12).
   // בשני טיפולי הקטלוג הם מתעלמים, והערכים נגזרים מ-lib/services.ts כמו קודם.
   const service = resolveManualService(body.serviceKey, body.variants, {
-    durationMin: body.durationMin,
+    // ⚠️ במצב Google המשך הוא end − start של האירוע. מה שהוקלד בטופס
+    // אינו נקרא כאן ואינו נשמר בשום מקום.
+    durationMin: adopted ? adopted.durationMin : body.durationMin,
     priceTotal: body.priceTotal,
   })
   if (!service.ok) {
@@ -95,7 +128,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ⚠️ שעון קיר ישראלי, לא אזור הזמן של השרת או של הדפדפן
-  const { startsAt, endsAt } = manualSlotInstants(isoDate, time, service.data.durationMin)
+  const { startsAt, endsAt } = adopted
+    ? { startsAt: adopted.startsAt, endsAt: adopted.endsAt }
+    : manualSlotInstants(isoDate, time, service.data.durationMin)
   if (Number.isNaN(startsAt.getTime())) {
     return NextResponse.json(
       { error: 'invalid_slot', message: ADMIN_ERROR_MESSAGES.invalid_slot }, { status: 400 })
@@ -111,11 +146,11 @@ export async function POST(req: NextRequest) {
     endsAt,
     adminUserId: guard.userId,   // מה-session בלבד
     clientRequestId: body.client_request_id,
-    // ⚠️ מזהה בלבד, ורק כזה שהשרת מוודא שוב שהוא באמת האירוע החוסם.
-    adoptCalendarEventId:
-      typeof body.adoptCalendarEventId === 'string' && CALENDAR_EVENT_ID_RE.test(body.adoptCalendarEventId)
-        ? body.adoptCalendarEventId
-        : null,
+    adoptCalendarEventId: adoptEventId,
+    // ⚠️ נשלח גם כשהמועד כבר נגזר ממנו למעלה: createManualAppointment
+    // מחילה אותו שוב על מה שנכתב בפועל, כדי שהכלל יישמר גם אם יגיע קורא
+    // אחר בעתיד.
+    adoptedSlot: adopted,
   })
 
   if (!res.ok) {
