@@ -58,9 +58,17 @@ export default function Hero() {
             transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="font-serif text-[2.6rem] font-medium leading-[1.08] mb-3 text-brand-dark"
           >
-            גבות
+            {/*
+              ⚠️ הרווחים המפורשים אינם קישוט. JSX בולע את השורות-החדשות
+              שבין טקסט לאלמנט, ולכן הטקסט המחולץ מה-HTML היה
+              "גבותשמדברותבעד עצמן" — מילה אחת חסרת משמעות בדיוק בכותרת
+              הראשית של האתר, וזה מה שגוגל ומנועי AI קראו.
+              ה-span הוא display:block, כך שהרווחים לא נראים בעין ולא
+              משנים את העיצוב כהוא זה.
+            */}
+            {'גבות '}
             <span className="block text-brand-rose-text">שמדברות</span>
-            בעד עצמן
+            {' בעד עצמן'}
           </motion.h1>
 
           <motion.p
@@ -111,16 +119,30 @@ export default function Hero() {
         <div className="flex flex-col justify-center ps-16 pe-12 py-24 bg-brand-cream w-[46%] flex-shrink-0">
           <div className="w-full max-w-md">
 
-            <motion.h1
+            {/*
+              ⚠️ זהו התאום של ה-<h1> שבגרסת המובייל למעלה — אותו טקסט
+              בדיוק, בפריסה אחרת. כשגם הוא היה <h1> היו לעמוד שני H1
+              זהים ב-HTML.
+
+              הפתרון הוא לא להסתיר אחד מהם: כל אחד מהשניים display:none
+              בברייקפוינט השני, כך שהסרת ה-h1 היחיד הייתה משאירה חצי
+              מהמשתמשים בלי כותרת ראשית בעץ הנגישות. לכן ה-h1 הסמנטי
+              היחיד ב-DOM הוא של המובייל (וזה גם מה שגוגל רואה, בהיותה
+              mobile-first), והגרסה הזו מוכרזת כרמה 1 דרך ARIA — אותה
+              משמעות לקוראות מסך, בלי תגית h1 שנייה.
+            */}
+            <motion.div
+              role="heading"
+              aria-level={1}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
               className="font-serif text-5xl xl:text-[4.25rem] 2xl:text-[5rem] font-medium leading-[1.05] mb-4 text-brand-dark"
             >
-              גבות
+              {'גבות '}
               <span className="block text-brand-rose-text">שמדברות</span>
-              בעד עצמן
-            </motion.h1>
+              {' בעד עצמן'}
+            </motion.div>
 
             <motion.p
               initial={{ opacity: 0, y: 14 }}

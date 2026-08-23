@@ -2,11 +2,23 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import BookingForm from '@/components/booking/BookingForm'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
+import { SITE_URL } from '@/lib/utils'
 
 export const metadata: Metadata = {
   title: 'קביעת תור',
   description: 'קבעי תור לטיפול גבות מקצועי — מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות וקורס מקצועי. S.M BROWS אשקלון.',
   alternates: { canonical: '/booking' },
+  openGraph: {
+    title: 'קביעת תור | S.M BROWS',
+    description: 'קבעי תור לטיפול גבות מקצועי — מיקרובליידינג, עיצוב גבות טבעיות והרמת גבות באשקלון.',
+    url: `${SITE_URL}/booking`,
+    type: 'website',
+    locale: 'he_IL',
+    siteName: 'S.M BROWS',
+    images: [
+      { url: '/hero.webp', width: 1200, height: 630, alt: 'S.M BROWS — קביעת תור' },
+    ],
+  },
 }
 
 export default function BookingPage() {

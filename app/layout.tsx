@@ -9,8 +9,9 @@ import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
 import { ConsentProvider } from '@/lib/consentContext'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
-  SITE_URL, PHONE_NUMBER, EMAIL, STREET_ADDRESS,
-  INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL,
+  SITE_URL, PHONE_E164, EMAIL, STREET_ADDRESS,
+  INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL,
+  BUSINESS_ID, WEBSITE_ID,
 } from '@/lib/utils'
 import { APPLE_SPLASH, splashSrc, splashMedia, APPLE_TOUCH_ICON } from '@/lib/pwa'
 
@@ -143,15 +144,30 @@ export const metadata: Metadata = {
   category: 'beauty',
 }
 
-/** JSON-LD: BeautySalon — מופיע בכל עמוד דרך ה-Root Layout */
-const localBusinessJsonLd = {
-  '@context': 'https://schema.org',
+/**
+ * JSON-LD: גרף הישויות של האתר — מופיע בכל עמוד דרך ה-Root Layout.
+ *
+ * ⚠️ ישות עסקית אחת בלבד. עד לפאס הזה היה כאן BeautySalon בלי @id, ובמקביל
+ * app/course/page.tsx הגדיר Organization נפרד בשם "S.M BROWS" בתור
+ * Course.provider — כלומר שתי ישויות שונות שבמקרה חולקות שם, בלי שום עוגן
+ * לקשור ביניהן. עכשיו BeautySalon הוא הישות היחידה (BUSINESS_ID), והקורס
+ * מצביע אליה ב-@id במקום לשכפל אותה.
+ *
+ * BeautySalon הוא subtype של LocalBusiness שהוא subtype של Organization —
+ * ולכן הוא ממלא את שני התפקידים בעצמו ואין צורך בצומת Organization נפרד.
+ *
+ * ⚠️ אין להוסיף כאן geo, postalCode, שעות חדשות, מחירים חדשים או Person
+ * לפני שהעובדות אומתו מול העסק. כל שדה כאן הוא עובדה קיימת ומאומתת.
+ */
+const businessJsonLd = {
   '@type': 'BeautySalon',
+  '@id': BUSINESS_ID,
   name: 'S.M BROWS',
   alternateName: "S.M BROWS — IT'S ALL ABOUT YOUR EYEBROWS",
   description: 'קליניקה מקצועית לעיצוב גבות באשקלון — מיקרובליידינג, עיצוב גבות טבעיות, הרמת גבות וקורסים.',
   url: SITE_URL,
-  telephone: PHONE_NUMBER,
+  // ⚠️ E.164 ל-structured data בלבד. התצוגה למבקרת נשארת PHONE_NUMBER.
+  telephone: PHONE_E164,
   email: EMAIL,
   image: `${SITE_URL}/hero.webp`,
   logo: `${SITE_URL}/logo.png`,
@@ -177,7 +193,9 @@ const localBusinessJsonLd = {
       closes: '19:00',
     },
   ],
-  sameAs: [INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL],
+  // GOOGLE_BUSINESS_URL כבר מקושר גלוי בפוטר, בניווט ובאייקונים החברתיים —
+  // הוספתו כאן רק מצהירה על אותו קישור שהמבקרת רואה ממילא.
+  sameAs: [INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL],
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
     name: 'שירותי עיצוב גבות',
@@ -187,6 +205,20 @@ const localBusinessJsonLd = {
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'הרמת גבות' }, priceCurrency: 'ILS', price: '250' },
     ],
   },
+}
+
+const websiteJsonLd = {
+  '@type': 'WebSite',
+  '@id': WEBSITE_ID,
+  url: SITE_URL,
+  name: 'S.M BROWS',
+  inLanguage: 'he-IL',
+  publisher: { '@id': BUSINESS_ID },
+}
+
+const siteGraphJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [businessJsonLd, websiteJsonLd],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -200,7 +232,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteGraphJsonLd) }}
         />
       </head>
       <body className="font-sans bg-brand-cream text-brand-dark antialiased">

@@ -6,7 +6,8 @@ import CourseProgram from '@/components/course/CourseProgram'
 import CourseFaq from '@/components/course/CourseFaq'
 import CourseClosing from '@/components/course/CourseClosing'
 import { course, courseFaq, courseOutcomes } from '@/lib/course'
-import { SITE_URL } from '@/lib/utils'
+import { SITE_URL, BUSINESS_ID, absoluteUrl } from '@/lib/utils'
+import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 export const metadata: Metadata = {
   title: 'קורס עיצוב גבות טבעיות',
@@ -18,7 +19,12 @@ export const metadata: Metadata = {
     description:
       'יומיים שבהם את מפתחת עין מקצועית ולומדת להתאים גבה נכונה לכל לקוחה — ולא לעבוד לפי תבנית אחת.',
     url: `${SITE_URL}/course`,
-    images: [{ url: `${SITE_URL}${course.image}` }],
+    type: 'website',
+    // course.image יחסי כיום, כך שהשרשור עבד — אבל זה בדיוק הדפוס
+    // ששבר את ה-BlogPosting. absoluteUrl נכון בשני המקרים.
+    locale: 'he_IL',
+    siteName: 'S.M BROWS',
+    images: [{ url: absoluteUrl(course.image), width: 1200, height: 630, alt: 'S.M BROWS — קורס עיצוב גבות טבעיות' }],
   },
 }
 
@@ -35,11 +41,10 @@ export default function CoursePage() {
     description: course.promise,
     inLanguage: 'he',
     url: `${SITE_URL}/course`,
-    provider: {
-      '@type': 'Organization',
-      name: 'S.M BROWS',
-      url: SITE_URL,
-    },
+    // ⚠️ הפניה ל-@id של הישות היחידה שמוגדרת ב-app/layout.tsx, ולא
+    // Organization משוכפל. עד לפאס ה-SEO היה כאן צומת נפרד בשם
+    // "S.M BROWS" — שני עסקים שונים בעיני מנוע, באותו שם.
+    provider: { '@id': BUSINESS_ID },
     teaches: [...courseOutcomes],
     hasCourseInstance: {
       '@type': 'CourseInstance',
@@ -68,6 +73,14 @@ export default function CoursePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([{ name: 'קורס עיצוב גבות טבעיות', path: '/course' }]),
+          ),
+        }}
       />
 
       <CourseHero />

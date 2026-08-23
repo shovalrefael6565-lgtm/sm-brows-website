@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { MapPin, Phone, Mail, Clock, MessageCircle } from 'lucide-react'
 import { WHATSAPP_URL, LOCATION, EMAIL, PHONE_NUMBER } from '@/lib/utils'
@@ -102,6 +103,15 @@ export default function ContactContent() {
                 <WhatsAppIcon className="w-5 h-5" />
                 קביעת תור בוואצאפ
               </a>
+              <p className="text-brand-medium text-sm mt-3">
+                מעדיפה לבחור מועד לבד?{' '}
+                <Link
+                  href="/booking"
+                  className="text-brand-rose-text underline underline-offset-2 hover:text-brand-rose-text/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+                >
+                  היומן פתוח כאן
+                </Link>
+              </p>
             </motion.div>
           </div>
 

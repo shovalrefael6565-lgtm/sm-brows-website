@@ -1,127 +1,39 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useId, useState } from 'react'
+import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { WHATSAPP_URL } from '@/lib/utils'
+import { FAQ_SECTIONS, type FaqItem } from '@/lib/faq'
 
-interface FaqItem {
-  q: string
-  a: string
-}
+/*
+  ⚠️ הפאנל מרונדר תמיד — גם כשהוא סגור.
 
-interface FaqSection {
-  title: string
-  items: FaqItem[]
-}
+  עד תיקון ה-SEO היה כאן `<AnimatePresence>{isOpen && …}`, ו-openKey
+  מתחיל כ-null. כלומר אף תשובה לא נכנסה ל-DOM: לא ב-SSR ולא אחרי
+  hydration, אלא רק אחרי לחיצה אנושית. Googlebot מריץ JavaScript אבל
+  אינו לוחץ — ולכן כל 17 התשובות בעמוד היו בלתי נראות לחלוטין לחיפוש
+  ולמנועי AI, והעמוד הסתכם ב-183 מילים של ניווט וכותרות שאלה בלבד.
 
-const FAQ_DATA: FaqSection[] = [
-  {
-    title: 'מיקרובליידינג',
-    items: [
-      {
-        q: 'מה זה מיקרובליידינג?',
-        a: 'מיקרובליידינג הוא טיפול קוסמטי חצי-קבוע שבו מצוירות שיערות דקות בצבע על עור הגבה בעזרת סכין ידנית מיוחדת. התוצאה היא גבות טבעיות, מלאות ומוגדרות שמחזיקות עד שנה.',
-      },
-      {
-        q: 'האם מיקרובליידינג כואב?',
-        a: 'הכאב מינימלי מאוד. לפני הטיפול מורחת קרם הרדמה מקומית שמפחיתה משמעותית את תחושת האי-נוחות. רוב הלקוחות מדווחות על תחושה קלה בלבד.',
-      },
-      {
-        q: 'כמה זמן מחזיקה התוצאה?',
-        a: 'התוצאה מחזיקה עד שנה, תלוי בסוג העור, אורח חיים וחשיפה לשמש. מומלץ לבצע טיפול חיזוק (touch-up) לאחר 6–8 שבועות מהטיפול הראשון.',
-      },
-      {
-        q: 'מה ההכנה הנדרשת לפני הטיפול?',
-        a: 'יש להימנע מדילול דם (אספירין, איבופרופן) 48 שעות לפני הטיפול. לא לשתות אלכוהול 24 שעות לפני. להימנע מחשיפה לשמש אינטנסיבית שבוע לפני. אין לבצע פילינג כימי או בוטוקס 4 שבועות לפני.',
-      },
-      {
-        q: 'מי לא מתאימה לטיפול מיקרובליידינג?',
-        a: 'הטיפול אינו מתאים לנשים בהיריון או הנקה, אנשים עם מחלת עור פעילה באזור הגבות (אקזמה, פסוריאזיס), אנשים הנוטלים נוגדי קרישה, ואנשים עם מצבים רפואיים מסוימים. בכל מקרה של ספק – יש להתייעץ עם רופא תחילה.',
-      },
-    ],
-  },
-  {
-    title: 'עיצוב גבות טבעיות',
-    items: [
-      {
-        q: 'כמה תדיר כדאי לעצב את הגבות?',
-        a: 'מומלץ לעצב גבות כל 4–6 שבועות, בהתאם לקצב גדילת השיערות. הגעה תדירה מדי עלולה לפגוע בצורה הטבעית של הגבה.',
-      },
-      {
-        q: 'האם יש צביעת גבות בקליניקה?',
-        a: 'כן, אני מציעה צביעת גבות (henna / צבע כימי) כחלק מטיפול עיצוב גבות מקיף. הצבע מחזיק 2–4 שבועות תלוי בסוג הצבע ובטיפול.',
-      },
-    ],
-  },
-  {
-    title: 'הרמת גבות',
-    items: [
-      {
-        q: 'מה זה הרמת גבות (Brow Lamination)?',
-        a: 'הרמת גבות היא טיפול המיישר ומרים את שיערות הגבה, ויוצר מראה מלא, מסודר ומרחף. בדומה לפן לשיער – השיערות "לומדות" לגדול כלפי מעלה. התוצאה מחזיקה 6–8 שבועות.',
-      },
-      {
-        q: 'האם הרמת גבות פוגעת בשיערות?',
-        a: 'הטיפול בטוח כשהוא מבוצע נכון. אני משתמשת במוצרים איכותיים ומוסמכים. ההמלצה היא לא לחזור על הטיפול לפני שחלפו 6 שבועות מהפעם הקודמת, ולטפח את השיערות בשמן קסטור.',
-      },
-      {
-        q: 'מה לא לעשות אחרי הרמת גבות?',
-        a: 'ב-24 שעות הראשונות: אין להרטיב את הגבות, אין להשתמש במוצרי טיפוח על האזור, אין לישון עם הפנים כלפי מטה. לאחר מכן ניתן לחזור לשגרה.',
-      },
-    ],
-  },
-  {
-    title: 'קורס מקצועי',
-    items: [
-      {
-        q: 'למי מתאים הקורס?',
-        a: 'הקורס מתאים למתחילות שרוצות להיכנס לתחום, ולמי שכבר עוסקות בטיפולי יופי ורוצות להוסיף התמחות בגבות. אין צורך בניסיון קודם.',
-      },
-      {
-        q: 'מה מקבלים בסיום הקורס?',
-        a: 'בסיום הקורס מקבלים תעודת הסמכה ממכון S.M BROWS, ערכת כלים מקצועית, חוברת לימוד דיגיטלית, וליווי אישי לאחר הקורס.',
-      },
-      {
-        q: 'האם הקורס מוכר?',
-        a: 'תעודת ההסמכה מוכרת על ידי הקליניקה ומהווה אסמכתא לאיכות ומקצועיות. לצורך רישיון עסק עצמאי, יש לפנות לרשויות המקומיות הרלוונטיות.',
-      },
-    ],
-  },
-  {
-    title: 'תורים, תשלום וביטולים',
-    items: [
-      {
-        q: 'כיצד קובעים תור?',
-        a: 'ניתן לקבוע תור דרך וואצאפ או דרך מערכת קביעת התורים באתר. אני מאשרת כל תור באופן אישי.',
-      },
-      {
-        q: 'מה אמצעי התשלום המקובלים?',
-        a: 'אני מקבלת תשלום במזומן, בביט, בפייבוקס ובכרטיס אשראי. התשלום מתבצע בקליניקה לאחר הטיפול.',
-      },
-      {
-        // 🔒 15E — מסונכרן עם cancel_cutoff_hours=6 ב-business_settings.
-        // היה כאן "24 שעות" בזמן שהמערכת אכפה 6. ראה גם
-        // components/booking-policy/BookingPolicyContent.tsx.
-        q: 'מה מדיניות הביטולים?',
-        a: 'ביטול או בקשת שינוי מועד עד 6 שעות לפני הטיפול – ללא עלות, ישירות מהאזור האישי באתר. בבקשת שינוי מועד התור הקיים נשאר שמור עד שהמועד החדש מאושר. פחות מ-6 שעות לפני התור – יש לפנות אליי בוואצאפ, וייתכן חיוב של 50% מעלות הטיפול. אי הגעה ללא הודעה (no-show) – חיוב מלא. אם שולמה מקדמה, הזכאות להחזר או להעברת המקדמה כפופה למדיניות המקדמה הנפרדת שבעמוד מדיניות קביעת התורים.',
-      },
-      {
-        q: 'האם יש אפשרות לתשלום בתשלומים?',
-        a: 'עבור טיפולי מיקרובליידינג ניתן לפצל את התשלום ל-2 תשלומים שווים (תשלום ראשון לפני הטיפול, שני בטיפול החיזוק). פרטים נוספים בוואצאפ.',
-      },
-    ],
-  },
-]
-
+  הקיפול נעשה כעת ב-CSS טהור (grid-template-rows בין 0fr ל-1fr) במקום
+  mount/unmount. הטקסט תמיד ב-HTML, האנימציה נשמרת באותה משך ובאותה
+  עקומת easing כמו קודם, והערך הסגור נכתב inline כך שאין הבזק של תוכן
+  פתוח לפני ה-hydration.
+*/
 function FaqItem({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; onToggle: () => void }) {
+  const uid = useId()
+  const panelId = `faq-panel-${uid}`
+  const buttonId = `faq-button-${uid}`
+
   return (
     <div className="border border-brand-cream-dark/60 rounded-2xl overflow-hidden bg-white">
       <button
         type="button"
+        id={buttonId}
         onClick={onToggle}
         aria-expanded={isOpen}
+        aria-controls={panelId}
         className="w-full flex items-center justify-between gap-4 px-6 py-4 text-right cursor-pointer hover:bg-brand-cream/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-inset"
       >
         <span className="font-semibold text-brand-dark text-sm sm:text-base leading-snug">
@@ -136,20 +48,23 @@ function FaqItem({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; o
         </motion.span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <p className="px-6 pb-5 text-brand-medium text-sm leading-relaxed border-t border-brand-cream-dark/40 pt-4">
-              {item.a}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        className="grid motion-safe:transition-all motion-safe:duration-[250ms]"
+        style={{
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          opacity: isOpen ? 1 : 0,
+          transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
+        <div className="overflow-hidden">
+          <p className="px-6 pb-5 text-brand-medium text-sm leading-relaxed border-t border-brand-cream-dark/40 pt-4">
+            {item.a}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -162,7 +77,7 @@ export default function FaqContent() {
   return (
     <section aria-label="שאלות ותשובות" className="section-padding bg-brand-cream">
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        {FAQ_DATA.map((section, si) => (
+        {FAQ_SECTIONS.map((section, si) => (
           <div key={section.title} className="mb-10">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-brand-dark mb-4 flex items-center gap-2">
               <span className="w-1 h-6 rounded-full bg-brand-gold inline-block" aria-hidden="true" />
@@ -206,6 +121,15 @@ export default function FaqContent() {
           >
             שאלי אותנו בוואצאפ
           </a>
+          <p className="text-brand-medium text-sm mt-4">
+            כבר יודעת מה מתאים לך?{' '}
+            <Link
+              href="/booking"
+              className="text-brand-rose-text underline underline-offset-2 hover:text-brand-rose-text/80 transition-colors"
+            >
+              קבעי תור ביומן
+            </Link>
+          </p>
         </div>
       </div>
     </section>

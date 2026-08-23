@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Clock } from 'lucide-react'
 import { blogPosts } from '@/lib/data'
-import { WHATSAPP_URL, SITE_URL } from '@/lib/utils'
+import { WHATSAPP_URL, SITE_URL, absoluteUrl, BUSINESS_ID } from '@/lib/utils'
+import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -52,15 +53,18 @@ export default async function BlogPostPage(props: Props) {
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
-    image: `${SITE_URL}${post.image}`,
+    // ⚠️ absoluteUrl ולא שרשור: תמונות הבלוג הן URL מוחלט של Unsplash,
+    // והשרשור הישן ייצר "https://smbrows.co.ilhttps://images.unsplash.com/..."
+    // בכל פוסט בפרודקשן. מכוסה ב-scripts/test-seo-schema.mjs.
+    image: absoluteUrl(post.image),
     datePublished: post.date,
     dateModified: post.date,
-    author: { '@type': 'Organization', name: 'S.M BROWS' },
-    publisher: {
-      '@type': 'Organization',
-      name: 'S.M BROWS',
-      logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
-    },
+    // ⚠️ שניהם מפנים לישות העסקית היחידה (app/layout.tsx) במקום להגדיר
+    // Organization חדש בכל פוסט. הישות זהה לגמרי לזו שהייתה כאן קודם —
+    // רק שהיא כבר לא משוכפלת. המעבר ל-author מסוג Person (שובל) מחכה
+    // לפרטים העסקיים ב-ROUND B.
+    author: { '@id': BUSINESS_ID },
+    publisher: { '@id': BUSINESS_ID },
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': `${SITE_URL}/blog/${post.slug}`,
@@ -73,6 +77,17 @@ export default async function BlogPostPage(props: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: 'מאמרים', path: '/blog' },
+              { name: post.title, path: `/blog/${post.slug}` },
+            ]),
+          ),
+        }}
       />
       {/* Hero */}
       <div className="relative h-64 sm:h-80 lg:h-96">
@@ -154,6 +169,12 @@ export default async function BlogPostPage(props: Props) {
                     <WhatsAppIcon className="w-5 h-5" />
                     קבעי תור עכשיו
                   </a>
+                  <Link
+                    href="/booking"
+                    className="block text-center text-sm text-brand-rose-text hover:text-brand-rose-text/80 underline underline-offset-2 mt-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-rose rounded"
+                  >
+                    או בחרי מועד ביומן
+                  </Link>
                 </div>
 
                 {/* Related posts */}

@@ -2,12 +2,25 @@ import type { Metadata } from 'next'
 import PageHero from '@/components/ui/PageHero'
 import BlogCard from '@/components/blog/BlogCard'
 import { blogPosts } from '@/lib/data'
+import { SITE_URL } from '@/lib/utils'
+import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 export const metadata: Metadata = {
   title: 'מאמרים',
   description:
     'מאמרים וטיפים מקצועיים על עיצוב גבות, מיקרובליידינג, הרמת גבות, וטיפוח מ-S.M BROWS.',
   alternates: { canonical: '/blog' },
+  openGraph: {
+    title: 'מאמרים | S.M BROWS',
+    description: 'מאמרים וטיפים מקצועיים על עיצוב גבות, מיקרובליידינג, הרמת גבות וטיפוח.',
+    url: `${SITE_URL}/blog`,
+    type: 'website',
+    locale: 'he_IL',
+    siteName: 'S.M BROWS',
+    images: [
+      { url: '/hero.webp', width: 1200, height: 630, alt: 'S.M BROWS — מאמרים' },
+    ],
+  },
 }
 
 const CATEGORIES = ['הכל', 'מיקרובליידינג', 'עיצוב גבות', 'הרמת גבות']
@@ -15,6 +28,14 @@ const CATEGORIES = ['הכל', 'מיקרובליידינג', 'עיצוב גבות
 export default function BlogPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([{ name: 'מאמרים', path: '/blog' }]),
+          ),
+        }}
+      />
       <PageHero
 
         title="טיפים, ידע"

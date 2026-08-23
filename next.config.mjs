@@ -76,6 +76,24 @@ const nextConfig = {
   // host before Next.js `has: host` redirects run, so a next.config redirect is
   // never reached on Vercel. The canonical/OG tags (pinned in lib/utils.ts)
   // already point every host at the apex for SEO.
+  /*
+    /gallery — הגלריה הוסרה מהאתר במסגרת ה-redesign.
+
+    עד כאן היה app/gallery/page.tsx שכולו `redirect('/')`. לפי
+    node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md
+    ה-API הזה מחזיר 307 (זמני), וגוגל מפרשת 307 כ"העמוד עוד יחזור": היא
+    משאירה את /gallery באינדקס, ממשיכה לסרוק אותו ולא מעבירה את הסיגנלים
+    אל היעד. 308 קבוע מאחד את הסיגנלים אל / ומוציא את הכתובת מהאינדקס.
+
+    ההפניה כאן ולא ב-permanentRedirect() במכוון: אותו מסמך (שורה 56)
+    מפנה ל-next.config עבור הפניה *לפני* הרינדור — כך היא נפתרת בשכבת
+    הניתוב בלי להפעיל React בכלל, וה-route עצמו נמחק.
+  */
+  async redirects() {
+    return [
+      { source: '/gallery', destination: '/', permanent: true },
+    ]
+  },
   images: {
     // AVIF first — ~50% smaller than WebP at same quality
     formats: ['image/avif', 'image/webp'],

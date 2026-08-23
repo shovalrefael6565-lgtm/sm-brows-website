@@ -15,6 +15,12 @@ export const WHATSAPP_URL  = `${WHATSAPP_BASE}?text=${encodeURIComponent('היי
 export const PHONE_NUMBER = '055-293-2813'
 export const PHONE_RAW = '0552932813'
 /*
+  אותו מספר בדיוק, בפורמט E.164 — ל-structured data בלבד. Google מבקשת
+  את הצורה הבינלאומית ב-JSON-LD כדי לקשר את הטלפון לישות אחת חד-משמעית.
+  ⚠️ לא לתצוגה: מה שהמבקרת רואה נשאר PHONE_NUMBER בכל מקום באתר.
+*/
+export const PHONE_E164 = '+972552932813'
+/*
   שלושה שימושים שונים למיקום, ובכוונה שלושה קבועים — עד לפאס ה-SEO הם היו
   קבוע אחד, ושינוי של הנוסח השיווקי גרר איתו בשקט גם את נוסח התזכורות.
 
@@ -32,3 +38,29 @@ export const FACEBOOK_URL = 'https://www.facebook.com/shovalvahdy'
 export const TIKTOK_URL = 'https://www.tiktok.com/@shovalbrows?_r=1&_t=ZS-96W3SJ62zyc'
 /** פרופיל העסק בגוגל (Google Business Profile) */
 export const GOOGLE_BUSINESS_URL = 'https://share.google/X2mvO3sEyQttxMydz'
+
+/*
+  ── עוגני הישות ל-JSON-LD ────────────────────────────────────────────────
+  מזהים יציבים וקבועים. כל אזכור של העסק בכל עמוד מצביע ל-BUSINESS_ID
+  היחיד הזה, כך שהעסק הוא ישות אחת בגרף — ולא ישות חדשה בכל עמוד.
+
+  ⚠️ אלה מזהים, לא כתובות לניווט. הם לעולם לא נפתרים לעמוד אמיתי, ואסור
+  לשנות אותם אחרי פרסום: מנוע שכבר מיפה את הישות מזהה אותה לפי המחרוזת
+  הזו, ושינוי שלה מייצר ישות חדשה ומאבד את מה שנצבר.
+*/
+export const BUSINESS_ID = `${SITE_URL}/#business`
+export const WEBSITE_ID = `${SITE_URL}/#website`
+
+/**
+ * הופך נתיב יחסי ל-URL מוחלט, ומחזיר URL שכבר מוחלט כמו שהוא.
+ *
+ * ⚠️ נכתב אחרי באג אמיתי: ב-BlogPosting JSON-LD היה
+ * `image: \`${SITE_URL}${post.image}\``, ותמונות הבלוג הן URL-ים מוחלטים
+ * של Unsplash — כך שהתוצאה בפרודקשן הייתה
+ * "https://smbrows.co.ilhttps://images.unsplash.com/..." בכל פוסט.
+ * scripts/test-seo-schema.mjs מוודא שהשרשור הזה לא חוזר.
+ */
+export function absoluteUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl
+  return `${SITE_URL}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`
+}

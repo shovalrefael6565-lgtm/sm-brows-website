@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { useId, useState } from 'react'
+import { motion, useInView } from 'framer-motion'
 import { ChevronDown, MessageCircle } from 'lucide-react'
 import { useRef } from 'react'
 import Link from 'next/link'
@@ -44,6 +44,10 @@ function FaqItem({ item, isOpen, onToggle, index }: {
   onToggle: () => void
   index: number
 }) {
+  const uid = useId()
+  const panelId = `service-faq-panel-${uid}`
+  const buttonId = `service-faq-button-${uid}`
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -54,8 +58,10 @@ function FaqItem({ item, isOpen, onToggle, index }: {
     >
       <button
         type="button"
+        id={buttonId}
         onClick={onToggle}
         aria-expanded={isOpen}
+        aria-controls={panelId}
         className="w-full flex items-center justify-between gap-4 px-5 py-4 text-right cursor-pointer hover:bg-brand-cream/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-inset"
       >
         <span className="font-semibold text-brand-dark text-sm sm:text-base leading-snug">
@@ -72,20 +78,25 @@ function FaqItem({ item, isOpen, onToggle, index }: {
         </motion.span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <p className="px-5 pb-5 text-brand-medium text-sm leading-relaxed border-t border-brand-cream-dark/40 pt-4">
-              {item.a}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ⚠️ מרונדר תמיד — ראה ההסבר המלא ב-components/faq/FaqContent.tsx.
+          כאן היו 9 תשובות שלא הגיעו ל-HTML של /services כלל. */}
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        className="grid motion-safe:transition-all motion-safe:duration-[250ms]"
+        style={{
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          opacity: isOpen ? 1 : 0,
+          transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
+        <div className="overflow-hidden">
+          <p className="px-5 pb-5 text-brand-medium text-sm leading-relaxed border-t border-brand-cream-dark/40 pt-4">
+            {item.a}
+          </p>
+        </div>
+      </div>
     </motion.div>
   )
 }

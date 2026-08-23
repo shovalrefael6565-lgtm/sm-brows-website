@@ -7,6 +7,7 @@ import ServiceFaqSection from '@/components/services/ServiceFaqSection'
 import BookingSection from '@/components/home/BookingSection'
 import { services } from '@/lib/data'
 import { SITE_URL } from '@/lib/utils'
+import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 // מיקרובליידינג מקבל סקשן ספוטלייט ייעודי עם סרטונים — לכן מוסר מהרשימה הרגילה
 const listedServices = services.filter((s) => s.id !== 'microblading')
@@ -38,6 +39,14 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([{ name: 'טיפולים', path: '/services' }]),
+          ),
+        }}
+      />
       <PageHero
 
         title="הטיפולים"
