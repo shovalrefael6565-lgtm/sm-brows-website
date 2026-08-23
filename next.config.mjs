@@ -137,6 +137,30 @@ const nextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      /*
+        🔴 באג פרודקשן אמיתי: Google אינדקסה את sm-brows-website.vercel.app.
+
+        אומת ב-2026-08-23 בחיפוש `"SM Brows" אשקלון` — התוצאה החמישית
+        הייתה "sm-brows-website.vercel.app — מדריך החלמה לאחר מיקרובליידינג",
+        כלומר אותו תוכן בדיוק מתחרה בדומיין הקנוני על אותן שאילתות.
+
+        ה-canonical כבר הצביע נכון ל-smbrows.co.il מכל עמוד בדומיין הזה —
+        אבל canonical הוא **רמז ולא הוראה**, וגוגל בחרה להתעלם ממנו. מה
+        שהיה חסר הוא הוראה של ממש. `X-Robots-Tag: noindex` היא כזו.
+
+        ⚠️ ה-`has` חייב להיות מדויק. כלל שיחול על הדומיין האמיתי יוציא את
+        כל האתר מהאינדקס. נבדק לפני הדיפלוי מול שני ה-Host-ים במפורש,
+        ומיד אחריו בפרודקשן — ראה docs/seo-external-verification-todo.md.
+
+        ⚠️ headers ולא redirect: התגובה למעלה מתעדת ש-Vercel פותר את ה-host
+        לפני ש-`has: host` של redirect נכנס לתוקף, ולכן הפניה כאן לא הייתה
+        נתפסת. header נכתב ע"י שרת ה-Next עצמו ולכן כן חל.
+      */
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'sm-brows-website.vercel.app' }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
       // Static assets — 1 year immutable cache
       {
         source: '/:path*\\.(jpg|jpeg|png|webp|avif|svg|ico|woff|woff2)',

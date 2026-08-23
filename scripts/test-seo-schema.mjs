@@ -314,6 +314,24 @@ chk('/gallery → / עם permanent: true',
   /source:\s*'\/gallery',\s*destination:\s*'\/',\s*permanent:\s*true/.test(nextConfig))
 chk('app/gallery נמחק', !existsSync(path.join(ROOT, 'app/gallery')))
 
+// ─── 8b. דומיין הכפילות ────────────────────────────────────────────────────
+section('vercel.app — noindex על הדומיין המשני בלבד')
+
+/*
+  ⚠️ הכלל הזה מסוכן אם הוא לא מדויק: `has` שגוי יוציא את כל האתר
+  מהאינדקס. השערים כאן מוודאים שהוא מכוון לדומיין המשני ולא לקנוני.
+*/
+chk('קיים כלל X-Robots-Tag', nextConfig.includes("key: 'X-Robots-Tag'"))
+chk('הערך הוא noindex', /value: 'noindex, nofollow'/.test(nextConfig))
+chk('מותנה ב-host', /has: \[\{ type: 'host', value: 'sm-brows-website\.vercel\.app' \}\]/.test(nextConfig))
+chk('⚠️ הדומיין הקנוני אינו מופיע בשום תנאי host',
+  !/type: 'host', value: 'smbrows\.co\.il'/.test(nextConfig))
+chk('⚠️ אין כלל noindex ללא תנאי host', (() => {
+  // כל בלוק שמכיל X-Robots-Tag חייב להכיל גם has: host
+  const blocks = nextConfig.split(/\{\s*source:/).filter((b) => b.includes('X-Robots-Tag'))
+  return blocks.length > 0 && blocks.every((b) => b.includes("type: 'host'"))
+})())
+
 // ─── 9. OpenGraph לכל עמוד ציבורי ──────────────────────────────────────────
 section('OpenGraph — כל עמוד ציבורי מגדיר משלו')
 
