@@ -235,6 +235,21 @@ const leaks = publicSources.filter((f) => stripComments(readFileSync(f, 'utf8'))
 chk('כתובת הרחוב המלאה לא מופיעה בשום קומפוננטה', leaks.length === 0,
   leaks.map((f) => path.relative(ROOT, f)).join(', '))
 
+/*
+  ⚠️ גם שם הרחוב לבדו, בלי מספר בית, אסור בתוכן ציבורי.
+  הוא דלף דרך ה-href של קישור המפה ב-/contact: הטקסט הגלוי היה
+  "עיר היין, אשקלון" אבל ה-URL נשא "הכורמים". שער נפרד כי הוא תופס
+  את המחרוזת גם בלי המספר.
+*/
+const STREET_NAME_ONLY = STREET_ADDRESS.replace(/\s*\d+\s*$/, '')
+const streetLeaks = publicSources.filter(
+  (f) => stripComments(readFileSync(f, 'utf8')).includes(STREET_NAME_ONLY),
+)
+chk(`שם הרחוב ("${STREET_NAME_ONLY}") לא מופיע בשום מקור ציבורי`, streetLeaks.length === 0,
+  streetLeaks.map((f) => path.relative(ROOT, f)).join(', '))
+chk('קישור המפה בנוי מ-LOCATION', readCode('components/contact/ContactContent.tsx')
+  .includes('encodeURIComponent(LOCATION)'))
+
 // מחירים — רק מה שגלוי
 chk('אין מחיר מיקרובליידינג ב-JSON-LD', !/name: 'מיקרובליידינג' \}, priceCurrency/.test(layout))
 chk("אין '1800' בשום JSON-LD", !layout.includes("'1800'"))
