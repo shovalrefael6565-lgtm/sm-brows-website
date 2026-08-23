@@ -231,6 +231,19 @@ export default function AccessibilityWidget() {
         רינדור מותנה רגיל מסיר את האלמנט מיידית ואמין; אנימציית הכניסה
         (initial/animate) ממשיכה לעבוד, רק בלי exit.
       */}
+      {/*
+        ⚠️ המעטפת קיימת תמיד — אותו תיקון בדיוק כמו ב-Navbar.
+
+        הכפתור מכריז aria-controls="a11y-panel", וה-id ישב על הפאנל
+        שמרונדר רק כש-isOpen. כלומר בכל טעינת עמוד, לפני שנוגעים בכלום,
+        ההפניה הצביעה ל-id שלא קיים. ARIA דורש idref שנפתר לאלמנט קיים.
+
+        המעטפת ריקה כשסגור, בלי סגנון, וילדיה fixed — אפס השפעה ויזואלית.
+        ה-id לא הועבר אל הפאנל הקבוע כי הפאנל הוא role="dialog"
+        aria-modal="true" עם לכידת focus, ורינדור קבוע שלו היה מחזיר את
+        באג ה-DOM התקוע שמתועד למעלה.
+      */}
+      <div id="a11y-panel">
       {isOpen && (
           <>
             <motion.div
@@ -243,7 +256,6 @@ export default function AccessibilityWidget() {
             />
             <motion.div
               ref={panelRef}
-              id="a11y-panel"
               role="dialog"
               aria-label="אפשרויות נגישות"
               aria-modal="true"
@@ -406,6 +418,7 @@ export default function AccessibilityWidget() {
             </motion.div>
           </>
         )}
+      </div>
     </>
   )
 }

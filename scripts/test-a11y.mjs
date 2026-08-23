@@ -272,6 +272,51 @@ section('7. הצהרת הנגישות תואמת למצב בפועל')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('9. aria-controls — כל idref נפתר לאלמנט שקיים תמיד')
+{
+  /*
+    ⚠️ תקלה אמיתית שנמצאה ב-2026-08-23 בבדיקת DOM חיה: הכפתור של תפריט
+    המובייל הכריז aria-controls="mobile-menu", וזה של תפריט הנגישות
+    aria-controls="a11y-panel" — ושני ה-id-ים ישבו על אלמנטים שמרונדרים
+    רק כשהשכבה פתוחה. כלומר במצב ברירת המחדל, בכל טעינת עמוד, שתי
+    ההפניות הצביעו ל-id שאינו קיים ב-DOM.
+
+    ARIA דורש שכל idref יפתר לאלמנט קיים; הפניה שבורה מתעלמים ממנה
+    בשקט, והקשר בין הכפתור לאזור שהוא פותח פשוט לא מגיע לקורא המסך.
+    התיקון: מעטפת קבועה שנושאת את ה-id.
+
+    השער כאן דורש ששני התנאים יתקיימו: ה-id קיים בקובץ, **וגם** הוא לא
+    יושב בתוך גוש שמרונדר בתנאי. הבדיקה השנייה היא העיקר — בלעדיה
+    הבאג המקורי היה עובר, כי ה-id אכן הופיע בקובץ.
+  */
+  const files = walk('components').concat(walk('app'))
+  const literal = []
+  for (const f of files) {
+    const code = stripComments(src(f))
+    for (const m of code.matchAll(/aria-controls="([a-zA-Z0-9_-]+)"/g)) {
+      literal.push({ file: f, id: m[1], code })
+    }
+  }
+  chk('נמצאו aria-controls ליטרליים לבדיקה', literal.length > 0, `(${literal.length})`)
+
+  for (const { file, id, code } of literal) {
+    const short = file.split('/').pop()
+    const idIdx = code.indexOf(`id="${id}"`)
+    chk(`${short} → #${id} מוגדר בקובץ`, idIdx !== -1)
+    if (idIdx === -1) continue
+    /*
+      האם ההגדרה יושבת אחרי פתיחת גוש מותנה שטרם נסגר? מספיק לבדוק
+      שהאלמנט הנושא את ה-id אינו מופיע אחרי `{<state> && (` בלי שהגוש
+      נסגר לפניו — הדפוס היחיד שבו הריפו מרנדר שכבות בתנאי.
+    */
+    const before = code.slice(0, idIdx)
+    const opens = [...before.matchAll(/\{\s*[a-zA-Z]+\s*&&\s*\(/g)].length
+    const closes = [...before.matchAll(/^\s*\)\}$/gm)].length
+    chk(`${short} → #${id} לא בתוך רינדור מותנה`, opens <= closes,
+      opens > closes ? `נפתחו ${opens} גושים, נסגרו ${closes}` : '')
+  }
+}
+
 section('8. הבדיקות עצמן — בלי רשת ובלי DB')
 {
   /*

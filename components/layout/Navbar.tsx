@@ -609,6 +609,24 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
         ב-AccessibilityWidget וב-BeforeAfterSection. אנימציית הכניסה
         (initial/animate) נשמרת; רק ה-exit יורד.
       */}
+      {/*
+        ⚠️ המעטפת קיימת תמיד, וזו כל מטרתה.
+
+        הכפתור מכריז aria-controls="mobile-menu", אבל ה-id הזה ישב על
+        המגירה עצמה — שמרונדרת רק כש-menuOpen. כלומר כל עוד התפריט סגור,
+        וזה מצב ברירת המחדל, ה-aria-controls הצביע ל-id שלא קיים ב-DOM.
+        ARIA דורש שכל idref יפתר לאלמנט קיים; הפניה שבורה פשוט מתעלמים
+        ממנה, והקשר בין הכפתור לאזור שהוא פותח אובד לקורא מסך.
+
+        המעטפת ריקה כשסגור ונושאת רק את ה-id — אין לה סגנון, וילדיה
+        fixed, כך שהיא לא תופסת מקום ולא משנה דבר ויזואלית.
+
+        ⚠️ ה-id הועבר לכאן ולא הפכנו את המגירה לקבועה: המגירה היא
+        role="dialog" aria-modal="true" עם לכידת focus, ורינדור קבוע שלה
+        היה מחזיר בדיוק את הבאג המתועד למעלה — קישורים חיים בסדר ה-Tab
+        מאחורי מסך סגור.
+      */}
+      <div id="mobile-menu">
       {menuOpen && (
           <>
             <motion.div
@@ -633,7 +651,6 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             */}
             <motion.div
               key="menu-panel"
-              id="mobile-menu"
               variants={{
                 hidden: { x: '100%', transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } },
                 visible: { x: 0, transition: { type: 'spring', stiffness: 280, damping: 28 } },
@@ -803,6 +820,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             </motion.div>
           </>
         )}
+      </div>
     </>
   )
 }
