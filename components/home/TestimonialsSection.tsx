@@ -10,22 +10,45 @@ import { motion, AnimatePresence, useInView, useReducedMotion } from 'framer-mot
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
+/*
+  ⚠️ ה-quote בכל שורה הוא תמלול של מה שכתוב **בצילום המסך עצמו**, ולא
+  ניסוח שיווקי.
+
+  ההמלצות היו עד ROUND B תמונות בלבד: 15 צילומי מסך מוואצאפ ומאינסטגרם.
+  זו ההוכחה החברתית החזקה ביותר שיש לעסק, ואף מנוע חיפוש ואף מודל שפה
+  לא יכול לקרוא ולו מילה ממנה. התמלול נועד להפוך אותה לטקסט קריא — לא
+  להחליף את התמונות, שנשארות בדיוק כפי שהיו.
+
+  כללי התמלול:
+    • רק מילים שמופיעות בפועל בצילום. אין שכתוב ואין שיפור נוסח.
+    • קוצצו פניות פתיחה ורעש צ'אט ("אמאלה", "שמעי אחותי", חותמות זמן) —
+      המשמעות לא שונתה באף ציטוט.
+    • בלי שמות. חלק מהצילומים חושפים שם חשבון מלא, ופרסום שם כטקסט הוא
+      צעד שדורש הסכמה מפורשת שאין לנו. ראה TODO ב-docs.
+    • בלי טלפונים, בלי שמות משפחה, בלי כל PII אחר.
+    • wa-review-5 נשאר בלי ציטוט במכוון — הצילום ממוקד בפניה של לקוחה
+      מזוהה, והטקסט שם ("מה זה הגבות האלללוו") לא מוסיף מידע.
+
+  ⚠️ אין להוסיף Review או aggregateRating על בסיס הציטוטים האלה. אין
+  דירוגים בצילומים, אין שמות מאומתים, ואין הסכמה מתועדת — סימון כזה
+  היה המצאה. המטרה כאן היא תוכן אמיתי שאפשר לקרוא, לא rich results.
+*/
 const REVIEWS = [
-  { src: '/wa-review-8.webp',  w: 700, h: 1043 },
-  { src: '/wa-review-1.webp',  w: 700, h: 279  },
-  { src: '/wa-review-5.webp',  w: 658, h: 710  },
-  { src: '/wa-review-9.webp',  w: 700, h: 1043 },
-  { src: '/wa-review-2.webp',  w: 700, h: 279  },
-  { src: '/wa-review-6.webp',  w: 450, h: 328  },
-  { src: '/wa-review-10.webp', w: 700, h: 1022 },
-  { src: '/wa-review-3.webp',  w: 700, h: 279  },
-  { src: '/wa-review-7.webp',  w: 589, h: 137  },
-  { src: '/wa-review-11.webp', w: 700, h: 869  },
-  { src: '/wa-review-4.webp',  w: 700, h: 279  },
-  { src: '/wa-review-12.webp', w: 700, h: 1023 },
-  { src: '/wa-review-15.webp', w: 700, h: 824  },
-  { src: '/wa-review-13.webp', w: 700, h: 1023 },
-  { src: '/wa-review-14.webp', w: 700, h: 1023 },
+  { src: '/wa-review-8.webp',  w: 700, h: 1043, quote: 'הגבות הכי נדירות ביקום!!!!' },
+  { src: '/wa-review-1.webp',  w: 700, h: 279,  quote: 'מרוב שהגבות שלי דלות הייתי מורטת לבד — הדבר הכי לא נכון לעשות. עכשיו אני רואה את ההבדל המשמעותי הזה!' },
+  { src: '/wa-review-5.webp',  w: 658, h: 710,  quote: null },
+  { src: '/wa-review-9.webp',  w: 700, h: 1043, quote: 'באלוהים נדירותתתת. אני מכורה.' },
+  { src: '/wa-review-2.webp',  w: 700, h: 279,  quote: 'יצא מושלםםםם. אין לך מושג איזה מרוצה אני' },
+  { src: '/wa-review-6.webp',  w: 450, h: 328,  quote: 'הגבות מעלפות!!!! מלא החמיאו לי, בחיים לא עשו לי ככה. תודה רבה רבה' },
+  { src: '/wa-review-10.webp', w: 700, h: 1022, quote: 'אין אחת שלא החמיאה לי על הגבות!!!! מחכה כבר לתור הבא' },
+  { src: '/wa-review-3.webp',  w: 700, h: 279,  quote: 'לא נרגעת מהגבותתת. אלופה שלי, אין כמוך' },
+  { src: '/wa-review-7.webp',  w: 589, h: 137,  quote: 'חייבת להגיד לך שלא הפסיקו להחמיא לי על הגבות!!! מחכה כבר לתור הבא' },
+  { src: '/wa-review-11.webp', w: 700, h: 869,  quote: 'הגבות הכי יפות בעולם!!!! את אחת המטורפות שיש' },
+  { src: '/wa-review-4.webp',  w: 700, h: 279,  quote: 'אחרי מקלחת הרטבתי את הגבות והן מורמות ונדירות ומסודרות כאילו אני עם גל גבות. אין מושלם כזה' },
+  { src: '/wa-review-12.webp', w: 700, h: 1023, quote: 'תראי את הגבות, אמאלה' },
+  { src: '/wa-review-15.webp', w: 700, h: 824,  quote: 'שומעת, אין שלמות כזאתת! את מטורפת' },
+  { src: '/wa-review-13.webp', w: 700, h: 1023, quote: 'יצא מעלף וטבעי, אני סופר מרוצהההה' },
+  { src: '/wa-review-14.webp', w: 700, h: 1023, quote: 'הגבות נדירותתתת! עשיתי במלא מקומות, אבל מה שעשית לי מושלם באמת. אפילו לא צריך לסרק' },
 ] as const
 
 const COUNT = REVIEWS.length
@@ -217,19 +240,27 @@ function ReviewsModal({ open, onClose, triggerRef }: {
                 role="list"
                 aria-label="כל ביקורות הלקוחות"
               >
-                {REVIEWS.map(({ src, w, h }, i) => (
+                {REVIEWS.map(({ src, w, h, quote }, i) => (
                   <li key={src} className="break-inside-avoid mb-4 list-none">
-                    <div className="rounded-xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(44,24,16,0.12)]">
-                      <Image
-                        src={src}
-                        alt={`ביקורת לקוחה ${i + 1} מתוך ${COUNT}`}
-                        width={w}
-                        height={h}
-                        loading="lazy"
-                        style={{ width: '100%', height: 'auto', display: 'block' }}
-                        sizes="(max-width: 640px) calc(100vw - 3rem), 280px"
-                      />
-                    </div>
+                    {/* figure/figcaption — הצילום הוא התוכן, התמלול הוא הכיתוב שלו */}
+                    <figure className="m-0">
+                      <div className="rounded-xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(44,24,16,0.12)]">
+                        <Image
+                          src={src}
+                          alt={`ביקורת לקוחה ${i + 1} מתוך ${COUNT}`}
+                          width={w}
+                          height={h}
+                          loading="lazy"
+                          style={{ width: '100%', height: 'auto', display: 'block' }}
+                          sizes="(max-width: 640px) calc(100vw - 3rem), 280px"
+                        />
+                      </div>
+                      {quote && (
+                        <figcaption className="text-brand-medium text-sm leading-relaxed mt-2 px-1">
+                          „{quote}”
+                        </figcaption>
+                      )}
+                    </figure>
                   </li>
                 ))}
               </ul>
@@ -386,6 +417,25 @@ export default function TestimonialsSection() {
               לחצי לצפייה בכל {COUNT} הביקורות
             </p>
           </button>
+
+          {/*
+            הציטוט של ההמלצה הפעילה, כטקסט אמיתי.
+
+            ⚠️ מחוץ ל-<button> במכוון: כפתור יכול להכיל phrasing content
+            בלבד, ו-<blockquote> בתוכו אינו HTML תקין ומבלבל קוראות מסך.
+
+            הטקסט מתחלף יחד עם התמונה ולכן הוא תמיד מתאר את מה שרואים.
+            רוחב קבוע (min-h) כדי שהחלפת ציטוט לא תזיז את הפקדים שמתחת —
+            אותו עיקרון של הבמה עצמה למעלה.
+          */}
+          {REVIEWS[idx].quote && (
+            <blockquote
+              className="text-center text-brand-medium text-sm sm:text-base leading-relaxed mt-4 px-2 min-h-[3.5rem]"
+              aria-live="polite"
+            >
+              <p>„{REVIEWS[idx].quote}”</p>
+            </blockquote>
+          )}
 
           {/* Controls row: prev · counter · next */}
           <div className="flex items-center justify-between mt-5 px-1" dir="ltr">

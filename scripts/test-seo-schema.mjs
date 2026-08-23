@@ -29,7 +29,8 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { absoluteUrl, SITE_URL, BUSINESS_ID, WEBSITE_ID, PHONE_E164, PHONE_NUMBER } from '../lib/utils.ts'
+import { absoluteUrl, SITE_URL, BUSINESS_ID, WEBSITE_ID, PERSON_ID, PHONE_E164, PHONE_NUMBER, STREET_ADDRESS } from '../lib/utils.ts'
+import { REVIEW_QUOTE_COUNT } from './seo-fixtures.mjs'
 import { FAQ_SECTIONS } from '../lib/faq.ts'
 import { breadcrumbJsonLd } from '../lib/breadcrumbs.ts'
 
@@ -170,7 +171,7 @@ chk('WebSite.publisher מפנה ל-@id של העסק', layout.includes("publishe
 chk('אין Organization משוכפל ב-layout', !layout.includes("'@type': 'Organization'"))
 chk('Course.provider מפנה ל-@id', coursePage.includes("provider: { '@id': BUSINESS_ID }"))
 chk('אין Organization משוכפל ב-/course', !coursePage.includes("'@type': 'Organization'"))
-chk('BlogPosting.author מפנה ל-@id', blogPage.includes("author: { '@id': BUSINESS_ID }"))
+chk('BlogPosting.author מפנה ל-@id', blogPage.includes("author: { '@id': PERSON_ID }"))
 chk('BlogPosting.publisher מפנה ל-@id', blogPage.includes("publisher: { '@id': BUSINESS_ID }"))
 chk('אין Organization משוכפל בפוסט', !blogPage.includes("'@type': 'Organization'"))
 
@@ -189,6 +190,87 @@ chk('E.164 ו-התצוגה הן אותו מספר',
   PHONE_E164.replace('+972', '0') === PHONE_NUMBER.replace(/-/g, ''))
 chk('ה-schema משתמש ב-E164', layout.includes('telephone: PHONE_E164'))
 chk('התצוגה עדיין PHONE_NUMBER', read('components/layout/Footer.tsx').includes('PHONE_NUMBER'))
+
+// ─── 5b. ROUND B — שובל כישות, ובלי עובדות מומצאות ─────────────────────────
+section('ROUND B — Person, פרטיות, ומחירים')
+
+const microTeaser = readCode('components/home/MicrobladingTeaser.tsx')
+const testimonials = readCode('components/home/TestimonialsSection.tsx')
+
+chk('PERSON_ID הוא fragment יציב', PERSON_ID === `${SITE_URL}/#shoval`)
+chk('Person מוגדר ב-layout', /'@type': 'Person',\s*\n\s*'@id': PERSON_ID/.test(layout))
+chk('Person נכנס ל-@graph', layout.includes('personJsonLd'))
+chk('Person.worksFor מפנה לעסק', layout.includes("worksFor: { '@id': BUSINESS_ID }"))
+chk('העסק מצביע חזרה ל-founder', layout.includes("founder: { '@id': PERSON_ID }"))
+chk('Course.instructor הוא שובל', coursePage.includes("instructor: { '@id': PERSON_ID }"))
+chk('Course.provider נשאר העסק', coursePage.includes("provider: { '@id': BUSINESS_ID }"))
+chk('BlogPosting.author הוא שובל', blogPage.includes("author: { '@id': PERSON_ID }"))
+chk('BlogPosting.publisher נשאר העסק', blogPage.includes("publisher: { '@id': BUSINESS_ID }"))
+chk('שם המחבר מוצג גם בתוכן הגלוי', blogPage.includes('מאת {PERSON_NAME}'))
+
+/*
+  ⚠️ אין להמציא הכשרות. הרשימה הזו היא בדיוק ה-properties שמפתים
+  להוסיף לפרופיל מקצועי — ואף אחת מהן לא נמסרה לנו.
+*/
+const FABRICATION_RISK = ['alumniOf', 'hasCredential', 'award', 'educationalCredentialAwarded', 'memberOf']
+for (const prop of FABRICATION_RISK) {
+  chk(`אין ${prop} מומצא`, !layout.includes(`${prop}:`))
+}
+
+// פרטיות — כתובת הרחוב לא מתפרסמת בשום מקום ציבורי
+chk('STREET_ADDRESS עדיין קיים כקבוע פנימי', typeof STREET_ADDRESS === 'string' && STREET_ADDRESS.length > 0)
+chk('אך אינו מיובא ל-layout', !layout.includes('STREET_ADDRESS'))
+chk('אין streetAddress ב-JSON-LD', !layout.includes('streetAddress'))
+/*
+  ⚠️ שני חריגים מכוונים:
+    lib/utils.ts            — STREET_ADDRESS מוגדר שם כקבוע פנימי.
+    lib/whatsappTemplates.ts — הכתובת המלאה נמסרת ללקוחה בהודעת אישור
+                               התור, וזה בדיוק המקום שבו היא אמורה להימסר.
+  כל השאר — כולל כל קומפוננטה שמרנדרת תוכן — חייב להיות נקי.
+*/
+const publicSources = sources.filter(
+  (f) => !f.includes('/lib/utils.ts') && !f.includes('/lib/whatsappTemplates.ts'),
+)
+const leaks = publicSources.filter((f) => stripComments(readFileSync(f, 'utf8')).includes(STREET_ADDRESS))
+chk('כתובת הרחוב המלאה לא מופיעה בשום קומפוננטה', leaks.length === 0,
+  leaks.map((f) => path.relative(ROOT, f)).join(', '))
+
+// מחירים — רק מה שגלוי
+chk('אין מחיר מיקרובליידינג ב-JSON-LD', !/name: 'מיקרובליידינג' \}, priceCurrency/.test(layout))
+chk("אין '1800' בשום JSON-LD", !layout.includes("'1800'"))
+const servicesSrc = readCode('app/services/page.tsx') + readCode('lib/data.ts')
+for (const price of ['70', '250']) {
+  chk(`המחיר ₪${price} שנשאר ב-schema אכן גלוי באתר`, servicesSrc.includes(price))
+}
+
+// areaServed — אזור, לא סניפים
+for (const city of ['אשקלון', 'אשדוד', 'קריית גת', 'שדרות', 'נתיבות']) {
+  chk(`areaServed כולל ${city}`, layout.includes(`name: '${city}'`))
+}
+chk('אין addressLocality מלבד אשקלון',
+  (layout.match(/addressLocality: '([^']+)'/g) || []).every((m) => m.includes('אשקלון')))
+
+// תוכן גלוי על שובל
+chk('שובל מאירה מופיעה בטקסט גלוי', microTeaser.includes('שובל מאירה'))
+chk('S.M BROWS מקושר אליה באותו משפט', microTeaser.includes('מייסדת S.M BROWS'))
+chk('אשקלון מופיעה באותו הקשר', microTeaser.includes('אשקלון'))
+chk('חמש שנות ניסיון בטקסט ולא כ-property', microTeaser.includes('חמש שנים') && !layout.includes('yearsOfExperience'))
+
+// המלצות — טקסט אמיתי, בלי PII, בלי Review schema
+chk('יש ציטוטים מתומללים', testimonials.includes('quote:'))
+const quoteLines = (testimonials.match(/quote: '/g) || []).length
+chk('מספר הציטוטים תואם לצפוי', quoteLines === REVIEW_QUOTE_COUNT, `(${quoteLines})`)
+chk('הציטוט מוצג כ-blockquote', testimonials.includes('<blockquote'))
+chk('וכ-figcaption במודאל', testimonials.includes('<figcaption'))
+chk('⚠️ אין Review schema', !testimonials.includes("'@type': 'Review'") && !layout.includes("'@type': 'Review'"))
+chk('⚠️ אין aggregateRating', !testimonials.includes('aggregateRating') && !layout.includes('aggregateRating'))
+chk('⚠️ אין ratingValue מומצא', !testimonials.includes('ratingValue') && !layout.includes('ratingValue'))
+/*
+  PII — מספרי טלפון בציטוטים. הצילומים הם צ'אטים פרטיים, ותמלול
+  שגורר איתו מספר או שם משפחה הופך המלצה לחשיפת מידע אישי.
+*/
+chk('אין מספרי טלפון בציטוטים', !/quote: '[^']*\d{9,}/.test(testimonials))
+chk('אין תבנית טלפון ישראלי בציטוטים', !/quote: '[^']*0\d{1,2}-?\d{7}/.test(testimonials))
 
 // ─── 6. sitemap ────────────────────────────────────────────────────────────
 section('sitemap — בלי תאריכים מומצאים')

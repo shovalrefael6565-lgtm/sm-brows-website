@@ -50,6 +50,18 @@ export const GOOGLE_BUSINESS_URL = 'https://share.google/X2mvO3sEyQttxMydz'
 */
 export const BUSINESS_ID = `${SITE_URL}/#business`
 export const WEBSITE_ID = `${SITE_URL}/#website`
+export const PERSON_ID = `${SITE_URL}/#shoval`
+
+/**
+ * שובל מאירה — האדם שמאחורי העסק.
+ *
+ * ⚠️ אלה כל העובדות שאושרו עליה, וזו הרשימה המלאה. אין להוסיף כאן
+ * הכשרות, תעודות, פרסים, מקומות לימוד או הסמכות — שום דבר מהם לא נמסר,
+ * וסימון כזה ב-JSON-LD הוא המצאה שגוגל מתייחסת אליה כתוכן מטעה.
+ */
+export const PERSON_NAME = 'שובל מאירה'
+export const PERSON_NAME_EN = 'Shoval Meira'
+export const PERSON_YEARS_EXPERIENCE = 5
 
 /**
  * הופך נתיב יחסי ל-URL מוחלט, ומחזיר URL שכבר מוחלט כמו שהוא.

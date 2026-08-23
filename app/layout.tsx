@@ -9,9 +9,9 @@ import WhatsAppTracker from '@/components/analytics/WhatsAppTracker'
 import { ConsentProvider } from '@/lib/consentContext'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
 import {
-  SITE_URL, PHONE_E164, EMAIL, STREET_ADDRESS,
+  SITE_URL, PHONE_E164, EMAIL,
   INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL,
-  BUSINESS_ID, WEBSITE_ID,
+  BUSINESS_ID, WEBSITE_ID, PERSON_ID, PERSON_NAME, PERSON_NAME_EN,
 } from '@/lib/utils'
 import { APPLE_SPLASH, splashSrc, splashMedia, APPLE_TOUCH_ICON } from '@/lib/pwa'
 
@@ -172,13 +172,37 @@ const businessJsonLd = {
   image: `${SITE_URL}/hero.webp`,
   logo: `${SITE_URL}/logo.png`,
   priceRange: '₪₪',
+  /*
+    ⚠️ בלי streetAddress — במכוון, ולא בגלל שהוא לא ידוע.
+
+    הכתובת המדויקת אינה מתפרסמת באתר: המבקרת רואה "עיר היין, אשקלון"
+    בלבד, והכתובת המלאה נמסרת אישית בוואצאפ עם אישור התור. עד ROUND B
+    ה-JSON-LD הצהיר על רחוב ומספר בית שלא הופיעו בשום מקום גלוי — כלומר
+    גם חשיפה של מידע שהעסק בחר לא לפרסם, וגם סימון שאינו משקף את העמוד.
+    שני הדברים אסורים; הראשון חשוב יותר.
+
+    ⚠️ אין להוסיף כאן streetAddress, postalCode או geo רק כדי לספק כלי
+    validation. כתובת מומצאת גרועה מכתובת חסרה.
+  */
   address: {
     '@type': 'PostalAddress',
-    streetAddress: STREET_ADDRESS,
     addressLocality: 'אשקלון',
+    addressRegion: 'מחוז הדרום',
     addressCountry: 'IL',
   },
-  areaServed: { '@type': 'City', name: 'אשקלון' },
+  /*
+    האזור שממנו מגיעות לקוחות — לא סניפים. יש קליניקה אחת, באשקלון.
+    הערים הנוספות מופיעות ככה גם בתוכן הגלוי ב-/services ("מגיעות אליי
+    לקוחות גם מאשדוד, קריית גת, שדרות ונתיבות"), ו-areaServed הוא בדיוק
+    ה-property שמבטא "משרת את האזור הזה" בלי לטעון לנוכחות פיזית בו.
+  */
+  areaServed: [
+    { '@type': 'City', name: 'אשקלון' },
+    { '@type': 'City', name: 'אשדוד' },
+    { '@type': 'City', name: 'קריית גת' },
+    { '@type': 'City', name: 'שדרות' },
+    { '@type': 'City', name: 'נתיבות' },
+  ],
   openingHoursSpecification: [
     {
       '@type': 'OpeningHoursSpecification',
@@ -196,15 +220,57 @@ const businessJsonLd = {
   // GOOGLE_BUSINESS_URL כבר מקושר גלוי בפוטר, בניווט ובאייקונים החברתיים —
   // הוספתו כאן רק מצהירה על אותו קישור שהמבקרת רואה ממילא.
   sameAs: [INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL],
+  /*
+    ⚠️ למיקרובליידינג אין price — האתר אינו מפרסם את מחירו, ולכן גם
+    ה-JSON-LD לא. עד ROUND B הוא הצהיר על ₪1800 שלא הופיע בשום מקום
+    גלוי. שני המחירים שנשארו (₪70, ₪250) מוצגים במפורש ב-/services,
+    ולכן הם לגיטימיים.
+
+    ⚠️ אין להחזיר לכאן מחיר שאינו מופיע על המסך.
+  */
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
     name: 'שירותי עיצוב גבות',
     itemListElement: [
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'מיקרובליידינג' }, priceCurrency: 'ILS', price: '1800' },
+      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'מיקרובליידינג' } },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'עיצוב גבות טבעיות' }, priceCurrency: 'ILS', price: '70' },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'הרמת גבות' }, priceCurrency: 'ILS', price: '250' },
     ],
   },
+  // הקשר לאדם שמאחורי העסק — שני הכיוונים, דרך @id בלבד.
+  founder: { '@id': PERSON_ID },
+  employee: { '@id': PERSON_ID },
+}
+
+/*
+  שובל מאירה — ישות Person אמיתית ונפרדת.
+
+  ⚠️ רק עובדות שאושרו: שם, שם באנגלית, והתחומים שהיא באמת עוסקת בהם
+  לפי התוכן הקיים באתר. אין כאן alumniOf, hasCredential, award או
+  educationalCredentialAwarded — שום פרט כזה לא נמסר, והמצאה שלו היא
+  בדיוק סוג המידע המטעה שגוגל מענישה עליו.
+
+  חמש שנות הניסיון מופיעות בטקסט הגלוי (components/home/MicrobladingTeaser.tsx)
+  ולא כ-property: אין ב-Schema.org שדה תקני לוותק, והמצאת אחד תיצור
+  markup שאף צרכן לא מבין.
+*/
+const personJsonLd = {
+  '@type': 'Person',
+  '@id': PERSON_ID,
+  name: PERSON_NAME,
+  alternateName: PERSON_NAME_EN,
+  jobTitle: 'מעצבת גבות ומומחית מיקרובליידינג',
+  knowsAbout: [
+    'מיקרובליידינג',
+    'עיצוב גבות',
+    'עיצוב גבות טבעיות',
+    'הרמת גבות',
+    'הדרכה והכשרה בעיצוב גבות',
+  ],
+  worksFor: { '@id': BUSINESS_ID },
+  url: SITE_URL,
+  image: `${SITE_URL}/hero.webp`,
+  sameAs: [INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL],
 }
 
 const websiteJsonLd = {
@@ -218,7 +284,7 @@ const websiteJsonLd = {
 
 const siteGraphJsonLd = {
   '@context': 'https://schema.org',
-  '@graph': [businessJsonLd, websiteJsonLd],
+  '@graph': [businessJsonLd, websiteJsonLd, personJsonLd],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

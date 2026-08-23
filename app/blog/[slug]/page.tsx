@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Clock } from 'lucide-react'
 import { blogPosts } from '@/lib/data'
-import { WHATSAPP_URL, SITE_URL, absoluteUrl, BUSINESS_ID } from '@/lib/utils'
+import { WHATSAPP_URL, SITE_URL, absoluteUrl, BUSINESS_ID, PERSON_ID, PERSON_NAME } from '@/lib/utils'
 import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 interface Props {
@@ -59,11 +59,13 @@ export default async function BlogPostPage(props: Props) {
     image: absoluteUrl(post.image),
     datePublished: post.date,
     dateModified: post.date,
-    // ⚠️ שניהם מפנים לישות העסקית היחידה (app/layout.tsx) במקום להגדיר
-    // Organization חדש בכל פוסט. הישות זהה לגמרי לזו שהייתה כאן קודם —
-    // רק שהיא כבר לא משוכפלת. המעבר ל-author מסוג Person (שובל) מחכה
-    // לפרטים העסקיים ב-ROUND B.
-    author: { '@id': BUSINESS_ID },
+    /*
+      author הוא אדם, publisher הוא הגוף — זו החלוקה ש-Google מצפה לה
+      במאמרים, והיא גם נכונה כאן: את המאמרים כותבת שובל.
+      שתי ההפניות הן ל-@id של ישויות שמוגדרות ב-app/layout.tsx בלבד,
+      כך שאף פוסט לא מייצר ישות חדשה.
+    */
+    author: { '@id': PERSON_ID },
     publisher: { '@id': BUSINESS_ID },
     mainEntityOfPage: {
       '@type': 'WebPage',
@@ -130,6 +132,13 @@ export default async function BlogPostPage(props: Props) {
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>{post.readTime} דקות קריאה</span>
           </span>
+          {/*
+            ⚠️ ה-JSON-LD מצהיר author = שובל, ולכן השם חייב להופיע גם על
+            המסך: markup שמייחס מאמר לאדם שאינו מוזכר בעמוד הוא סימון
+            שאינו משקף את התוכן. שורה אחת בתוך סרגל המטא הקיים — בלי
+            ביוגרפיה ובלי בלוק מחבר חדש.
+          */}
+          <span>מאת {PERSON_NAME}</span>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import CourseProgram from '@/components/course/CourseProgram'
 import CourseFaq from '@/components/course/CourseFaq'
 import CourseClosing from '@/components/course/CourseClosing'
 import { course, courseFaq, courseOutcomes } from '@/lib/course'
-import { SITE_URL, BUSINESS_ID, absoluteUrl } from '@/lib/utils'
+import { SITE_URL, BUSINESS_ID, PERSON_ID, absoluteUrl } from '@/lib/utils'
 import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
 export const metadata: Metadata = {
@@ -45,12 +45,30 @@ export default function CoursePage() {
     // Organization משוכפל. עד לפאס ה-SEO היה כאן צומת נפרד בשם
     // "S.M BROWS" — שני עסקים שונים בעיני מנוע, באותו שם.
     provider: { '@id': BUSINESS_ID },
+    // ⚠️ העסק נשאר ה-provider; שובל היא ה-instructor. זו החלוקה הנכונה
+    // לפי Schema.org — הגוף שמעמיד את הקורס מול האדם שמעביר אותו — ושתי
+    // ההפניות הן ל-@id של ישויות שכבר מוגדרות ב-app/layout.tsx.
+    instructor: { '@id': PERSON_ID },
     teaches: [...courseOutcomes],
     hasCourseInstance: {
       '@type': 'CourseInstance',
       courseMode: 'onsite',
       courseWorkload: 'P2D',
-      location: { '@type': 'Place', name: course.location },
+      /*
+        הקורס מתקיים פיזית בקליניקה באשקלון. course.location הוא הנוסח
+        הגלוי בעמוד ("עיר היין, אשקלון"), וה-address מוסיף את העיר בשדה
+        המובנה כדי שהמיקום יהיה קריא למכונה — בלי רחוב, בדיוק כמו
+        בישות העסקית.
+      */
+      location: {
+        '@type': 'Place',
+        name: course.location,
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: 'אשקלון',
+          addressCountry: 'IL',
+        },
+      },
     },
   }
 
