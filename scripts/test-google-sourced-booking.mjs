@@ -182,6 +182,21 @@ section('5 · המועד נעול אחרי הקישור')
     'רשימת התורים מסתירה את כפתור ההזזה לתור נעול',
     src('app/admin/(protected)/appointments/page.tsx').includes('canCancel && !googleTimeLocked'),
   )
+
+  /*
+   * ⚠️ ההזזה הישירה אינה הדרך היחידה שהמועד יכול לזוז: אישור בקשת שינוי
+   * מועד של הלקוחה עושה בדיוק אותו דבר. אילו רק ה-route הראשון היה חסום,
+   * הכלל היה נשבר במסלול השני בלי שאיש ישים לב.
+   */
+  const approve = src('app/api/admin/appointments/[id]/reschedule-approve/route.ts')
+  chk('אישור בקשת שינוי מועד חסום גם הוא לתור נעול', approve.includes('isGoogleTimeLocked'))
+  chk('והנעילה נבדקת על התור המקורי ולא על שורת הבקשה',
+    approve.includes('requestRow.reschedule_of_appointment_id'))
+
+  const selfService = src('lib/appointmentSelfService.ts')
+  chk('הלקוחה אינה יכולה לפתוח בקשה על תור נעול', selfService.includes('isGoogleTimeLocked'))
+  chk('ומקבלת הצעה לפנות בוואטסאפ במקום מבוי סתום',
+    /isGoogleTimeLocked[\s\S]{0,400}offerWhatsApp: true/.test(selfService))
 }
 
 // ════════════════════════════════════════════════════════════════════════════

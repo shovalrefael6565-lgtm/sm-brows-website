@@ -10,6 +10,7 @@ import { loadAppointmentPolicy } from '@/lib/db/businessSettings'
 import { canCancel, canRequestReschedule, type AppointmentPolicy, type PolicyDecision } from '@/lib/appointmentPolicy'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { findConflictingCalendarEvent, logGoogleCalendarError } from '@/lib/googleCalendar'
+import { isGoogleTimeLocked } from '@/lib/calendarLink'
 import { retryCalendarSync } from '@/lib/appointmentApproval'
 import { israelDateStr, israelWallTimeToUtc } from '@/lib/israelTime'
 import { isBookableDate, isValidTimeSlot, isValidLiftingStart, hasLeadTime } from '@/lib/bookingWindow'
@@ -251,6 +252,24 @@ export async function requestRescheduleForCustomer(
   const lookup = await getAppointmentForCustomer(params.appointmentId, params.customerId)
   if (!lookup.ok) return lookup.reason === 'db_error' ? SERVICE_UNAVAILABLE : NOT_FOUND
   const appt = lookup.appointment
+
+  /*
+   * 🔒 15I — תור שהמועד שלו נקבע ביומן שובל אינו זז דרך האתר.
+   *
+   * ⚠️ החסימה כאן ולא רק באישור: בקשה שנפתחה על תור כזה הייתה תופסת גם
+   * את השעה המבוקשת עד ההכרעה, ושובל הייתה יכולה רק לדחות אותה. עדיף
+   * לומר את זה מיד ולהציע לפנות בוואטסאפ, במקום ליצור מבוי סתום.
+   *
+   * ⚠️ הנוסח ללקוחה אינו מזכיר "Google Calendar" — מבחינתה זה פשוט תור
+   * שמתואם ישירות מול הסטודיו.
+   */
+  if (isGoogleTimeLocked(appt.id, appt.google_event_id)) {
+    return {
+      ok: false, status: 409, error: 'not_allowed_status',
+      message: 'המועד של התור הזה מתואם ישירות מול הסטודיו, ולכן אי אפשר לשנות אותו כאן.',
+      offerWhatsApp: true,
+    }
+  }
 
   const policyResult = await loadAppointmentPolicy()
   if (!policyResult.ok) return SETTINGS_UNAVAILABLE

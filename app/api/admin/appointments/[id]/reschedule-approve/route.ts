@@ -3,6 +3,9 @@ import { waitUntil } from '@vercel/functions'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { isSameOrigin } from '@/lib/auth/originGuard'
 import { approveRescheduleAndSync } from '@/lib/appointmentApproval'
+import { getAppointmentForAdmin } from '@/lib/db/appointments'
+import { isGoogleTimeLocked } from '@/lib/calendarLink'
+import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
 import { dispatchNow } from '@/lib/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +39,26 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = params
   if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: 'not_found', message: 'הבקשה לא נמצאה.' }, { status: 404 })
+  }
+
+  /*
+   * 🔒 15I — אישור בקשה על תור שהמועד שלו נקבע ביומן Google יזיז אותו,
+   * ולכן הוא חסום כאן בדיוק כמו הזזה ידנית.
+   *
+   * ⚠️ הנעילה יושבת על התור **המקורי**, לא על שורת הבקשה: google_event_id
+   * שייך לתור שקושר לאירוע, ו-`id` כאן הוא הבקשה.
+   *
+   * ⚠️ הבקשה עצמה אינה נדחית אוטומטית — היא נשארת פתוחה כדי ששובל תכריע
+   * בה במודע (לדחות, או להזיז את האירוע ביומן ואז לטפל בה).
+   */
+  const requestRow = await getAppointmentForAdmin(id)
+  if (requestRow?.reschedule_of_appointment_id) {
+    const original = await getAppointmentForAdmin(requestRow.reschedule_of_appointment_id)
+    if (original && isGoogleTimeLocked(original.id, original.google_event_id)) {
+      return NextResponse.json(
+        { error: 'calendar_time_locked', message: ADMIN_ERROR_MESSAGES.calendar_time_locked },
+        { status: 409 })
+    }
   }
 
   const result = await approveRescheduleAndSync(id, guard.userId)
