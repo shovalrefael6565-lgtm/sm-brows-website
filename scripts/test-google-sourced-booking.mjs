@@ -312,26 +312,31 @@ section('11 · ההזמנה הציבורית לא השתנתה')
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('12 · טיפולים אחרים אינם מקבלים את החריגה')
+section('12 · 🔓 15J — כל טיפול ידני זכאי לאמץ אירוע')
 // ════════════════════════════════════════════════════════════════════════════
+//
+// עד 15J החזירה supportsGoogleSourcedSlot false לעיצוב גבות ולהרמת גבות,
+// ואירוע יומן פנוי לחלוטין לא היה ניתן לקישור לשום טיפול אחר. זו הייתה
+// התקלה, ולא הגנה.
 
 {
   chk('מיקרובליידינג זכאי', supportsGoogleSourcedSlot(MICROBLADING_SERVICE) === true)
   chk('ייעוץ מיקרובליידינג זכאי', supportsGoogleSourcedSlot(MICROBLADING_CONSULT_SERVICE) === true)
-  chk('עיצוב גבות טבעיות אינו זכאי', supportsGoogleSourcedSlot(NATURAL_SERVICE) === false)
-  chk('הרמת גבות אינה זכאית', supportsGoogleSourcedSlot(LIFTING_SERVICE) === false)
+  chk('עיצוב גבות טבעיות זכאי', supportsGoogleSourcedSlot(NATURAL_SERVICE) === true)
+  chk('הרמת גבות זכאית', supportsGoogleSourcedSlot(LIFTING_SERVICE) === true)
   chk('ערך שאינו מחרוזת אינו זכאי', supportsGoogleSourcedSlot(undefined) === false)
+  chk('טיפול שאינו בקטלוג כלל אינו זכאי', supportsGoogleSourcedSlot('קורס מקצועי') === false)
 
-  // ⚠️ הדחייה קורית **לפני** כל קריאה חיצונית: טיפול ציבורי אינו גורם
-  // אפילו לקריאה אחת ליומן.
+  // 🔓 טיפול ציבורי מגיע עד קריאת האירוע ומאמץ אותו, בדיוק כמו ניהולי.
   const { deps, calls } = mkDeps()
   const res = await resolveAdoptedGoogleSlot(NATURAL_SERVICE, EV, deps)
-  chk('טיפול ציבורי נדחה', !res.ok && res.error === 'adopt_not_supported')
-  chk('ובלי לפנות ליומן בכלל', calls.reads === 0)
+  chk('עיצוב גבות טבעיות מאמץ את האירוע', res.ok === true)
+  chk('והמועד נגזר מהיומן', res.ok && fmtIsrael(res.data.startsAt) === '10:20')
+  chk('והיומן אכן נקרא', calls.reads === 1)
 
-  // גם אם קורא עתידי יעביר adoptedSlot לטיפול ציבורי — הוא לא ייכנס.
+  // הבדיקה על ה-service_key עדיין נאכפת בתוך הפונקציה שכותבת, ולא רק ב-route.
   chk(
-    'createManualAppointment מסננת adoptedSlot לפי הטיפול',
+    'createManualAppointment בודקת את ה-service_key בעצמה',
     src('lib/adminBooking.ts').includes(
       'const adoptedSlot = supportsGoogleSourcedSlot(input.serviceKey) ? (input.adoptedSlot ?? null) : null'),
   )
@@ -346,13 +351,13 @@ section('גבולות המשך שנגזר מהיומן')
     eventId: EV, summary: '', start: israelWallTimeToUtc(DATE, '10:00'),
     end: new Date(israelWallTimeToUtc(DATE, '10:00').getTime() + 4 * 60000),
   })
-  chk('אירוע של 4 דקות נדחה (מתחת ל-5)', !short.ok && short.error === 'adopt_event_invalid')
+  chk('אירוע של 4 דקות נדחה (מתחת ל-5)', !short.ok && short.error === 'adopt_event_duration')
 
   const long = googleEventToSlot({
     eventId: EV, summary: '', start: israelWallTimeToUtc(DATE, '08:00'),
     end: israelWallTimeToUtc(DATE, '17:00'),
   })
-  chk('אירוע של 9 שעות נדחה (מעל 480)', !long.ok && long.error === 'adopt_event_invalid')
+  chk('אירוע של 9 שעות נדחה (מעל 480)', !long.ok && long.error === 'adopt_event_duration')
 
   const edge = googleEventToSlot({
     eventId: EV, summary: '', start: israelWallTimeToUtc(DATE, '10:00'),
@@ -366,6 +371,191 @@ section('גבולות המשך שנגזר מהיומן')
   allDay.deps.readEvent = async () => ({ ok: false, reason: 'unsupported' })
   const ad = await resolveAdoptedGoogleSlot(MICROBLADING_SERVICE, EV, allDay.deps)
   chk('אירוע יום שלם נדחה', !ad.ok && ad.error === 'adopt_event_invalid')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('15J · כל אירוע לא-מקושר ניתן לבחירה, בכל טיפול')
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ─── התקלה שהבדיקות האלה נועדו למנוע מלחזור ─────────────────────────────────
+//
+// אירוע ביומן הופיע ברשימה אבל לא היה ניתן לקישור. הסיבות שנמצאו בקוד היו
+// כולן חיצוניות לשאלה "האם האירוע פנוי": סוג הטיפול, חפיפה עם אירוע יומן
+// אחר, וכשל בקריאת היומן. שלושתן ירדו. מה שנשאר חוסם הוא **רק** מה שה-DB
+// עצמו אוסר, ומה שחוסם קישור בכלל הוא **רק** אירוע ששייך כבר לתור אחר.
+
+/** כל טיפול שאפשר לקבוע ידנית באדמין */
+const EVERY_MANUAL_SERVICE = [
+  MICROBLADING_CONSULT_SERVICE,   // 1 · ייעוץ — המקרה שדווח
+  MICROBLADING_SERVICE,           // 2
+  NATURAL_SERVICE,                // 3
+  LIFTING_SERVICE,                // 4
+]
+
+{
+  // ── 1–4 · כל טיפול ידני יכול לאמץ אירוע לא-מקושר ──────────────────────
+  for (const svc of EVERY_MANUAL_SERVICE) {
+    const { deps } = mkDeps({ event: mkEvent('10:20', '11:20') })
+    const res = await resolveAdoptedGoogleSlot(svc, EV, deps)
+    chk(`«${svc}» מאמץ אירוע פנוי`,
+      res.ok && fmtIsrael(res.data.startsAt) === '10:20' && res.data.durationMin === 60)
+  }
+
+  // ── והאירוע אכן מוצג לבחירה, בלי תלות בטיפול ──────────────────────────
+  const listed = await listAdoptableEventsForDate(DATE, mkDeps({
+    list: [{ eventId: EV, summary: 'ייעוץ מיקרובליידינג - טלייה',
+             start: israelWallTimeToUtc(DATE, '10:20').toISOString(),
+             end: israelWallTimeToUtc(DATE, '11:20').toISOString(), durationMin: 60 }],
+  }).deps)
+  chk('אירוע פנוי מופיע ברשימה', listed.ok && listed.events.length === 1)
+
+  // ── 5 · אירוע אחרי שעות הפעילות ────────────────────────────────────────
+  const night = mkDeps({ event: mkEvent('20:30', '21:30') })
+  const nightSlot = await resolveAdoptedGoogleSlot(MICROBLADING_CONSULT_SERVICE, EV, night.deps)
+  chk('אירוע 20:30–21:30 ניתן לאימוץ',
+    nightSlot.ok && nightSlot.data.startTime === '20:30' && nightSlot.data.endTime === '21:30')
+  const nightWarn = manualSlotWarnings(nightSlot.data.startsAt, nightSlot.data.endsAt)
+  chk('והמערכת מסמנת אותו כחריג — כאזהרה', nightWarn.outsideBusinessHours === true)
+  // האזהרה אינה תנאי: הטופס מבקש אישור חריגה רק כשאין אירוע.
+  chk('הטופס אינו דורש אישור חריגה כשיש אירוע',
+    src('components/admin/NewAppointmentForm.tsx').includes('!googleSlot &&'))
+
+  // ── 6 · כותרת שאינה תואמת את הטיפול ────────────────────────────────────
+  const odd = mkDeps({ event: mkEvent('10:20', '11:20', { summary: 'פגישה עם רואה החשבון' }) })
+  const oddRes = await resolveAdoptedGoogleSlot(NATURAL_SERVICE, EV, odd.deps)
+  chk('כותרת שאינה קשורה לטיפול אינה חוסמת', oddRes.ok === true)
+  const blank = mkDeps({ event: mkEvent('10:20', '11:20', { summary: '' }) })
+  chk('גם אירוע בלי כותרת בכלל',
+    (await resolveAdoptedGoogleSlot(LIFTING_SERVICE, EV, blank.deps)).ok === true)
+
+  // ── 7 · משך שונה מהקטלוג — Google מנצח ────────────────────────────────
+  const catalog = resolveManualService(NATURAL_SERVICE, ['עיצוב גבות טבעי'], {})
+  chk('בקטלוג עיצוב גבות טבעיות הוא 20 דקות', catalog.ok && catalog.data.durationMin === 20)
+  const won = applyGoogleSourcedSlot(
+    { startsAt: israelWallTimeToUtc(DATE, '10:30'), endsAt: israelWallTimeToUtc(DATE, '10:50'),
+      durationMin: catalog.data.durationMin },
+    oddRes.data,
+  )
+  chk('משך האירוע (60) דורס את הקטלוג (20)', won.durationMin === 60)
+  chk('והדגל דולק', won.googleSourced === true)
+  // ה-route מציג ושולח את משך האירוע, ולא את זה של הקטלוג.
+  chk('route הזמינות מציג את משך האירוע',
+    src('app/api/admin/appointments/availability/route.ts')
+      .includes('const durationMin = adopted ? adopted.durationMin : service.data.durationMin'))
+  chk('route היצירה שולח את משך האירוע',
+    src('app/api/admin/appointments/route.ts')
+      .includes('durationMin: adopted ? adopted.durationMin : service.data.durationMin'))
+
+  // ── 8 · שעה אחרת הוקלדה בטופס — Google מנצח ───────────────────────────
+  chk('שעת הטופס (10:30) נדרסת ע"י האירוע (10:20)', fmtIsrael(won.startsAt) === '10:20')
+  chk('גם הסיום', fmtIsrael(won.endsAt) === '11:20')
+
+  // ── 9 · אין שעה בטופס בכלל ─────────────────────────────────────────────
+  // שני ה-routes דורשים שעה **רק** כשאין אירוע מאומץ.
+  for (const route of ['app/api/admin/appointments/route.ts',
+                       'app/api/admin/appointments/availability/route.ts']) {
+    chk(`${route.split('/').slice(-2).join('/')} אינו דורש שעה כשיש אירוע`,
+      src(route).includes('(!adopted && !TIME_RE.test(time))'))
+  }
+  chk('והטופס אינו דורש שעה כשנבחר אירוע',
+    src('components/admin/NewAppointmentForm.tsx')
+      .includes('const slotReady = googleMode ? Boolean(isoDate) : Boolean(isoDate && time)'))
+
+  // ── 10 · אירוע שכבר מקושר — החסימה היחידה ──────────────────────────────
+  const takenByProps = mkDeps({ event: mkEvent('10:20', '11:20', { appointmentId: 'other-appt' }) })
+  chk('אירוע עם חתימת מערכת אינו ניתן לאימוץ',
+    (await resolveAdoptedGoogleSlot(MICROBLADING_CONSULT_SERVICE, EV, takenByProps.deps)).error
+      === 'adopt_event_taken')
+  const takenByDb = mkDeps({ linked: new Set([EV]) })
+  chk('ואירוע שמופיע ב-appointments.google_event_id',
+    (await resolveAdoptedGoogleSlot(NATURAL_SERVICE, EV, takenByDb.deps)).error === 'adopt_event_taken')
+  const hidden = await listAdoptableEventsForDate(DATE, mkDeps({
+    linked: new Set([EV]),
+    list: [{ eventId: EV, summary: 'תור קיים',
+             start: israelWallTimeToUtc(DATE, '10:20').toISOString(),
+             end: israelWallTimeToUtc(DATE, '11:20').toISOString(), durationMin: 60 }],
+  }).deps)
+  chk('ואינו מוצג ברשימה כלל', hidden.ok && hidden.events.length === 0)
+
+  // ── 11 · לא נוצר אירוע נוסף ביומן ──────────────────────────────────────
+  const gcal = src('lib/googleCalendar.ts')
+  const adoptFn = gcal.slice(gcal.indexOf('export async function adoptExistingCalendarEvent'))
+    .slice(0, gcal.slice(gcal.indexOf('export async function adoptExistingCalendarEvent')).indexOf('\n}\n') + 3)
+  chk('האימוץ אינו קורא ל-events.insert', !/events\.insert/.test(adoptFn))
+  chk('האימוץ הוא patch על extendedProperties בלבד',
+    /events\.patch/.test(adoptFn) && !/\bstart:/.test(adoptFn) && !/\bend:/.test(adoptFn))
+
+  // ── 12 · תזכורות לפי ה-start של Google ─────────────────────────────────
+  // מה שנכתב ל-DB הוא slot.startsAt שאחרי הדריסה, והתזכורות נגזרות
+  // מ-appointments.starts_at עצמו — ולכן מהמועד של האירוע.
+  const booking = src('lib/adminBooking.ts')
+  chk('ה-RPC מקבל את המועד שאחרי הדריסה',
+    booking.includes('p_starts_at: slot.startsAt.toISOString()') &&
+    booking.includes('p_duration_min: slot.durationMin'))
+  chk('גם ה-fingerprint מחושב על המועד שאחרי הדריסה',
+    booking.indexOf('const slot = applyGoogleSourcedSlot') <
+    booking.indexOf('const fingerprint = appointmentCreateFingerprint'))
+  const reminders = src('supabase/migrations/0011_appointment_reminders.sql')
+  chk('התזכורות נגזרות מ-appointments.starts_at',
+    reminders.includes('public.reminder_scheduled_for(v_kind, v_appt.starts_at, v_now)'))
+  chk('ו-snapshot אחד לכל starts_at — בלי כפילויות',
+    reminders.includes('on conflict (appointment_id, reminder_kind, appointment_starts_at)'))
+  chk('וחלון שכבר עבר נשמר כ-window_passed_at_creation',
+    reminders.includes("v_reason := 'window_passed_at_creation'"))
+
+  // ── 13 · ההזמנה הציבורית ─────────────────────────────────────────────
+  chk('עיצוב גבות טבעיות עדיין ציבורי ובן 20 דקות',
+    isBookableService(NATURAL_SERVICE) && catalog.data.durationMin === 20)
+  chk('הרמת גבות עדיין ציבורית ובת 40 דקות', (() => {
+    const l = resolveManualService(LIFTING_SERVICE, [], {})
+    return isBookableService(LIFTING_SERVICE) && l.ok && l.data.durationMin === 40
+  })())
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('15J · מה כן חוסם, ומה הפסיק לחסום')
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const booking = src('lib/adminBooking.ts')
+
+  // חפיפה עם אירוע יומן אחר — אזהרה, לא חסימה.
+  chk('חפיפה ביומן באימוץ מפורש מוחזרת כ-calendarOverlap',
+    booking.includes('if (explicitAdoption) return { available: true, calendarOverlap: overlap }'))
+  // כשל בקריאת היומן — מפסיק לחסום אימוץ מפורש.
+  chk('כשל יומן אינו חוסם אימוץ מפורש',
+    booking.includes("if (!explicitAdoption) return { available: false, reason: 'calendar_unavailable' }"))
+  // שני ה-routes מעבירים את הדגל.
+  chk('route הזמינות מסמן אימוץ מפורש',
+    src('app/api/admin/appointments/availability/route.ts').includes('Boolean(adopted),'))
+  chk('createManualAppointment מסמנת אימוץ מפורש',
+    booking.includes('Boolean(adoptEventId),'))
+
+  // ⚠️ שתי החסימות שנשארו אינן מדיניות של האתר אלא של ה-DB עצמו, ולכן
+  // אסור שיירדו כאן בלי מיגרציה: הן היו מפילות את ה-INSERT ממילא.
+  const rpc = src('supabase/migrations/0018_public_booking_rpcs.sql')
+  chk('ה-RPC עדיין אוסר מועד שעבר', rpc.includes("raise exception 'START_IN_PAST'"))
+  chk('ה-EXCLUDE constraint עדיין אוסר חפיפת תורים',
+    src('supabase/migrations/0001_customer_accounts.sql')
+      .includes('exclude using gist (tstzrange(starts_at, ends_at) with &&)'))
+  chk('ולכן שתיהן נשארות חסימה גם באימוץ',
+    booking.includes("if (availability.reason === 'past') return { ok: false, error: 'start_in_past' }") &&
+    booking.includes("return { ok: false, error: 'slot_taken' }"))
+  // ...אבל עם הסבר, ולא כמסך ריק.
+  const form = src('components/admin/NewAppointmentForm.tsx')
+  chk('ולמנהלת מוצג הסבר מה לעשות', form.includes('ADOPT_BLOCK_LABELS'))
+  chk('וכשל של בדיקת הזמינות אינו משאיר מסך ריק',
+    form.includes('setAvailabilityError') && form.includes('{availabilityError && !checking && ('))
+
+  // הרשימה והבחירה אינן תלויות בטיפול בשום מקום.
+  chk('route האירועים אינו בודק טיפול',
+    !src('app/api/admin/appointments/calendar-events/route.ts').includes('supportsGoogleSourcedSlot'))
+  chk('הטופס טוען אירועים לפי תאריך בלבד', form.includes('}, [isoDate])'))
+  chk('והרשימה מוצגת לכל טיפול', form.includes('{isoDate && (') && !form.includes('{adminService && isoDate && ('))
+  chk('googleMode אינו תלוי בטיפול', form.includes('const googleMode = Boolean(adoptEventId)'))
+  // אף radio ברשימה אינו disabled.
+  chk('אין disabled על אירוע ברשימה',
+    !/name="adoptEvent"[\s\S]{0,320}?disabled/.test(form))
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'}  ${pass} עברו, ${fail} נכשלו`)

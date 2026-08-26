@@ -193,7 +193,8 @@ export function manualSlotWarnings(startsAt: Date, endsAt: Date): SlotWarnings {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 15I — אימוץ אירוע Google כמקור האמת למועד (מיקרובליידינג בלבד)
+// 15I — אימוץ אירוע Google כמקור האמת למועד
+// 15J — לכל טיפול שנקבע ידנית, ולא רק למיקרובליידינג
 //
 // ─── התקלה שנסגרת כאן ──────────────────────────────────────────────────────
 //
@@ -209,18 +210,40 @@ export function manualSlotWarnings(startsAt: Date, endsAt: Date): SlotWarnings {
 // והמשך הוא end − start. מה שהוזן בטופס לפני כן אינו רלוונטי ואינו נשמר.
 // האתר אינו מעדכן את האירוע ביומן לפי הטופס, ואינו יוצר אירוע שני.
 //
-// 🔒 החריגה חלה **רק** על מיקרובליידינג וייעוץ מיקרובליידינג (הטיפולים
-// הניהוליים). לשני טיפולי הקטלוג הציבוריים דבר לא השתנה, וההזמנה הציבורית
-// לא נגעה כאן בכלל.
+// 🔓 15J — הכלל חל על **כל** תור שנוצר ידנית באדמין, מכל סוג טיפול.
+// עד כאן הוא היה פתוח למיקרובליידינג ולייעוץ בלבד, ואירוע פנוי לגמרי לא
+// היה ניתן לקישור לעיצוב גבות או להרמת גבות — למרות שמבחינת היומן אין שום
+// הבדל בין המקרים. ההזמנה הציבורית לא נגעה כאן בכלל: המסלול נגיש רק
+// מ-/api/admin, כלומר רק ל-booking_source = 'admin_manual'.
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * רק טיפול ניהולי (מיקרובליידינג / ייעוץ) זכאי לזרימת "Google הוא מקור
- * האמת". זו הנקודה היחידה שקובעת זאת, והשרת מכריע לפי ה-service_key —
- * לא לפי דגל מהדפדפן.
+ * 🔓 15J — **כל** טיפול שנקבע ידנית באדמין זכאי לזרימת "Google הוא מקור
+ * האמת", ולא רק שני הטיפולים הניהוליים.
+ *
+ * ─── מה היה כאן, ולמה זה היה תקלה ─────────────────────────────────────────
+ *
+ * עד כאן החזירה הפונקציה true רק ל-isAdminOnlyService, כלומר למיקרובליידינג
+ * ולייעוץ מיקרובליידינג. התוצאה: אירוע יומן פנוי לחלוטין הופיע במסך אבל
+ * לא היה ניתן לקישור לשום טיפול אחר — ומזהה אירוע שנשלח בכל זאת נדחה
+ * ב-`adopt_not_supported`, שהטופס בלע בשקט.
+ *
+ * ⚠️ סוג הטיפול אינו אומר דבר על האירוע ביומן. אירוע הוא "אותו תור" או
+ * שאינו — וזו שאלה על **קישור**, לא על קטלוג. השאלה היחידה שחוסמת קישור
+ * היא האם האירוע כבר שייך ל-appointment אחר (ראה resolveAdoptedGoogleSlot).
+ *
+ * מה שהפונקציה עדיין אוכפת: שה-service_key הוא טיפול שהמערכת מכירה. היא
+ * אינה שער של קטלוג אלא בדיקת שפיות, והשרת מכריע לפי ה-service_key ולא
+ * לפי דגל מהדפדפן.
+ *
+ * ⚠️ אינה נוגעת בהזמנה הציבורית: המסלול הזה נגיש רק מ-createManualAppointment
+ * ומה-routes של /api/admin, כלומר רק ל-booking_source = 'admin_manual'.
  */
 export function supportsGoogleSourcedSlot(serviceKey: unknown): boolean {
-  return typeof serviceKey === 'string' && isAdminOnlyService(serviceKey)
+  if (typeof serviceKey !== 'string') return false
+  return isAdminOnlyService(serviceKey) ||
+    serviceKey === NATURAL_SERVICE ||
+    serviceKey === LIFTING_SERVICE
 }
 
 /** מועד תור שנגזר במלואו מאירוע Google — אין בו שום ערך שהגיע מהטופס */
@@ -242,6 +265,8 @@ export type AdoptedSlotError =
   | 'adopt_event_gone'
   | 'adopt_event_taken'
   | 'adopt_event_invalid'
+  /** משך האירוע מחוץ ל-5–480 דקות שה-RPC אוכף (0010) — ראה googleEventToSlot */
+  | 'adopt_event_duration'
   | 'calendar_unavailable'
 
 /**
@@ -255,20 +280,25 @@ export function googleEventToSlot(event: {
   summary: string
   start: Date
   end: Date
-}): { ok: true; data: AdoptedGoogleSlot } | { ok: false; error: 'adopt_event_invalid' } {
+}):
+  | { ok: true; data: AdoptedGoogleSlot }
+  | { ok: false; error: 'adopt_event_invalid' | 'adopt_event_duration'; durationMin?: number } {
   const startsAt = event.start
   const endsAt = event.end
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
     return { ok: false, error: 'adopt_event_invalid' }
   }
 
+  /*
+   * ⚠️ הגבול היחיד שנשאר על משך האירוע, והוא אינו העדפה של האתר אלא מה
+   * ש-create_manual_appointment אוכפת (INVALID_DURATION, 5–480 דקות, 0010).
+   * אירוע יומן ארוך יותר — יום הולדת, חופשה — אי אפשר לשמור כתור, ולכן
+   * הוא מקבל **שגיאה מפורשת עם המספר**, ולא כשל שקט.
+   */
   const durationMin = Math.round((endsAt.getTime() - startsAt.getTime()) / 60000)
-  if (
-    !Number.isInteger(durationMin) ||
-    durationMin < ADMIN_MIN_DURATION_MIN ||
-    durationMin > ADMIN_MAX_DURATION_MIN
-  ) {
-    return { ok: false, error: 'adopt_event_invalid' }
+  if (!Number.isInteger(durationMin)) return { ok: false, error: 'adopt_event_invalid' }
+  if (durationMin < ADMIN_MIN_DURATION_MIN || durationMin > ADMIN_MAX_DURATION_MIN) {
+    return { ok: false, error: 'adopt_event_duration', durationMin }
   }
 
   return {
@@ -341,6 +371,9 @@ export function defaultAdoptionDeps(): AdoptionDeps {
  *
  * ⚠️ כשל בקריאת ה-DB אינו "אין קישורים": במצב כזה כל האירועים מסומנים
  * כלא-זמינים, כדי שלא ייבחר אירוע ששייך לתור אחר.
+ *
+ * 🔓 15J — הרשימה אינה תלויה בטיפול. אירוע שאינו מקושר לתור אחר מוצג
+ * לכל טיפול ידני, וכותרת האירוע היא רמז לזיהוי בלבד — לא תנאי סינון.
  */
 export async function listAdoptableEventsForDate(
   isoDate: string,
@@ -373,9 +406,12 @@ export async function resolveAdoptedGoogleSlot(
   serviceKey: unknown,
   eventId: string,
   deps: AdoptionDeps = defaultAdoptionDeps(),
-): Promise<{ ok: true; data: AdoptedGoogleSlot } | { ok: false; error: AdoptedSlotError }> {
-  // 🔒 שער הטיפולים. טיפול אחר שיבקש אימוץ-לפי-Google נדחה כאן, לפני כל
-  // קריאה חיצונית — ולכן החריגה אינה יכולה לזלוג לקטלוג הציבורי.
+): Promise<
+  | { ok: true; data: AdoptedGoogleSlot }
+  | { ok: false; error: AdoptedSlotError; durationMin?: number }
+> {
+  // בדיקת שפיות על ה-service_key בלבד (15J). היא אינה שער של קטלוג:
+  // כל טיפול שנקבע ידנית באדמין רשאי לאמץ אירוע קיים ביומן.
   if (!supportsGoogleSourcedSlot(serviceKey)) return { ok: false, error: 'adopt_not_supported' }
 
   let read
@@ -401,8 +437,23 @@ export async function resolveAdoptedGoogleSlot(
   return googleEventToSlot(read.event)
 }
 
+/** אירוע יומן שחופף לטווח — כחסימה (adoptable) או כאזהרה (calendarOverlap) */
+export interface OverlappingCalendarEvent {
+  eventId: string
+  summary: string
+  start: string
+  end: string
+}
+
 export type AvailabilityResult =
-  | { available: true }
+  | {
+      available: true
+      /**
+       * 🔓 15J — אירוע יומן אחר שחופף לתור, כש**האימוץ מפורש**. זו אזהרה
+       * ולא חסימה: המנהלת בחרה אירוע קיים ביומן, וזו פעולה ידנית סמכותית.
+       */
+      calendarOverlap?: OverlappingCalendarEvent | null
+    }
   | {
       available: false
       reason: 'past' | 'db_conflict' | 'calendar_conflict' | 'calendar_unavailable'
@@ -435,6 +486,24 @@ export async function checkManualSlotAvailability(
    * אחר במערכת באותה שעה ממשיך לחסום.
    */
   ignoreEventId: string | null = null,
+  /**
+   * 🔓 15J — המנהלת בחרה אירוע קיים ביומן **במפורש**.
+   *
+   * ─── מה זה משנה, ומה זה במכוון אינו משנה ────────────────────────────────
+   *
+   * אירוע יומן *אחר* שחופף מפסיק לחסום והופך ל-`calendarOverlap` — אזהרה
+   * שמוצגת למנהלת. הסיבה: היא הצביעה על אירוע מסוים ואמרה "זה התור",
+   * ואירוע שכן ביומן אינו ראיה שהיא טועה. גם כשל בקריאת היומן מפסיק
+   * לחסום — האירוע עצמו כבר נקרא בהצלחה, וזה כל מה שדרוש.
+   *
+   * ⚠️ מה שממשיך לחסום, ולא בגלל מדיניות אלא בגלל ה-DB עצמו:
+   *   • `past` — הפונקציה create_manual_appointment מרימה START_IN_PAST.
+   *   • `db_conflict` — ה-EXCLUDE constraint appointments_no_overlap
+   *     (0001) אוסר על שני תורים פעילים לחפוף. INSERT כזה נכשל ב-23P01.
+   * שניהם היו נכשלים בכתיבה בכל מקרה; לחסום אותם כאן זה להסביר במקום
+   * להפיל. ראה ADMIN_ERROR_MESSAGES.
+   */
+  explicitAdoption = false,
 ): Promise<AvailabilityResult> {
   if (startsAt.getTime() <= Date.now()) return { available: false, reason: 'past' }
 
@@ -460,32 +529,33 @@ export async function checkManualSlotAvailability(
       israelDateStr(startsAt), startsAt, endsAt, appointmentId, ignoreEventId,
     )
     if (conflict) {
+      const overlap: OverlappingCalendarEvent = {
+        eventId: conflict.eventId,
+        summary: conflict.summary,
+        start: conflict.start,
+        end: conflict.end,
+      }
+      // 🔓 15J — אימוץ מפורש: אזהרה, לא חסימה. המנהלת כבר הצביעה על
+      // האירוע שהוא התור, ואירוע שכן ביומן אינו סותר את זה.
+      if (explicitAdoption) return { available: true, calendarOverlap: overlap }
+
       return {
         available: false,
         reason: 'calendar_conflict',
         // ⚠️ אירוע ששייך כבר ל-appointment אחר אינו ניתן לאימוץ: זו חפיפה
         // אמיתית בין שני תורים, ואימוצה היה גוזל את האירוע מהתור הראשון.
-        ...(conflict.appointmentId === null
-          ? {
-              adoptable: {
-                eventId: conflict.eventId,
-                summary: conflict.summary,
-                start: conflict.start,
-                end: conflict.end,
-              },
-            }
-          : {}),
+        ...(conflict.appointmentId === null ? { adoptable: overlap } : {}),
       }
     }
   } catch (err) {
-    // ⚠️ בניגוד למסלול הלקוחה, כאן **חוסמים** כשהיומן אינו זמין. מנהלת
-    // קובעת תור מחוץ לשעות הפעילות, שם הסיכוי לאירוע ידני חופף גבוה
-    // דווקא, ותור שנקבע על אירוע קיים גורר טלפון ללקוחה.
     logGoogleCalendarError('[adminBooking] calendar availability check failed', err)
-    return { available: false, reason: 'calendar_unavailable' }
+    // 🔓 15J — באימוץ מפורש האירוע עצמו כבר נקרא בהצלחה מהיומן, ורק
+    // סריקת השכנים נכשלה. אין כאן מה לחסום — לכל היותר אזהרה שלא נדע
+    // לתת. במסלול הרגיל ממשיכים לחסום: שם המועד הוקלד ולא נבדק כלל.
+    if (!explicitAdoption) return { available: false, reason: 'calendar_unavailable' }
   }
 
-  return { available: true }
+  return { available: true, calendarOverlap: null }
 }
 
 export type ManualAppointmentError =
@@ -537,8 +607,9 @@ export interface CreateManualAppointmentInput {
    * לאימוץ: התור נשמר במערכת, והאירוע הקיים מקבל את חתימת המערכת
    * במקום שייווצר אירוע שני.
    *
-   * ⚠️ אינו עוקף התנגשות **ב-DB**. תור אחר במערכת באותה שעה ממשיך לחסום,
-   * כי שם מדובר בשתי לקוחות ולא בשני ייצוגים של אותו תור.
+   * ⚠️ אינו עוקף התנגשות **ב-DB**, ולא בגלל מדיניות: ה-EXCLUDE constraint
+   * appointments_no_overlap (0001) אוסר על שני תורים פעילים לחפוף, ו-INSERT
+   * כזה נכשל ב-23P01. תור אחר במערכת באותה שעה ממשיך לחסום.
    */
   adoptCalendarEventId?: string | null
   /**
@@ -546,8 +617,8 @@ export interface CreateManualAppointmentInput {
    * את startsAt/endsAt/durationMin שלמעלה: הם מה שהוזן בטופס, וזה מה
    * שביומן. ראה applyGoogleSourcedSlot.
    *
-   * ⚠️ תקף רק לטיפול ניהולי. הפונקציה מוודאת זאת בעצמה ואינה סומכת על
-   * הקורא.
+   * 🔓 15J — תקף לכל טיפול שנקבע ידנית, ולא רק לניהוליים. הפונקציה
+   * מוודאת את ה-service_key בעצמה ואינה סומכת על הקורא.
    */
   adoptedSlot?: AdoptedGoogleSlot | null
 }
@@ -585,8 +656,8 @@ export async function createManualAppointment(
    * על IDEMPOTENCY_KEY_REUSED, ורשומת ה-idempotency הייתה מתעדת מועד שלא
    * נשמר מעולם.
    *
-   * ⚠️ שער הטיפולים נאכף כאן שוב, ולא רק ב-route: adoptedSlot שהגיע עם
-   * טיפול מהקטלוג הציבורי מתעלם לחלוטין, והמועד נשאר של הטופס.
+   * ⚠️ הבדיקה נאכפת כאן שוב ולא רק ב-route, אבל מאז 15J היא בדיקת שפיות
+   * על ה-service_key ולא שער של קטלוג: כל טיפול ידני זכאי למועד מ-Google.
    */
   const adoptedSlot = supportsGoogleSourcedSlot(input.serviceKey) ? (input.adoptedSlot ?? null) : null
   const slot = applyGoogleSourcedSlot(
@@ -633,28 +704,25 @@ export async function createManualAppointment(
   const availability = await checkManualSlotAvailability(
     slot.startsAt, slot.endsAt, '00000000-0000-0000-0000-000000000000',
     // המועד נגזר מהאירוע הזה עצמו — הוא אינו יכול להתנגש בעצמו.
-    slot.googleSourced ? adoptEventId : null,
+    adoptEventId,
+    /*
+     * 🔓 15J — אימוץ מפורש. מזהה אירוע שהגיע מהטופס פירושו שהמנהלת בחרה
+     * אירוע קיים, ולכן חפיפה ביומן היא אזהרה ולא חסימה. מה שנשאר חוסם
+     * כאן הוא בדיוק מה שה-DB היה מפיל ממילא — עבר וחפיפת תורים.
+     */
+    Boolean(adoptEventId),
   )
   if (!availability.available) {
     if (availability.reason === 'past') return { ok: false, error: 'start_in_past' }
-    if (availability.reason === 'calendar_conflict') {
-      /*
-       * 🔒 האימוץ מותר רק כשהאירוע שחוסם **הוא בדיוק זה** שהמנהלת אישרה,
-       * ורק כשהוא עדיין ניתן לאימוץ (כלומר אינו שייך כבר לתור אחר).
-       *
-       * ⚠️ ההשוואה למזהה שהגיע מהטופס אינה פורמליות: בין הבדיקה במסך
-       * ללחיצה יכול להיווצר ביומן אירוע *אחר* באותה שעה, ואישור שניתן על
-       * אירוע אחד אינו אישור על אירוע שהמנהלת מעולם לא ראתה.
-       */
-      const adoptable = availability.adoptable
-      if (!adoptEventId || !adoptable || adoptable.eventId !== adoptEventId) {
-        return { ok: false, error: 'calendar_conflict' }
-      }
-    } else if (availability.reason === 'calendar_unavailable') {
+    if (availability.reason === 'calendar_unavailable') {
       return { ok: false, error: 'calendar_unavailable' }
-    } else {
-      return { ok: false, error: 'slot_taken' }
     }
+    if (availability.reason === 'calendar_conflict') {
+      // מגיע רק במסלול שאינו אימוץ (adoptEventId === null): שם אירוע
+      // חוסם נשאר חסימה, בדיוק כמו קודם.
+      return { ok: false, error: 'calendar_conflict' }
+    }
+    return { ok: false, error: 'slot_taken' }
   }
 
   // ── 3. יצירה אטומית: idempotency + appointment + history ────────────────

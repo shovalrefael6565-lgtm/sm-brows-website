@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminApi } from '@/lib/auth/adminGuard'
 import { isSameOrigin } from '@/lib/auth/originGuard'
-import { listAdoptableEventsForDate, supportsGoogleSourcedSlot } from '@/lib/adminBooking'
+import { listAdoptableEventsForDate } from '@/lib/adminBooking'
 import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
 
 export const dynamic = 'force-dynamic'
@@ -20,8 +20,10 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
  * ⚠️ לכל אירוע: מזהה, כותרת וטווח שעות בלבד. לא משתתפים, לא תיאור, לא
  * מיקום, ולא שום payload גולמי מ-Google.
  *
- * 🔒 פתוח לטיפולים הניהוליים בלבד (מיקרובליידינג וייעוץ). לשאר הטיפולים
- * לא קיימת זרימת אימוץ מהיומן, ולכן גם אין להם למה לקרוא לכאן.
+ * 🔓 15J — פתוח לכל טיפול שנקבע ידנית. הרשימה אינה תלויה בטיפול כלל:
+ * "האם האירוע הזה פנוי לקישור" היא שאלה על היומן ועל appointments, ולא
+ * על הקטלוג. עד 15J נדחתה כאן כל בקשה שלא הגיעה ממיקרובליידינג/ייעוץ,
+ * וזו הייתה החסימה שהפכה אירוע גלוי ללא-ניתן-לבחירה.
  *
  * POST ולא GET: יש לזה עלות חיצונית מול Google, ואין לאפשר אותו
  * דרך קישור או prefetch.
@@ -34,17 +36,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad_origin' }, { status: 403 })
   }
 
-  let body: { isoDate?: unknown; serviceKey?: unknown }
+  let body: { isoDate?: unknown }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'bad_request', message: 'בקשה לא תקינה.' }, { status: 400 })
-  }
-
-  if (!supportsGoogleSourcedSlot(body.serviceKey)) {
-    return NextResponse.json(
-      { error: 'adopt_not_supported', message: ADMIN_ERROR_MESSAGES.adopt_not_supported },
-      { status: 400 })
   }
 
   const isoDate = typeof body.isoDate === 'string' ? body.isoDate : ''

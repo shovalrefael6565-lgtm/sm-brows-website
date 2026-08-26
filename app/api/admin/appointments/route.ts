@@ -74,8 +74,8 @@ export async function POST(req: NextRequest) {
   /*
    * ─── 15I: Google הוא מקור האמת למועד ─────────────────────────────────────
    *
-   * 🔒 השרת מכריע לפי ה-service_key שנשלח, ולא לפי דגל מהדפדפן: רק
-   * מיקרובליידינג וייעוץ מיקרובליידינג נכנסים למצב הזה.
+   * 🔓 15J — כל טיפול שנקבע ידנית נכנס למצב הזה, ולא רק מיקרובליידינג
+   * וייעוץ. השרת עדיין מכריע לפי ה-service_key שנשלח ולא לפי דגל מהדפדפן.
    *
    * ⚠️ האירוע נקרא **עכשיו** ולא מסתמך על מה שהוצג במסך. בין הבחירה
    * ללחיצה שובל יכולה להזיז אותו ביומן, ומה שנשמר חייב להיות מה שביומן
@@ -86,8 +86,11 @@ export async function POST(req: NextRequest) {
   if (googleSourced) {
     const res = await resolveAdoptedGoogleSlot(body.serviceKey, adoptEventId!)
     if (!res.ok) {
+      const message = res.error === 'adopt_event_duration' && typeof res.durationMin === 'number'
+        ? `${ADMIN_ERROR_MESSAGES.adopt_event_duration} (האירוע שנבחר נמשך ${res.durationMin} דקות).`
+        : ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown
       return NextResponse.json(
-        { error: res.error, message: ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown },
+        { error: res.error, message },
         { status: res.error === 'calendar_unavailable' ? 502 : 409 })
     }
     adopted = res.data
@@ -140,7 +143,9 @@ export async function POST(req: NextRequest) {
     customerId: customer.id,
     serviceKey: service.data.serviceKey,
     variants: service.data.variants,
-    durationMin: service.data.durationMin,
+    // 🔓 15J — משך האירוע מנצח גם בטיפולי הקטלוג, שבהם resolveManualService
+    // גוזרת משך קבוע. createManualAppointment מחילה את זה שוב בעצמה.
+    durationMin: adopted ? adopted.durationMin : service.data.durationMin,
     priceTotal: service.data.priceTotal,
     startsAt,
     endsAt,

@@ -15,6 +15,17 @@ const TIME_RE = /^\d{2}:\d{2}$/
 const CALENDAR_EVENT_ID_RE = /^[a-v0-9]{5,1024}$/
 
 /**
+ * הסבר קריא לכשל אימוץ. משך חורג מקבל את המספר עצמו — "האירוע נמשך 675
+ * דקות" עוזר לזהות שנבחר אירוע יום-שלם, בעוד הודעה גנרית לא אומרת דבר.
+ */
+function adoptErrorMessage(error: string, durationMin?: number): string {
+  if (error === 'adopt_event_duration' && typeof durationMin === 'number') {
+    return `${ADMIN_ERROR_MESSAGES.adopt_event_duration} (האירוע שנבחר נמשך ${durationMin} דקות).`
+  }
+  return ADMIN_ERROR_MESSAGES[error] ?? ADMIN_ERROR_MESSAGES.unknown
+}
+
+/**
  * בדיקת זמינות מקדימה לטופס התור הידני: משך ומחיר מחושבים, אזהרות חריגה,
  * וזמינות מול Supabase ו-Google.
  *
@@ -55,17 +66,31 @@ export async function POST(req: NextRequest) {
       ? body.adoptCalendarEventId
       : null
 
-  // 🔒 האימוץ-לפי-Google פתוח לטיפולים הניהוליים בלבד. מזהה אירוע שנשלח
-  // עם טיפול מהקטלוג הציבורי פשוט מתעלם, והבדיקה נשארת הבדיקה הרגילה.
+  // 🔓 15J — האימוץ-לפי-Google פתוח לכל טיפול שנקבע ידנית. הבדיקה על
+  // ה-service_key היא בדיקת שפיות, לא שער קטלוג.
   const googleSourced = Boolean(adoptEventId) && supportsGoogleSourcedSlot(body.serviceKey)
 
   let adopted: AdoptedGoogleSlot | null = null
   if (googleSourced) {
     const res = await resolveAdoptedGoogleSlot(body.serviceKey, adoptEventId!)
     if (!res.ok) {
-      return NextResponse.json(
-        { error: res.error, message: ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown },
-        { status: res.error === 'calendar_unavailable' ? 502 : 409 })
+      /*
+       * ⚠️ 200 ולא 409/502. הטופס מציג את גוף התשובה, ותשובת שגיאה
+       * שהוא זורק הותירה אותו ריק לגמרי: המנהלת לחצה על האירוע ושום דבר
+       * לא קרה על המסך. עכשיו הסיבה מגיעה אליה כטקסט.
+       */
+      return NextResponse.json({
+        durationMin: 0,
+        priceTotal: null,
+        available: false,
+        reason: res.error,
+        adoptable: null,
+        googleSlot: null,
+        calendarOverlap: null,
+        adoptError: res.error,
+        adoptMessage: adoptErrorMessage(res.error, res.durationMin),
+        warnings: { outsideBusinessHours: false, closedDay: false },
+      })
     }
     adopted = res.data
   }
@@ -104,10 +129,19 @@ export async function POST(req: NextRequest) {
     startsAt, endsAt, '00000000-0000-0000-0000-000000000000',
     // האירוע שממנו נגזר המועד אינו התנגשות — הוא התור עצמו.
     adopted ? adopted.eventId : null,
+    // 🔓 15J — אימוץ מפורש: חפיפה ביומן היא אזהרה ולא חסימה.
+    Boolean(adopted),
   )
 
+  /*
+   * 🔓 15J — המשך המוצג הוא **תמיד** של האירוע כשיש אירוע, גם בטיפולי
+   * הקטלוג שבהם resolveManualService גוזרת משך קבוע (20 / 40 דקות).
+   * בלי זה המסך היה מבטיח 20 דקות בעוד השמירה כותבת 60.
+   */
+  const durationMin = adopted ? adopted.durationMin : service.data.durationMin
+
   return NextResponse.json({
-    durationMin: service.data.durationMin,
+    durationMin,
     priceTotal: service.data.priceTotal,
     // ⚠️ אין כאן google_event_id, אין calendar_sync_error ואין payload
     // גולמי מ-Google — רק סיבה מקוטלגת שהממשק יודע לתרגם.
@@ -137,6 +171,13 @@ export async function POST(req: NextRequest) {
           durationMin: adopted.durationMin,
         }
       : null,
+    /*
+     * 🔓 15J — אירוע יומן אחר שחופף לתור המאומץ. אזהרה בלבד: הוא אינו
+     * מונע יצירה ואינו הופך את האירוע שנבחר ללא-בחיר.
+     */
+    calendarOverlap: availability.available ? (availability.calendarOverlap ?? null) : null,
+    adoptError: null,
+    adoptMessage: null,
     warnings,
   })
 }

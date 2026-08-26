@@ -24,12 +24,17 @@ import {
  * חריגה משעות הפעילות או יום סגור מציגה אזהרה שדורשת אישור מודע — היא
  * אינה חוסמת. חפיפה עם תור קיים או עם אירוע ביומן **כן** חוסמת.
  *
- * ═══ 15I — "המועד מגיע מהיומן" (מיקרובליידינג בלבד) ═══════════════════════
+ * ═══ 15I/15J — "המועד מגיע מהיומן", לכל טיפול ידני ═══════════════════════
  *
- * שובל קובעת מיקרובליידינג בטלפון ורושמת אותו ביומן לפני שהוא מגיע לאתר.
- * במקרה הזה אין מה להקליד: בוחרים תאריך, רואים את אירועי היום שאפשר
- * לקשר, ובוחרים את האירוע. מהרגע הזה **התאריך, ההתחלה, הסיום והמשך
- * מוצגים לקריאה בלבד** ונלקחים מ-Google.
+ * שובל קובעת תור בטלפון ורושמת אותו ביומן לפני שהוא מגיע לאתר. במקרה
+ * הזה אין מה להקליד: בוחרים תאריך, רואים את אירועי היום שאפשר לקשר,
+ * ובוחרים את האירוע. מהרגע הזה **התאריך, ההתחלה, הסיום והמשך מוצגים
+ * לקריאה בלבד** ונלקחים מ-Google.
+ *
+ * 🔓 15J — הרשימה מוצגת לכל טיפול, ולא רק למיקרובליידינג ולייעוץ. אירוע
+ * שאינו מקושר לתור אחר ניתן לבחירה תמיד: לא סוג הטיפול, לא הכותרת, לא
+ * השעה, לא המשך ולא שעות הפעילות מונעים את זה. כותרת האירוע היא רמז
+ * לזיהוי בשביל שובל — לא תנאי.
  *
  * ⚠️ אין כאן "גם וגם": ברגע שנבחר אירוע, שדות השעה והמשך אינם ניתנים
  * לעריכה — לא מוסתרים אלא נעולים, כדי ששובל תראה בדיוק מה יישמר.
@@ -69,6 +74,11 @@ interface Availability {
   adoptable: AdoptableEvent | null
   /** 15I — לא null ⟹ המועד נגזר מהיומן והשדות נעולים */
   googleSlot: GoogleSlot | null
+  /** 🔓 15J — אירוע יומן אחר שחופף. אזהרה בלבד, אינו חוסם יצירה. */
+  calendarOverlap: AdoptableEvent | null
+  /** 🔓 15J — האירוע שנבחר לא ניתן לקישור, עם הסבר קריא. לא כשל שקט. */
+  adoptError: string | null
+  adoptMessage: string | null
   warnings: { outsideBusinessHours: boolean; closedDay: boolean }
 }
 
@@ -83,6 +93,17 @@ const REASON_LABELS: Record<string, string> = {
   db_conflict:          'קיים תור אחר במועד הזה.',
   calendar_conflict:    'קיים אירוע ביומן Google במועד הזה.',
   calendar_unavailable: 'לא הצלחנו לבדוק את היומן כרגע.',
+}
+
+/**
+ * 🔓 15J — הסבר לאירוע שנבחר ואי אפשר לקשר אותו. שתי הסיבות היחידות
+ * שנשארו הן מה שה-DB עצמו אוסר — תור חופף (EXCLUDE constraint) ומועד
+ * שעבר (START_IN_PAST ב-RPC) — ולכן ההסבר מפרט מה לעשות, ולא רק ש"לא
+ * ניתן". סוג הטיפול, הכותרת, המשך ושעות הפעילות אינם ברשימה הזו כלל.
+ */
+const ADOPT_BLOCK_LABELS: Record<string, string> = {
+  past: 'האירוע שנבחר כבר התחיל. אי אפשר לשמור תור במועד שעבר — אפשר לקשר רק אירוע שעדיין לא התחיל.',
+  db_conflict: 'קיים כבר תור אחר במערכת בשעות של האירוע הזה. שני תורים פעילים אינם יכולים לחפוף, ולכן יש לבטל או להזיז את התור האחר קודם.',
 }
 
 export default function NewAppointmentForm({ initialCustomer }: { initialCustomer: PickedCustomer | null }) {
@@ -114,6 +135,14 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   const [eventsError, setEventsError] = useState<string | null>(null)
 
   const [availability, setAvailability] = useState<Availability | null>(null)
+  /**
+   * 🔓 15J — התשובה נכשלה ברמת ה-HTTP (או שהרשת נפלה).
+   *
+   * ⚠️ עד כאן המצב הזה כתב `setAvailability(null)` וזהו: המנהלת לחצה על
+   * האירוע, ושום דבר על המסך לא השתנה — לא סימון, לא שגיאה, וכפתור
+   * היצירה נשאר מעומעם. זה בדיוק מה שנראה כמו "אי אפשר ללחוץ על האירוע".
+   */
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
 
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
@@ -124,8 +153,14 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   const seq = useRef(0)
   const eventsSeq = useRef(0)
 
-  /** מצב "המועד מהיומן": טיפול ניהולי + אירוע שנבחר */
-  const googleMode = Boolean(adminService && adoptEventId)
+  /**
+   * מצב "המועד מהיומן" — 🔓 15J: אירוע שנבחר, בכל טיפול.
+   *
+   * ⚠️ עד 15J היה כאן `adminService && adoptEventId`. הצירוף הזה גם הסתיר
+   * את הרשימה משאר הטיפולים וגם, אילו אירוע היה נבחר בכל זאת, היה משאיר
+   * את השעה שהוקלדה בתוקף. שניהם ירדו.
+   */
+  const googleMode = Boolean(adoptEventId)
 
   const durationNum = Number(durationMin)
   const durationValid =
@@ -140,17 +175,21 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
     : serviceKey === LIFTING_SERVICE || variants.length > 0
 
   /*
-   * ── 15I: טעינת אירועי היום שאפשר לקשר ────────────────────────────────────
+   * ── 15I/15J: טעינת אירועי היום שאפשר לקשר ───────────────────────────────
    *
-   * ⚠️ רץ רק לטיפול ניהולי. לשני טיפולי הקטלוג אין זרימת אימוץ מהיומן,
-   * ולכן אין קריאה ל-Google בכלל — ההתנהגות שלהם לא השתנתה.
+   * 🔓 רץ לכל טיפול. התנאי `!adminService` שהיה כאן הוא שגרם לכך שאירועי
+   * היומן לא נטענו כלל לעיצוב גבות ולהרמת גבות.
+   *
+   * ⚠️ תלוי בתאריך בלבד ולא בטיפול: הרשימה זהה לכל טיפול, ואין סיבה
+   * לטעון אותה שוב כששובל מחליפה טיפול — או לאבד בחירה שכבר נעשתה.
    */
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAdoptEventId(null)
     setEvents(null)
     setEventsError(null)
-    if (!adminService || !isoDate) return
+    setEventsBusy(false)
+    if (!isoDate) return
 
     const mine = ++eventsSeq.current
     setEventsBusy(true)
@@ -159,7 +198,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
         const res = await fetch('/api/admin/appointments/calendar-events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isoDate, serviceKey }),
+          body: JSON.stringify({ isoDate }),
         })
         const data = await res.json()
         if (mine !== eventsSeq.current) return
@@ -176,8 +215,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
     }, 250)
 
     return () => clearTimeout(t)
-    // adminService נגזר מ-serviceKey; התלות בו היא התלות בטיפול.
-  }, [serviceKey, adminService, isoDate])
+  }, [isoDate])
 
   // בדיקת זמינות בכל שינוי של הצירוף. תגובה ישנה שמגיעה באיחור לא דורסת חדשה.
   // לא ניתן להעביר להתאמה בזמן ה-render בלי לפצל את ה-fetch לזרימה נפרדת,
@@ -185,6 +223,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAvailability(null)
+    setAvailabilityError(null)
     setAck(false)
     if (!slotReady || !serviceReady) return
 
@@ -206,9 +245,18 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
           }),
         })
         const data = await res.json()
-        if (mine === seq.current) setAvailability(res.ok ? data : null)
+        if (mine !== seq.current) return
+        if (res.ok) {
+          setAvailability(data)
+        } else {
+          setAvailability(null)
+          setAvailabilityError(data?.message ?? 'בדיקת הזמינות נכשלה. נסי שוב.')
+        }
       } catch {
-        if (mine === seq.current) setAvailability(null)
+        if (mine === seq.current) {
+          setAvailability(null)
+          setAvailabilityError('החיבור נכשל בבדיקת הזמינות. נסי שוב.')
+        }
       } finally {
         if (mine === seq.current) setChecking(false)
       }
@@ -329,7 +377,8 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             type="button"
             onClick={() => {
               setDone(null); setIsoDate(''); setTime(''); setVariants([])
-              setAvailability(null); setAdoptEventId(null); setEvents(null)
+              setAvailability(null); setAvailabilityError(null)
+              setAdoptEventId(null); setEvents(null)
             }}
             className="inline-flex items-center justify-center h-11 px-4 rounded-xl border
                        border-brand-linen-dark text-sm font-medium text-brand-muted
@@ -530,11 +579,12 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
         </p>
 
         {/*
-          ── 15I: בחירת אירוע קיים ביומן ────────────────────────────────────
-          מוצג רק לטיפולים הניהוליים, ורק אחרי שנבחר תאריך. אירוע שכבר
-          מקושר לתור אחר אינו מופיע כאן כלל.
+          ── 15I/15J: בחירת אירוע קיים ביומן ────────────────────────────────
+          🔓 מוצג לכל טיפול, אחרי שנבחר תאריך. אירוע שכבר מקושר לתור אחר
+          אינו מופיע כאן כלל — זו החסימה היחידה. כל אירוע שכן מופיע ניתן
+          לבחירה, בלי קשר לכותרת, לשעה, למשך או לשעות הפעילות.
         */}
-        {adminService && isoDate && (
+        {isoDate && (
           <fieldset className="border-t border-brand-linen-dark pt-4">
             <legend className="text-sm font-medium text-brand-dark mb-1.5">
               אירוע קיים ביומן Google
@@ -558,6 +608,13 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             {events && !eventsBusy && events.length === 0 && !eventsError && (
               <p className="text-sm text-brand-muted">
                 אין ביומן אירועים פנויים לקישור בתאריך הזה. אפשר להזין מועד ידנית.
+              </p>
+            )}
+
+            {events && events.length > 0 && !eventsBusy && (
+              <p className="text-xs text-brand-muted mb-2">
+                כל אירוע ברשימה ניתן לבחירה. הכותרת עוזרת לזהות את התור, ואינה חייבת
+                להתאים לשם הטיפול.
               </p>
             )}
 
@@ -600,7 +657,7 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
                   <span className="text-sm text-brand-dark">
                     ללא קישור ליומן
                     <span className="block text-xs text-brand-muted mt-0.5">
-                      הזנת שעה ומשך ידנית, ואירוע חדש ייווצר ביומן.
+                      הזנת שעה ידנית, ואירוע חדש ייווצר ביומן.
                     </span>
                   </span>
                 </label>
@@ -614,6 +671,17 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
             <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             בודקת זמינות…
           </p>
+        )}
+
+        {availabilityError && !checking && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-rose-50 border border-rose-200 rounded-xl
+                       p-3 text-sm text-rose-800"
+          >
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{availabilityError}</span>
+          </div>
         )}
 
         {availability && !checking && (
@@ -680,6 +748,30 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
               </div>
             )}
 
+            {/*
+              🔓 15J — אזהרת חפיפה ביומן. **אינה** חוסמת: המנהלת בחרה אירוע
+              קיים במפורש, וזו פעולה ידנית סמכותית. מוצגת כדי שתדע.
+            */}
+            {availability.calendarOverlap && (
+              <div className="flex items-start gap-2 bg-brand-cream/60 border border-brand-cream-dark
+                              rounded-xl p-3.5 text-sm text-brand-dark">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-brand-gold-text" aria-hidden="true" />
+                <span>
+                  ביומן קיים גם אירוע נוסף בשעות האלה:{' '}
+                  <span className="font-medium">
+                    {availability.calendarOverlap.summary || 'אירוע ללא כותרת'}
+                  </span>{' '}
+                  <span dir="ltr">
+                    ({eventTimeLabel(availability.calendarOverlap.start)}–
+                    {eventTimeLabel(availability.calendarOverlap.end)})
+                  </span>
+                  <span className="block text-xs text-brand-muted mt-0.5">
+                    אפשר להמשיך — האירוע שנבחר הוא זה שיקושר לתור. האירוע הנוסף לא ישונה.
+                  </span>
+                </span>
+              </div>
+            )}
+
             {!availability.available && !availability.adoptable && (
               <div
                 role="alert"
@@ -687,7 +779,17 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
                            p-3 text-sm text-rose-800"
               >
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
-                <span>{REASON_LABELS[availability.reason ?? ''] ?? 'המועד אינו זמין.'}</span>
+                <span>
+                  {/*
+                    🔓 15J — כשאירוע נבחר, ההסבר הוא על **האירוע** ולא על
+                    "המועד": adoptMessage מגיע מהשרת (אירוע שנעלם / נתפס /
+                    משך חורג), ואחריו הסיבות שה-DB עצמו אוסר.
+                  */}
+                  {availability.adoptMessage
+                    ?? (adoptEventId ? ADOPT_BLOCK_LABELS[availability.reason ?? ''] : null)
+                    ?? REASON_LABELS[availability.reason ?? '']
+                    ?? 'המועד אינו זמין.'}
+                </span>
               </div>
             )}
 
