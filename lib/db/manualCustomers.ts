@@ -24,6 +24,8 @@ export type ManualCustomerError =
   | 'idempotency_key_reused'
   | 'missing_request_id'
   | 'bad_fingerprint'
+  /** ה-RPC הצליח אך החזיר שורה שאי אפשר לקרוא — ראה readCreateResult */
+  | 'integrity_error'
   | 'unknown'
 
 /** התוצאה שנרשמת ב-admin_idempotency ומוחזרת שוב, זהה, בכל retry */
@@ -47,6 +49,36 @@ function mapError(message: string): ManualCustomerError {
   return 'unknown'
 }
 
+/**
+ * קריאת ה-RPC עצמה, מוזרקת — באותה צורה שבה lib/adminBooking.ts מזריקה
+ * את AdoptionDeps.
+ *
+ * ⚠️ לא נוחות: בלי זה אי אפשר להריץ את createManualCustomer עצמה בבדיקה,
+ * ורק את המתרגם בנפרד — וזה בדיוק הפער שאיפשר לתקלה לחיות. הבדיקה
+ * מריצה עכשיו את הפונקציה האמיתית מול PGlite, ולכן היא נופלת אם מישהו
+ * יחזיר את ה-cast הישן.
+ */
+export type ManualCustomerRpcArgs = {
+  p_full_name: string
+  p_phone_e164: string
+  p_source_key: string
+  p_crm_status: string
+  p_admin_id: string
+  p_client_request_id: string
+  p_payload_fingerprint: string
+}
+
+export type ManualCustomerRpc = (
+  args: ManualCustomerRpcArgs,
+) => Promise<{ data: unknown; error: { message: string } | null }>
+
+const defaultManualCustomerRpc: ManualCustomerRpc = async args => {
+  // ⚠️ await ולא החזרה ישירה: supabase-js מחזיר builder (thenable) ולא
+  // Promise, ולכן החתימה מתיישרת רק אחרי ההמתנה בפועל.
+  const { data, error } = await createSupabaseAdminClient().rpc('create_manual_customer', args)
+  return { data, error }
+}
+
 export interface CreateManualCustomerInput {
   fullName: string
   /** כבר מנורמל ל-E.164 ע"י lib/phone.ts */
@@ -65,9 +97,8 @@ export interface CreateManualCustomerInput {
  */
 export async function createManualCustomer(
   input: CreateManualCustomerInput,
+  rpc: ManualCustomerRpc = defaultManualCustomerRpc,
 ): Promise<{ ok: true; data: ManualCustomerResult } | { ok: false; error: ManualCustomerError }> {
-  const db = createSupabaseAdminClient()
-
   // ה-fingerprint מחושב על הערך שבאמת ייכתב (השם אחרי נרמול), כדי
   // ש-retry לגיטימי לא ייחשב "payload שונה" בגלל רווח כפול.
   const fullName = canonicalFullName(input.fullName)
@@ -79,7 +110,7 @@ export async function createManualCustomer(
     crmStatus: input.crmStatus,
   })
 
-  const { data, error } = await db.rpc('create_manual_customer', {
+  const { data, error } = await rpc({
     p_full_name: fullName,
     p_phone_e164: input.phoneE164,
     p_source_key: input.sourceKey,
@@ -95,8 +126,63 @@ export async function createManualCustomer(
     return { ok: false, error: mapped }
   }
 
-  const row = data as { result: string; customer_id: string | null; replayed: boolean }
-  return { ok: true, data: row as unknown as ManualCustomerResult }
+  return readCreateResult(data)
+}
+
+/**
+ * 🔒 קריאת השורה שה-RPC החזירה — **התרגום היחיד** בין שמות ה-SQL לשמות
+ * ה-TypeScript, ובמקום אחד.
+ *
+ * ─── התקלה שנסגרת כאן ─────────────────────────────────────────────────────
+ *
+ * create_manual_customer מחזירה `jsonb_build_object('customer_id', ...)` —
+ * snake_case, כמו כל RPC במיגרציות. הקוד כאן הכריז על `customerId` וגישר
+ * על הפער ב-`as unknown as ManualCustomerResult`, כלומר **הצהיר** ש-TS
+ * יתעלם. התוצאה: `customerId` היה `undefined` בכל יצירה מוצלחת.
+ *
+ * מה שקרה בפועל: ה-DB כתב את הלקוחה ו-commit, ה-route החזיר 200 עם גוף
+ * שבו השדה נעלם לגמרי (JSON.stringify משמיט undefined), והבורר בטופס —
+ * שבודק `!data.customerId` — הציג "יצירת הלקוחה נכשלה". הצלחה שהוצגה
+ * ככישלון, על לקוחה שכבר קיימת ב-CRM.
+ *
+ * ⚠️ אין כאן cast. השדות נקראים בשמם ומאומתים, ומזהה חסר במקום שבו הוא
+ * חייב להופיע הוא `integrity_error` מפורש — לא `undefined` שממשיך לזרום.
+ *
+ * מיוצאת כדי ש-test-manual-customer-create.mjs יריץ אותה על ה-jsonb
+ * שה-RPC האמיתי מחזיר (PGlite), ולא על אובייקט שנכתב ביד — בדיוק הפער
+ * שאף בדיקה קיימת לא כיסתה.
+ */
+export function readCreateResult(
+  data: unknown,
+): { ok: true; data: ManualCustomerResult } | { ok: false; error: ManualCustomerError } {
+  const row = data as { result?: unknown; customer_id?: unknown; replayed?: unknown } | null
+  if (!row || typeof row !== 'object') {
+    console.error('[manualCustomers] create returned no row')
+    return { ok: false, error: 'integrity_error' }
+  }
+
+  const replayed = row.replayed === true
+  const customerId = typeof row.customer_id === 'string' ? row.customer_id : null
+
+  switch (row.result) {
+    case 'customer_created':
+    case 'existing_customer':
+      // ⚠️ שתי התוצאות האלה **חייבות** מזהה. היעדרו אינו "לקוחה בלי
+      // מזהה" אלא שורה שאי אפשר לסמוך עליה, והיא לא תוצג כהצלחה.
+      if (!customerId) {
+        console.error('[manualCustomers] create returned no customer_id for', row.result)
+        return { ok: false, error: 'integrity_error' }
+      }
+      return { ok: true, data: { result: row.result, customerId, replayed } }
+
+    // חשבון מנהל — בכוונה בלי מזהה ובלי שם.
+    case 'admin_phone_exists':
+      return { ok: true, data: { result: 'admin_phone_exists', customerId: null, replayed } }
+
+    default:
+      console.error('[manualCustomers] create returned unknown result', row.result)
+      return { ok: false, error: 'integrity_error' }
+  }
 }
 
 /** רשומת idempotency קיימת — נקראת *לפני* כל בדיקת זמינות (ראה lib/adminBooking.ts) */

@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     const status =
       res.error === 'not_admin' ? 403 :
       res.error === 'idempotency_key_reused' ? 409 :
-      res.error === 'unknown' ? 500 : 400
+      res.error === 'unknown' || res.error === 'integrity_error' ? 500 : 400
     return NextResponse.json(
       { error: res.error, message: ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown },
       { status })
@@ -95,9 +95,24 @@ export async function POST(req: NextRequest) {
       { status: 409 })
   }
 
+  /*
+   * ⚠️ customerId חייב להיות כאן, תמיד. הוא מה שהטופס בוחר לפיו את
+   * הלקוחה ומה שממשיך ליצירת התור — ובלעדיו פעולה מוצלחת נראית ככישלון.
+   * readCreateResult כבר אכפה את זה, וה-narrowing כאן מוודא שגם קורא
+   * עתידי לא יחזיר 200 בלי מזהה.
+   */
+  const { customerId } = res.data
+  if (!customerId) {
+    return NextResponse.json(
+      { error: 'integrity_error', message: ADMIN_ERROR_MESSAGES.integrity_error },
+      { status: 500 })
+  }
+
   return NextResponse.json({
     result: res.data.result,          // 'customer_created' | 'existing_customer'
-    customerId: res.data.customerId,
+    customerId,
     created: res.data.result === 'customer_created',
+    /** true = אותה בקשה בדיוק כבר טופלה. לא נוצרה לקוחה נוספת. */
+    replayed: res.data.replayed,
   })
 }
