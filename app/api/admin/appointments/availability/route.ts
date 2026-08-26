@@ -5,7 +5,7 @@ import {
   resolveManualService, manualSlotInstants, manualSlotWarnings, checkManualSlotAvailability,
   resolveAdoptedGoogleSlot, supportsGoogleSourcedSlot, type AdoptedGoogleSlot,
 } from '@/lib/adminBooking'
-import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
+import { ADMIN_ERROR_MESSAGES, formatBlockingAppointment } from '@/lib/admin/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
         adoptable: null,
         googleSlot: null,
         calendarOverlap: null,
+        blocking: [],
         adoptError: res.error,
         adoptMessage: adoptErrorMessage(res.error, res.durationMin),
         warnings: { outsideBusinessHours: false, closedDay: false },
@@ -154,6 +155,15 @@ export async function POST(req: NextRequest) {
      * אחר מ-Google.
      */
     adoptable: availability.available ? null : (availability.adoptable ?? null),
+    /*
+     * 🔎 15L — התורים שחוסמים בפועל, מוכנים לתצוגה.
+     *
+     * ⚠️ המועד מומר כאן לשעון ישראל ולא בדפדפן: זה אותו מקור אמת שכל
+     * שאר המסכים באדמין משתמשים בו, וכך אין מסך שמראה שעה אחרת.
+     */
+    blocking: availability.available
+      ? []
+      : (availability.blocking ?? []).map(formatBlockingAppointment),
     /*
      * 15I — המועד שיישמר בפועל, כפי שנקרא מהיומן. הטופס מציג אותו
      * לקריאה בלבד.

@@ -437,6 +437,33 @@ export async function resolveAdoptedGoogleSlot(
   return googleEventToSlot(read.event)
 }
 
+/**
+ * 🔎 15L — התור שחוסם, כפי שהוא מוצג למנהלת מאומתת.
+ *
+ * ─── למה זה קיים ───────────────────────────────────────────────────────────
+ *
+ * "קיים כבר תור אחר במערכת בשעות האלה" הוא נכון אבל חסר תכלית: אי אפשר
+ * לפעול לפיו. שובל נשארה מול הודעה שמספרת שיש תור, בלי לדעת של מי, ובלי
+ * למצוא אותו ברשימה — שבברירת המחדל מציגה 20 תורים לעמוד על פני כל
+ * התאריכים. בפועל זה שלח אותה לחפש בעיוור.
+ *
+ * ⚠️ המידע המינימלי שמאפשר להכריע: שם הלקוחה, המועד והטיפול. בלי טלפון,
+ * בלי הערות ובלי מדדי CRM — מי שצריכה אותם מגיעה לכרטיס הלקוחה.
+ *
+ * ⚠️ מוחזר **רק** למנהלת מאומתת דרך /api/admin, ורק כשהתור באמת חוסם.
+ */
+export interface BlockingAppointment {
+  id: string
+  customerId: string | null
+  /** ריק כשהקישור ללקוחה נשבר — התור עדיין חוסם, וזה נאמר במפורש */
+  customerName: string
+  serviceKey: string
+  variants: string[]
+  startsAt: string
+  endsAt: string
+  status: string
+}
+
 /** אירוע יומן שחופף לטווח — כחסימה (adoptable) או כאזהרה (calendarOverlap) */
 export interface OverlappingCalendarEvent {
   eventId: string
@@ -458,12 +485,45 @@ export type AvailabilityResult =
       available: false
       reason: 'past' | 'db_conflict' | 'calendar_conflict' | 'calendar_unavailable'
       /**
+       * 🔎 15L — התורים שחוסמים, כשהסיבה היא db_conflict. יכולים להיות
+       * כמה: אירוע יומן של שעתיים חופף בקלות לשני תורים בני 20 דקות.
+       *
+       * ⚠️ מערך ריק כשהחסימה נובעת מ**כשל** בקריאת ה-DB ולא מתור אמיתי.
+       * ההודעה למנהלת נגזרת מזה, ולא טוענת שקיים תור שלא הצלחנו לראות.
+       */
+      blocking?: BlockingAppointment[]
+      /**
        * 🔒 שלב 12 — פרטי האירוע החוסם, **רק** כשהחסימה היא יומן וכשהאירוע
        * אינו שייך כבר לתור אחר במערכת. זה בדיוק המצב שבו "זה אותו תור"
        * לגיטימי: שובל רשמה את התור ביומן בעצמה והוא עדיין לא במערכת.
        */
       adoptable?: { eventId: string; summary: string; start: string; end: string }
     }
+
+/** צורת השורה שהשאילתה מחזירה — snake_case, כמו ב-DB */
+interface BlockingRow {
+  id: string
+  customer_id: string | null
+  service_key: string
+  variants: string[] | null
+  starts_at: string
+  ends_at: string
+  status: string
+  customers: { full_name: string } | null
+}
+
+function toBlocking(r: BlockingRow): BlockingAppointment {
+  return {
+    id: r.id,
+    customerId: r.customer_id,
+    customerName: r.customers?.full_name ?? '',
+    serviceKey: r.service_key,
+    variants: r.variants ?? [],
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+    status: r.status,
+  }
+}
 
 /**
  * בדיקת זמינות מלאה: Supabase + Google Calendar.
@@ -510,19 +570,29 @@ export async function checkManualSlotAvailability(
   const db = createSupabaseAdminClient()
   // חפיפה אמיתית: התור הקיים מתחיל לפני שאנחנו נגמרים, ונגמר אחרי
   // שאנחנו מתחילים. אותו תנאי בדיוק שה-EXCLUDE constraint אוכף.
+  //
+  // 🔎 15L — נבחרים גם הפרטים שמזהים את התור, ולא רק id. זו אותה שאילתה
+  // ואותו תנאי; מה שהשתנה הוא שהתשובה יודעת **על מה** היא מדברת.
   const { data, error } = await db
     .from('appointments')
-    .select('id')
+    .select('id, customer_id, service_key, variants, starts_at, ends_at, status, customers(full_name)')
     .in('status', ['pending', 'confirmed'])
     .lt('starts_at', endsAt.toISOString())
     .gt('ends_at', startsAt.toISOString())
-    .limit(1)
+    .order('starts_at')
+    .limit(5)
 
   if (error) {
+    // ⚠️ כשל בקריאה אינו "קיים תור אחר". חוסמים (fail-closed), אבל בלי
+    // רשימה — וההודעה למנהלת אומרת שלא הצלחנו לבדוק, ולא שיש תור.
     console.error('[adminBooking] db availability check failed', error.message)
-    return { available: false, reason: 'db_conflict' }
+    return { available: false, reason: 'db_conflict', blocking: [] }
   }
-  if ((data ?? []).length > 0) return { available: false, reason: 'db_conflict' }
+
+  const rows = (data ?? []) as unknown as BlockingRow[]
+  if (rows.length > 0) {
+    return { available: false, reason: 'db_conflict', blocking: rows.map(toBlocking) }
+  }
 
   try {
     const conflict = await findConflictingCalendarEvent(

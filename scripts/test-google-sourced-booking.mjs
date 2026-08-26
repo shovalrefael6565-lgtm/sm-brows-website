@@ -558,5 +558,90 @@ section('15J · מה כן חוסם, ומה הפסיק לחסום')
     !/name="adoptEvent"[\s\S]{0,320}?disabled/.test(form))
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+section('15L · ההודעה אומרת איזה תור חוסם')
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ─── התקלה שהבדיקות האלה נועדו למנוע מלחזור ─────────────────────────────────
+//
+// "קיים כבר תור אחר במערכת בשעות האלה" נכון — ולא ניתן לפעול לפיו. רשימת
+// התורים מציגה 20 תורים לעמוד על פני כל התאריכים, ולכן תור בעוד שבועיים
+// יושב כמה עמודים פנימה. שובל נשארה מול הודעה שמספרת שקיים תור, בלי לדעת
+// של מי ובלי למצוא אותו — וחיפשה בעיוור.
+
+{
+  const { formatBlockingAppointment } = await import('../lib/admin/format.ts')
+
+  const view = formatBlockingAppointment({
+    id: 'f5f9548a-3cda-4c61-9124-f1f8b5a99fc5',
+    customerId: '8680a691-61dd-4f82-8f0a-7ec21fda8ebe',
+    customerName: 'שחר שדי',
+    serviceKey: NATURAL_SERVICE,
+    variants: ['עיצוב גבות טבעי'],
+    startsAt: israelWallTimeToUtc('2026-08-31', '17:00').toISOString(),
+    endsAt: israelWallTimeToUtc('2026-08-31', '17:20').toISOString(),
+    status: 'confirmed',
+  })
+
+  chk('שם הלקוחה מוחזר', view.customerName === 'שחר שדי')
+  chk('הטיפול מתורגם לתווית', view.treatment === 'עיצוב גבות טבעיות', view.treatment)
+  chk('התאריך בשעון ישראל', view.isoDate === '2026-08-31', view.isoDate)
+  // ⚠️ הלב של התקלה: שעה שמוצגת לפי אזור זמן אחר שולחת לחפש תור שלא קיים.
+  chk('השעה בשעון ישראל ולא UTC', view.startTime === '17:00' && view.endTime === '17:20',
+    `${view.startTime}–${view.endTime}`)
+  chk('הסטטוס עובר כמות שהוא', view.status === 'confirmed')
+  chk('מזהה הלקוחה עובר, לקישור לכרטיס', view.customerId?.startsWith('8680a691'))
+
+  // תור ניהולי בלי תוספות — התווית היא שם הטיפול עצמו.
+  const consult = formatBlockingAppointment({
+    id: 'x', customerId: null, customerName: '', serviceKey: MICROBLADING_CONSULT_SERVICE,
+    variants: [],
+    startsAt: israelWallTimeToUtc('2026-08-31', '17:00').toISOString(),
+    endsAt: israelWallTimeToUtc('2026-08-31', '17:20').toISOString(),
+    status: 'pending',
+  })
+  chk('טיפול ניהולי מקבל את שמו', consult.treatment === MICROBLADING_CONSULT_SERVICE)
+  chk('לקוחה בלי שם אינה מפילה את המיפוי', consult.customerName === '')
+  chk('ובלי customerId — הקישור לכרטיס פשוט לא יוצג', consult.customerId === null)
+
+  // ── השרת: השאילתה בוחרת את מה שדרוש לזיהוי, והתשובה מחזירה אותו ──────
+  const booking = src('lib/adminBooking.ts')
+  chk('שאילתת החפיפה בוחרת את שם הלקוחה',
+    booking.includes("'id, customer_id, service_key, variants, starts_at, ends_at, status, customers(full_name)'"))
+  chk('התנאי לא השתנה — אותה חפיפה שה-EXCLUDE אוכף',
+    booking.includes(".lt('starts_at', endsAt.toISOString())") &&
+    booking.includes(".gt('ends_at', startsAt.toISOString())"))
+  chk('רק תורים פעילים חוסמים', booking.includes(".in('status', ['pending', 'confirmed'])"))
+  chk('מוחזרים כמה תורים, לא רק אחד', booking.includes('.limit(5)'))
+  chk('ה-route מחזיר אותם מפורמטים',
+    src('app/api/admin/appointments/availability/route.ts')
+      .includes('.map(formatBlockingAppointment)'))
+
+  // 🔒 כשל בקריאת ה-DB אינו "קיים תור אחר".
+  chk('כשל DB חוסם עם רשימה ריקה',
+    booking.includes("return { available: false, reason: 'db_conflict', blocking: [] }"))
+  const form = src('components/admin/NewAppointmentForm.tsx')
+  chk('והטופס אומר "לא הצלחנו לבדוק" ולא "קיים תור"',
+    form.includes("availability.blocking.length === 0") &&
+    form.includes('לא הצלחנו לבדוק מול התורים הקיימים כרגע.'))
+
+  // ── הטופס: שם, מועד, וקישור שמגיע לתור ──────────────────────────────
+  chk('הטופס מציג את שם הלקוחה החוסמת', form.includes('{b.customerName || '))
+  chk('ואת המועד המדויק', form.includes('{b.startTime}–{b.endTime}'))
+  chk('ומקשר לרשימת התורים לפי שם',
+    form.includes('/admin/appointments?q=${encodeURIComponent(b.customerName)}'))
+  chk('ומקשר לכרטיס הלקוחה', form.includes('/admin/customers/${b.customerId}'))
+  chk('כמה תורים חוסמים מוצגים כרשימה', form.includes('availability.blocking.map(b => ('))
+
+  // ⚠️ מידע מינימלי בלבד — הטלפון וההערות אינם עוברים במסלול הזה.
+  const blockingSelect = /\.select\('id, customer_id, service_key[^']*'\)/.exec(booking)?.[0] ?? ''
+  chk('שאילתת החסימה אינה בוחרת טלפון', blockingSelect !== '' && !blockingSelect.includes('phone'))
+  chk('ואינה בוחרת הערות', blockingSelect !== '' && !blockingSelect.includes('note'))
+  const view2 = Object.keys(view)
+  chk('רק שדות זיהוי מוחזרים',
+    view2.every(k => ['id','customerId','customerName','treatment','isoDate','startTime','endTime','status'].includes(k)),
+    view2.join(','))
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'}  ${pass} עברו, ${fail} נכשלו`)
 process.exit(fail === 0 ? 0 : 1)

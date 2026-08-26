@@ -55,6 +55,24 @@ interface DiscoveredEvent extends AdoptableEvent {
   durationMin: number
 }
 
+/**
+ * 🔎 15L — תור קיים שחוסם את המועד, עם מה שדרוש כדי לפעול לפיו.
+ *
+ * ⚠️ המועד מגיע מהשרת כמחרוזות שעון ישראל ולא כ-ISO: המרה בדפדפן הייתה
+ * מציגה שעה לפי אזור הזמן של המכשיר, ומסך שמראה שעה אחרת משאר האדמין
+ * הוא בדיוק מה ששלח לחפש תור שלא קיים.
+ */
+interface BlockingAppointment {
+  id: string
+  customerId: string | null
+  customerName: string
+  treatment: string
+  isoDate: string
+  startTime: string
+  endTime: string
+  status: string
+}
+
 /** המועד כפי שנקרא מהיומן — זה מה שיישמר, ולא מה שהוקלד */
 interface GoogleSlot {
   eventId: string
@@ -76,6 +94,8 @@ interface Availability {
   googleSlot: GoogleSlot | null
   /** 🔓 15J — אירוע יומן אחר שחופף. אזהרה בלבד, אינו חוסם יצירה. */
   calendarOverlap: AdoptableEvent | null
+  /** 🔎 15L — התורים שחוסמים בפועל, כשהסיבה היא db_conflict */
+  blocking: BlockingAppointment[]
   /** 🔓 15J — האירוע שנבחר לא ניתן לקישור, עם הסבר קריא. לא כשל שקט. */
   adoptError: string | null
   adoptMessage: string | null
@@ -104,6 +124,11 @@ const REASON_LABELS: Record<string, string> = {
 const ADOPT_BLOCK_LABELS: Record<string, string> = {
   past: 'האירוע שנבחר כבר התחיל. אי אפשר לשמור תור במועד שעבר — אפשר לקשר רק אירוע שעדיין לא התחיל.',
   db_conflict: 'קיים כבר תור אחר במערכת בשעות של האירוע הזה. שני תורים פעילים אינם יכולים לחפוף, ולכן יש לבטל או להזיז את התור האחר קודם.',
+}
+
+const BLOCKING_STATUS_LABELS: Record<string, string> = {
+  pending: 'ממתין לאישור',
+  confirmed: 'מאושר',
 }
 
 export default function NewAppointmentForm({ initialCustomer }: { initialCustomer: PickedCustomer | null }) {
@@ -786,10 +811,67 @@ export default function NewAppointmentForm({ initialCustomer }: { initialCustome
                     משך חורג), ואחריו הסיבות שה-DB עצמו אוסר.
                   */}
                   {availability.adoptMessage
+                    ?? (availability.reason === 'db_conflict' && availability.blocking.length === 0
+                          ? 'לא הצלחנו לבדוק מול התורים הקיימים כרגע. נסי שוב בעוד רגע.'
+                          : null)
                     ?? (adoptEventId ? ADOPT_BLOCK_LABELS[availability.reason ?? ''] : null)
                     ?? REASON_LABELS[availability.reason ?? '']
                     ?? 'המועד אינו זמין.'}
                 </span>
+              </div>
+            )}
+
+            {/*
+              🔎 15L — **איזה** תור חוסם. בלי זה ההודעה נכונה אבל לא ניתנת
+              לפעולה: רשימת התורים מציגה 20 תורים לעמוד על פני כל התאריכים,
+              ותור בעוד שבועיים יושב כמה עמודים פנימה. הקישור מגיע אליו
+              ישירות דרך החיפוש, שכבר יודע לחפש לפי שם.
+            */}
+            {!availability.available && availability.blocking.length > 0 && (
+              <div className="bg-white border border-rose-200 rounded-xl p-3.5">
+                <p className="text-sm font-medium text-brand-dark mb-2">
+                  {availability.blocking.length === 1
+                    ? 'התור שחוסם:'
+                    : `${availability.blocking.length} תורים חוסמים:`}
+                </p>
+                <ul className="space-y-2">
+                  {availability.blocking.map(b => (
+                    <li key={b.id} className="text-sm">
+                      <span className="font-medium text-brand-dark">
+                        {b.customerName || 'לקוחה ללא שם'}
+                      </span>
+                      <span className="text-brand-muted"> · {b.treatment}</span>
+                      <span className="block text-xs text-brand-muted mt-0.5">
+                        {b.isoDate} ·{' '}
+                        <span dir="ltr">{b.startTime}–{b.endTime}</span> ·{' '}
+                        {BLOCKING_STATUS_LABELS[b.status] ?? b.status}
+                      </span>
+                      <span className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                        {/*
+                          ⚠️ חיפוש לפי שם ולא קישור לתור עצמו: אין באדמין
+                          עמוד לתור בודד, ורשימת התורים היא המקום היחיד
+                          שממנו אפשר לבטל או להזיז אותו.
+                        */}
+                        <Link
+                          href={`/admin/appointments?q=${encodeURIComponent(b.customerName)}`}
+                          className="text-xs font-medium text-brand-dark underline
+                                     underline-offset-2 hover:text-brand-muted"
+                        >
+                          לתור ברשימת התורים
+                        </Link>
+                        {b.customerId && (
+                          <Link
+                            href={`/admin/customers/${b.customerId}`}
+                            className="text-xs font-medium text-brand-dark underline
+                                       underline-offset-2 hover:text-brand-muted"
+                          >
+                            לכרטיס הלקוחה
+                          </Link>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 

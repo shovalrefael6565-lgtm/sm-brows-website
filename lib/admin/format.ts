@@ -29,6 +29,48 @@ export const BOOKING_SOURCE_LABELS: Record<string, { label: string; className: s
   admin_manual:   { label: 'נקבע בניהול', className: 'bg-purple-50 text-purple-700 border-purple-200' },
 }
 
+/**
+ * 🔎 15L — התור החוסם, מוכן לתצוגה.
+ *
+ * פונקציה טהורה, ובמכוון: ההמרה לשעון ישראל וכתיבת התווית נעשות **בשרת**
+ * ובמקום אחד. המרה בדפדפן הייתה מציגה שעה לפי אזור הזמן של המכשיר, ומסך
+ * שמראה שעה אחרת משאר האדמין הוא בדיוק מה ששולח לחפש תור שלא קיים.
+ */
+export interface BlockingAppointmentView {
+  id: string
+  customerId: string | null
+  customerName: string
+  treatment: string
+  isoDate: string
+  startTime: string
+  endTime: string
+  status: string
+}
+
+export function formatBlockingAppointment(b: {
+  id: string
+  customerId: string | null
+  customerName: string
+  serviceKey: string
+  variants: string[]
+  startsAt: string
+  endsAt: string
+  status: string
+}): BlockingAppointmentView {
+  const start = new Date(b.startsAt)
+  const end = new Date(b.endsAt)
+  return {
+    id: b.id,
+    customerId: b.customerId,
+    customerName: b.customerName,
+    treatment: treatmentLabel({ service_key: b.serviceKey, variants: b.variants }),
+    isoDate: israelDateStr(start),
+    startTime: fmtIsrael(start),
+    endTime: fmtIsrael(end),
+    status: b.status,
+  }
+}
+
 export function treatmentLabel(appt: Pick<AppointmentRow, 'service_key' | 'variants'>): string {
   if (appt.service_key === NATURAL_SERVICE) {
     const labels = NATURAL_VARIANTS.filter(v => appt.variants.includes(v.id)).map(v => v.label)
