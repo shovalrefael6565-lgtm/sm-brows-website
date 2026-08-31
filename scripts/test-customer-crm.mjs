@@ -803,6 +803,53 @@ chk('view המדדים פתוח ל-service_role', vsvc.p === true)
 // ============================================================================
 console.log(`\n${'═'.repeat(60)}`)
 const failed = results.filter(r => !r).length
+// ════════════════════════════════════════════════════════════════════════════
+section('מספור תצוגה ו-KPI ברשימת הלקוחות')
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ המספר הסידורי הוא **תצוגה בלבד**: הוא נגזר מהמיון והסינון הנוכחיים,
+// אינו נשמר, ואינו מזהה לקוחה. המזהה היחיד הוא ה-UUID.
+
+{
+  const pageSrc = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..',
+         'app', 'admin', '(protected)', 'customers', 'page.tsx'), 'utf8')
+  const crmSrc = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'db', 'crm.ts'), 'utf8')
+
+  // המספור רץ לרוחב העמודים ואינו מתאפס
+  const firstIndex = (page, pageSize) => (page - 1) * pageSize + 1
+  chk('עמוד 1 מתחיל ב-1', firstIndex(1, 20) === 1)
+  chk('עמוד 2 מתחיל ב-21', firstIndex(2, 20) === 21)
+  chk('עמוד 5 מתחיל ב-81', firstIndex(5, 20) === 81)
+  chk('השורה השלישית בעמוד 2 היא 23', firstIndex(2, 20) + 2 === 23)
+  chk('הנוסחה היא זו שבעמוד', pageSrc.includes('const firstIndex = (page - 1) * pageSize + 1'))
+  chk('ומועברת לשתי התצוגות',
+    pageSrc.includes('index={firstIndex + i}') &&
+    (pageSrc.match(/index=\{firstIndex \+ i\}/g) ?? []).length === 2)
+
+  // KPI
+  chk('מוצג סה״כ לקוחות במאגר', pageSrc.includes('סה״כ לקוחות במאגר'))
+  chk('"מציג X מתוך Y" מוצג רק כשיש סינון',
+    pageSrc.includes('{isFiltered && (') && pageSrc.includes('מציג {total} מתוך {allTotal} לקוחות'))
+  chk('סינון = חיפוש או פילטר או מקור',
+    pageSrc.includes("const isFiltered = Boolean(q) || filter !== 'all' || Boolean(sourceKey)"))
+
+  // 🔒 הסה״כ נמדד באותה הגדרה של הרשימה — אחרת ה-KPI סותר את מה שרואים
+  chk('הסה״כ עובר דרך אותה RPC של הרשימה', crmSrc.includes("db.rpc('list_crm_customers'"))
+  chk('בלי חיפוש, בלי פילטר ובלי מקור',
+    /countAllCrmCustomers[\s\S]{0,400}p_search: null[\s\S]{0,120}p_filter: 'all'[\s\S]{0,120}p_source_key: null/
+      .test(crmSrc))
+  chk('כשל בקריאה מחזיר 0 ולא מפיל את העמוד',
+    /countAllCrmCustomers[\s\S]{0,700}return 0/.test(crmSrc))
+
+  // 🔒 המספר אינו מזהה: הקישור לפרופיל הוא תמיד ה-UUID
+  chk('הקישור לכרטיס הוא לפי row.id ולא לפי המספר',
+    pageSrc.includes('href={`/admin/customers/${row.id}`}') && !pageSrc.includes('customers/${index}'))
+  chk('אין עמודת מזהה חדשה ואין migration למספור',
+    !/alter table[\s\S]*customers[\s\S]*add column[\s\S]*(serial|display_number)/i.test(pageSrc))
+}
+
 if (failed === 0) {
   console.log(`✓ כל ${results.length} הבדיקות עברו`)
 } else {

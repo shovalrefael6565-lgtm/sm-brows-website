@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Info, CalendarDays, StickyNote, UserPlus, UserRound, UserRoundX } from 'lucide-react'
 import {
-  listCrmCustomers, listCrmSources, CRM_FILTERS, CRM_SORTS,
+  listCrmCustomers, listCrmSources, countAllCrmCustomers, CRM_FILTERS, CRM_SORTS,
   type CrmFilter, type CrmSort, type CrmCustomerRow,
 } from '@/lib/db/crm'
 import { formatPhoneForDisplay } from '@/lib/phone'
@@ -36,10 +36,23 @@ export default async function AdminCustomersPage(
     CRM_SORTS.includes(searchParams.sort as CrmSort) ? (searchParams.sort as CrmSort) : 'last_activity'
   const sourceKey = /^[a-z_]{2,32}$/.test(searchParams.source ?? '') ? searchParams.source! : ''
 
-  const [{ items, total, pageSize }, sources] = await Promise.all([
+  const [{ items, total, pageSize }, sources, allTotal] = await Promise.all([
     listCrmCustomers({ search: q, filter, sort, sourceKey: sourceKey || null, page }),
     listCrmSources(),
+    countAllCrmCustomers(),
   ])
+
+  /*
+   * מספור התצוגה: 1, 2, 3… רץ לרוחב העמודים, ולא מתאפס בכל עמוד.
+   *
+   * ⚠️ זה **מספר סידורי בתצוגה בלבד** — הוא נגזר מהמיון והסינון הנוכחיים
+   * ומשתנה איתם. הוא אינו מזהה של לקוחה, אינו נשמר ואין להסתמך עליו
+   * כהפניה: המזהה היחיד הוא ה-UUID, וכל שורה מקשרת אליו.
+   */
+  const firstIndex = (page - 1) * pageSize + 1
+
+  // סינון פעיל = הרשימה מציגה תת-קבוצה, ולכן מוצגים שני מספרים.
+  const isFiltered = Boolean(q) || filter !== 'all' || Boolean(sourceKey)
 
   const sourceLabels = new Map(sources.map(s => [s.key, s.label_he]))
   const carried = { q, filter: filter === 'all' ? '' : filter,
@@ -50,7 +63,19 @@ export default async function AdminCustomersPage(
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-brand-dark mb-1">לקוחות</h1>
-          <p className="text-sm text-brand-muted">{total} לקוחות</p>
+          <p className="text-sm text-brand-dark">
+            סה״כ לקוחות במאגר: <span className="font-medium">{allTotal}</span>
+          </p>
+          {/*
+            ⚠️ מוצג רק כשיש סינון. בלי סינון שני המספרים זהים, ושורה
+            שאומרת "מציג 81 מתוך 81" היא רעש.
+          */}
+          {isFiltered && (
+            <p className="text-sm text-brand-muted mt-0.5">
+              מציג {total} מתוך {allTotal} לקוחות
+              {filter === 'archived' && ' · הארכיון אינו נכלל בסה״כ המאגר'}
+            </p>
+          )}
         </div>
         <Link
           href="/admin/customers/new"
@@ -88,9 +113,12 @@ export default async function AdminCustomersPage(
         <>
           {/* מובייל: כרטיסים */}
           <ul className="space-y-2 md:hidden">
-            {items.map(c => (
+            {items.map((c, i) => (
               <li key={c.id}>
-                <CustomerCard row={c} sourceLabel={sourceLabels.get(c.source_key) ?? c.source_key} />
+                <CustomerCard
+                  row={c} index={firstIndex + i}
+                  sourceLabel={sourceLabels.get(c.source_key) ?? c.source_key}
+                />
               </li>
             ))}
           </ul>
@@ -100,6 +128,8 @@ export default async function AdminCustomersPage(
             <table className="w-full text-sm text-right">
               <thead className="bg-brand-cream/50 text-xs text-brand-muted">
                 <tr>
+                  {/* מספר סידורי בתצוגה — ראה firstIndex */}
+                  <th scope="col" className="px-4 py-3 font-medium w-12">#</th>
                   <th scope="col" className="px-4 py-3 font-medium">לקוחה</th>
                   <th scope="col" className="px-4 py-3 font-medium">סטטוס</th>
                   <th scope="col" className="px-4 py-3 font-medium">מקור</th>
@@ -112,9 +142,9 @@ export default async function AdminCustomersPage(
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-linen-dark">
-                {items.map(c => (
+                {items.map((c, i) => (
                   <CustomerTableRow
-                    key={c.id} row={c}
+                    key={c.id} row={c} index={firstIndex + i}
                     sourceLabel={sourceLabels.get(c.source_key) ?? c.source_key}
                   />
                 ))}
@@ -182,13 +212,16 @@ function ArchivedBadge({ archivedAt }: { archivedAt: string | null }) {
   )
 }
 
-function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: string }) {
+function CustomerTableRow(
+  { row, index, sourceLabel }: { row: CrmCustomerRow; index: number; sourceLabel: string },
+) {
   const status = CRM_STATUS_LABELS[row.crm_status] ?? CRM_STATUS_LABELS.active
   const next = nextLabel(row)
   const cancellations = row.cancelled_by_customer_count + row.cancelled_by_business_count
 
   return (
     <tr className="hover:bg-brand-cream/30 transition-colors">
+      <td className="px-4 py-3 text-brand-muted tabular-nums align-top">{index}</td>
       <td className="px-4 py-3">
         <Link href={`/admin/customers/${row.id}`} className="font-medium text-brand-dark hover:text-brand-rose-text">
           {row.full_name}
@@ -235,7 +268,9 @@ function CustomerTableRow({ row, sourceLabel }: { row: CrmCustomerRow; sourceLab
   )
 }
 
-function CustomerCard({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: string }) {
+function CustomerCard(
+  { row, index, sourceLabel }: { row: CrmCustomerRow; index: number; sourceLabel: string },
+) {
   const status = CRM_STATUS_LABELS[row.crm_status] ?? CRM_STATUS_LABELS.active
   const next = nextLabel(row)
 
@@ -247,6 +282,7 @@ function CustomerCard({ row, sourceLabel }: { row: CrmCustomerRow; sourceLabel: 
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
           <div className="font-medium text-brand-dark flex items-center gap-1.5">
+            <span className="text-brand-muted tabular-nums shrink-0">{index}.</span>
             <span className="truncate">{row.full_name}</span>
             {row.open_notes_count > 0 && (
               <StickyNote className="w-3.5 h-3.5 text-brand-gold shrink-0" aria-label="קיימת הערה פנימית" />

@@ -173,6 +173,32 @@ export async function listCrmCustomers(params: CrmListParams): Promise<CrmListRe
 }
 
 /**
+ * סה"כ הלקוחות במאגר — בלי חיפוש, בלי סינון ובלי מקור.
+ *
+ * ⚠️ עוברת דרך **אותה** RPC של הרשימה, ולא דרך count על customers. רק כך
+ * המספר מוגדר בדיוק כמו הרשימה: בלי חשבונות המנהלות, ובלי הארכיון. count
+ * ישיר היה מחזיר מספר גדול יותר ששום מסך אינו מסוגל להראות, וזה בדיוק
+ * הסוג של KPI ששולח לחפש לקוחות שאינן קיימות.
+ *
+ * ⚠️ p_limit=1 ולא 0: השורה היחידה נזרקת, ומה שנקרא הוא total_count
+ * שמחושב על ה-CTE המסונן ואינו תלוי בעמוד.
+ */
+export async function countAllCrmCustomers(): Promise<number> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db.rpc('list_crm_customers', {
+    p_search: null, p_filter: 'all', p_source_key: null,
+    p_sort: 'last_activity', p_created_from: null, p_created_to: null,
+    p_limit: 1, p_offset: 0,
+  })
+
+  if (error) {
+    console.error('[crm] total count failed', error.message)
+    return 0
+  }
+  return (data as { total_count?: number } | null)?.total_count ?? 0
+}
+
+/**
  * פרופיל לקוחה. מחזיר null גם כשהמזהה אינו קיים וגם כשהוא חשבון מנהל —
  * העמוד מתרגם את שניהם לאותו 404, בלי להסגיר שחשבון מנהל קיים.
  */
