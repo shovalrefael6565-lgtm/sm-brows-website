@@ -7,6 +7,7 @@ const LINKS = [
   { href: '/admin/customers', label: 'לקוחות' },
   { href: '/admin/reminders', label: 'תזכורות' },
   { href: '/admin/appointments/new', label: 'תור חדש' },
+  { href: '/admin/campaigns', label: 'הודעות ללקוחות' },
 ]
 
 export default function AdminNav() {

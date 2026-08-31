@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Info, CalendarDays, StickyNote, UserPlus, UserRound, UserRoundX } from 'lucide-react'
+import { Info, CalendarDays, StickyNote, UserPlus, UserRound, UserRoundX, MessageSquarePlus } from 'lucide-react'
 import {
   listCrmCustomers, listCrmSources, countAllCrmCustomers, CRM_FILTERS, CRM_SORTS,
   type CrmFilter, type CrmSort, type CrmCustomerRow,
@@ -77,14 +77,25 @@ export default async function AdminCustomersPage(
             </p>
           )}
         </div>
-        <Link
-          href="/admin/customers/new"
-          className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl bg-brand-dark
-                     text-white text-sm font-medium hover:bg-brand-dark/90 transition-colors"
-        >
-          <UserPlus className="w-4 h-4" aria-hidden="true" />
-          לקוחה חדשה
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/campaigns/new"
+            className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border
+                       border-brand-linen-dark text-sm font-medium text-brand-dark
+                       hover:bg-brand-cream/50 transition-colors"
+          >
+            <MessageSquarePlus className="w-4 h-4" aria-hidden="true" />
+            שליחת SMS ללקוחות
+          </Link>
+          <Link
+            href="/admin/customers/new"
+            className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl bg-brand-dark
+                       text-white text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" aria-hidden="true" />
+            לקוחה חדשה
+          </Link>
+        </div>
       </div>
 
       {/* חלק 1 של האפיון — הודעה למנהלים בלבד */}
