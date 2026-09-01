@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Pencil, Archive, ArchiveRestore, Trash2, ShieldOff, Shield } from 'lucide-react'
+import {
+  confirmArchive, ARCHIVE_ACTION_LABEL, RESTORE_ACTION_LABEL,
+} from '@/components/admin/CustomerArchiveButton'
 
 interface Props {
   customerId: string
@@ -95,14 +98,13 @@ export default function CustomerAdminControls({
     router.refresh()
   }
 
+  /*
+   * ⚠️ נוסח האישור והתוויות מגיעים מ-CustomerArchiveButton ואינם משוכפלים
+   * כאן: אותה פעולה בדיוק מופיעה גם בשורת הרשימה, ושני נוסחים לאותה
+   * פעולה היו שני הסברים שונים למה שקורה ללקוחה.
+   */
   const handleArchiveToggle = async () => {
-    if (!isArchived) {
-      const ok = window.confirm(
-        `להעביר את הכרטיס של ${fullName} לארכיון?\n\n` +
-          'הכרטיס ייצא מרשימת הלקוחות. התורים, ההיסטוריה וההערות נשמרים במלואם, וניתן להחזיר אותו בכל רגע.',
-      )
-      if (!ok) return
-    }
+    if (!isArchived && !confirmArchive(fullName)) return
 
     const res = await call('archive', `/api/admin/customers/${customerId}/archive`, {
       method: isArchived ? 'DELETE' : 'POST',
@@ -304,7 +306,7 @@ export default function CustomerAdminControls({
           ) : (
             <Archive className="w-3.5 h-3.5" aria-hidden="true" />
           )}
-          {isArchived ? 'החזרה מהארכיון' : 'העברה לארכיון'}
+          {isArchived ? RESTORE_ACTION_LABEL : ARCHIVE_ACTION_LABEL}
         </button>
 
         {/*

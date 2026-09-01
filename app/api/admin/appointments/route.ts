@@ -6,6 +6,7 @@ import {
   resolveManualService, manualSlotInstants, createManualAppointment,
   resolveAdoptedGoogleSlot, supportsGoogleSourcedSlot, type AdoptedGoogleSlot,
 } from '@/lib/adminBooking'
+import { restoreArchivedCustomerOnBooking } from '@/lib/db/crm'
 import { ADMIN_ERROR_MESSAGES } from '@/lib/admin/format'
 
 export const dynamic = 'force-dynamic'
@@ -170,6 +171,13 @@ export async function POST(req: NextRequest) {
       { error: res.error, message: ADMIN_ERROR_MESSAGES[res.error] ?? ADMIN_ERROR_MESSAGES.unknown },
       { status })
   }
+
+  /*
+   * 🗂️ גם תור ידני מחזיר כרטיס מאורכב לרשימה הפעילה — אותה אינווריאנטה:
+   * אין תור פעיל בעתיד על כרטיס שנעלם מהמסך. המנהלת יכולה לבחור לקוחה
+   * מהארכיון בכוונה (לקוחה שחזרה), וזה בדיוק המצב שבו הכרטיס צריך לחזור.
+   */
+  await restoreArchivedCustomerOnBooking(customer.id)
 
   // ⚠️ partial success הוא 200 ולא שגיאה: התור **נוצר** ותקף. רק הסנכרון
   // ליומן נכשל, וניתן לנסות אותו שוב בלי ליצור תור נוסף.

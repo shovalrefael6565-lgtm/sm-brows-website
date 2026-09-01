@@ -8,6 +8,7 @@ import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { bookingRateLimitMessage } from '@/lib/bookingRateLimit'
 import { createPublicBookingRequest } from '@/lib/db/appointments'
 import { recordBookingMarketingConsentByPhone } from '@/lib/db/marketing'
+import { restoreArchivedCustomerByPhoneOnBooking } from '@/lib/db/crm'
 import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
@@ -316,6 +317,19 @@ export async function POST(req: NextRequest) {
       fallback: true,
     })
   }
+
+  /*
+   * 🗂️ לקוחה שהייתה בארכיון וחזרה לקבוע תור — הכרטיס חוזר לרשימה הפעילה.
+   *
+   * 🔴 זו **אותה לקוחה**: הזיהוי לפי טלפון מנורמל החזיר את השורה הקיימת
+   * (unique על phone_e164), ולא נוצר כרטיס שני. ההחזרה נדרשת כדי שלא
+   * יישאר תור חי בעתיד על כרטיס שאינו מופיע ברשימה — בדיוק המצב
+   * ש-archive_customer חוסמת מהכיוון ההפוך (0028).
+   *
+   * ⚠️ לקוחה שאינה בארכיון אינה נכתבת כלל, וכישלון אינו משנה את התשובה:
+   * התור כבר נוצר.
+   */
+  await restoreArchivedCustomerByPhoneOnBooking(phone)
 
   /*
    * 📣 הסכמת דיוור — **אחרי** שהבקשה נשמרה, ורק אם הלקוחה סימנה בעצמה.

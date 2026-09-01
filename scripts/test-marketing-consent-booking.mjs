@@ -286,7 +286,13 @@ chk("🔒 ה-DB דוחה מקור שאינו ברשימה", await fails(
 
 // ── re-consent אחרי הסרה ───────────────────────────────────────────────────
 await db.query(
-  `update customers set marketing_consent = true, marketing_consent_at = now(),
+  /*
+   * ⚠️ מועד ההסכמה הישנה הוא ערך קבוע בעבר ולא now(): הבדיקה למטה משווה
+   * אותו למועד ה-re-consent (גם הוא קבוע), ו-now() היה הופך את התוצאה
+   * לתלויה בשעה שבה הבדיקה רצה.
+   */
+  `update customers set marketing_consent = true,
+     marketing_consent_at = timestamptz '2026-08-19 10:00:00+03',
      marketing_consent_source = 'admin_recorded', marketing_consent_by = $2,
      marketing_opt_out_token_hash = repeat('a', 64), marketing_opt_out_token_version = 1,
      marketing_opted_out_at = timestamptz '2026-08-20 12:00:00+03' where id = $1`, [OPTED, ADMIN])

@@ -7,6 +7,7 @@ import {
 import { formatPhoneForDisplay } from '@/lib/phone'
 import { CRM_STATUS_LABELS, formatDateTimeIL, treatmentLabel } from '@/lib/admin/format'
 import CustomerFilters from '@/components/admin/CustomerFilters'
+import CustomerArchiveButton from '@/components/admin/CustomerArchiveButton'
 import Pagination from '@/components/admin/Pagination'
 
 export const dynamic = 'force-dynamic'
@@ -74,6 +75,7 @@ export default async function AdminCustomersPage(
             <p className="text-sm text-brand-muted mt-0.5">
               מציג {total} מתוך {allTotal} לקוחות
               {filter === 'archived' && ' · הארכיון אינו נכלל בסה״כ המאגר'}
+              {filter === 'all_including_archived' && ' · כולל לקוחות בארכיון'}
             </p>
           )}
         </div>
@@ -150,6 +152,7 @@ export default async function AdminCustomersPage(
                   <th scope="col" className="px-4 py-3 font-medium">ביטולים</th>
                   <th scope="col" className="px-4 py-3 font-medium">אי-הגעה</th>
                   <th scope="col" className="px-4 py-3 font-medium">הצטרפות</th>
+                  <th scope="col" className="px-4 py-3 font-medium">פעולות</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-linen-dark">
@@ -209,9 +212,10 @@ function LoginAccountBadge({ has }: { has: boolean }) {
 /**
  * 🔒 15H — תווית ארכיון.
  *
- * ⚠️ מופיעה **רק** תחת הפילטר 'archived' — 0028 מסתירה לקוחה מאורכבת מכל
- * שאר התצוגות. היא קיימת כדי שלא יהיה רגע שבו מסתכלים על רשימה ולא ברור
- * למה היא נראית אחרת.
+ * ⚠️ מופיעה תחת שני מצבי הכרטיס שמציגים ארכיון — 'archived' ו-
+ * 'all_including_archived' (0036). בכל שאר הערכים לקוחה מאורכבת מוסתרת
+ * ב-DB ולכן אין מה לתייג. היא חשובה במיוחד בתצוגת "הכל", שבה שתי הקבוצות
+ * מעורבבות ברשימה אחת ואי אפשר להסיק מהפילטר מה מוצג.
  */
 function ArchivedBadge({ archivedAt }: { archivedAt: string | null }) {
   if (!archivedAt) return null
@@ -275,6 +279,11 @@ function CustomerTableRow(
       <td className="px-4 py-3 text-xs text-brand-muted">
         {formatDateTimeIL(row.created_at).date}
       </td>
+      <td className="px-4 py-3">
+        <CustomerArchiveButton
+          customerId={row.id} fullName={row.full_name} archivedAt={row.archived_at}
+        />
+      </td>
     </tr>
   )
 }
@@ -285,50 +294,59 @@ function CustomerCard(
   const status = CRM_STATUS_LABELS[row.crm_status] ?? CRM_STATUS_LABELS.active
   const next = nextLabel(row)
 
+  /*
+   * ⚠️ הפעולה יושבת **מחוץ** ל-<Link> שעוטף את הכרטיס: כפתור בתוך עוגן
+   * הוא markup לא תקין, ולחיצה עליו הייתה גם מנווטת לכרטיס.
+   */
   return (
-    <Link
-      href={`/admin/customers/${row.id}`}
-      className="block bg-white border border-brand-linen-dark rounded-xl p-4 shadow-soft"
-    >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0">
-          <div className="font-medium text-brand-dark flex items-center gap-1.5">
-            <span className="text-brand-muted tabular-nums shrink-0">{index}.</span>
-            <span className="truncate">{row.full_name}</span>
-            {row.open_notes_count > 0 && (
-              <StickyNote className="w-3.5 h-3.5 text-brand-gold shrink-0" aria-label="קיימת הערה פנימית" />
-            )}
+    <div className="bg-white border border-brand-linen-dark rounded-xl shadow-soft">
+      <Link href={`/admin/customers/${row.id}`} className="block p-4 pb-2">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="min-w-0">
+            <div className="font-medium text-brand-dark flex items-center gap-1.5">
+              <span className="text-brand-muted tabular-nums shrink-0">{index}.</span>
+              <span className="truncate">{row.full_name}</span>
+              {row.open_notes_count > 0 && (
+                <StickyNote className="w-3.5 h-3.5 text-brand-gold shrink-0" aria-label="קיימת הערה פנימית" />
+              )}
+            </div>
+            <div className="text-xs text-brand-muted" dir="ltr">
+              {formatPhoneForDisplay(row.phone_e164)}
+            </div>
+            <LoginAccountBadge has={row.has_login_account} />
           </div>
-          <div className="text-xs text-brand-muted" dir="ltr">
-            {formatPhoneForDisplay(row.phone_e164)}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+              {status.label}
+            </span>
+            <ArchivedBadge archivedAt={row.archived_at} />
           </div>
-          <LoginAccountBadge has={row.has_login_account} />
         </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
-            {status.label}
-          </span>
-          <ArchivedBadge archivedAt={row.archived_at} />
+
+        <div className="flex items-center gap-1.5 text-xs mb-2">
+          <CalendarDays className="w-3.5 h-3.5 text-brand-muted" aria-hidden="true" />
+          {next ? (
+            <span className="text-brand-dark">{next} · {nextTreatment(row)}</span>
+          ) : row.active_pending_count > 0 ? (
+            <span className="text-brand-gold-text">בקשה ממתינה לאישור</span>
+          ) : (
+            <span className="text-brand-muted">אין תור עתידי</span>
+          )}
         </div>
-      </div>
 
-      <div className="flex items-center gap-1.5 text-xs mb-2">
-        <CalendarDays className="w-3.5 h-3.5 text-brand-muted" aria-hidden="true" />
-        {next ? (
-          <span className="text-brand-dark">{next} · {nextTreatment(row)}</span>
-        ) : row.active_pending_count > 0 ? (
-          <span className="text-brand-gold-text">בקשה ממתינה לאישור</span>
-        ) : (
-          <span className="text-brand-muted">אין תור עתידי</span>
-        )}
-      </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-brand-muted">
+          <span>{row.completed_count} טיפולים</span>
+          <span>{row.cancelled_by_customer_count + row.cancelled_by_business_count} ביטולים</span>
+          <span>{row.no_show_count} אי-הגעה</span>
+          <span>{sourceLabel}</span>
+        </div>
+      </Link>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-brand-muted">
-        <span>{row.completed_count} טיפולים</span>
-        <span>{row.cancelled_by_customer_count + row.cancelled_by_business_count} ביטולים</span>
-        <span>{row.no_show_count} אי-הגעה</span>
-        <span>{sourceLabel}</span>
+      <div className="px-4 pb-3">
+        <CustomerArchiveButton
+          customerId={row.id} fullName={row.full_name} archivedAt={row.archived_at}
+        />
       </div>
-    </Link>
+    </div>
   )
 }

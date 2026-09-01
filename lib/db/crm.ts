@@ -24,14 +24,19 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 export const CRM_PAGE_SIZE = 25
 
 /**
- * ⚠️ 'archived' (15H) אינו עוד פילטר ברשימה אלא **מתג תצוגה**: הוא
- * ה*יחיד* שמציג לקוחות מאורכבות, וכל שאר הערכים מסתירים אותן לגמרי
- * (0028). הרשימה חייבת להישאר תואמת ל-v_filter ב-list_crm_customers —
- * ערך שאינו מוכר שם נופל בשקט ל-'all', כלומר לתצוגה **בלי** הארכיון.
+ * ⚠️ שני ערכים כאן אינם עוד חיתוך של הרשימה אלא **מצב הכרטיס**:
+ * 'archived' מציג את הארכיון בלבד, ו-'all_including_archived' (0036)
+ * מציג את שתי הקבוצות יחד. כל שאר הערכים מסתירים לקוחה מאורכבת לגמרי —
+ * זו ברירת המחדל וזו כל מהות הארכיון.
+ *
+ * הרשימה חייבת להישאר תואמת ל-v_filter ב-list_crm_customers — ערך שאינו
+ * מוכר שם נופל בשקט ל-'all', כלומר לתצוגה **בלי** הארכיון. זו גם
+ * ההתנהגות של אפליקציה חדשה מול DB שטרם קיבל את 0036: המסך מציג את
+ * הרשימה הפעילה במקום להיכשל.
  */
 export const CRM_FILTERS = [
   'all', 'active', 'inactive', 'has_future', 'no_future',
-  'returning', 'no_show', 'cancelled', 'archived',
+  'returning', 'no_show', 'cancelled', 'archived', 'all_including_archived',
 ] as const
 export type CrmFilter = (typeof CRM_FILTERS)[number]
 
@@ -464,6 +469,64 @@ export function archiveCustomer(customerId: string, adminUserId: string) {
     'archive_customer',
     { p_customer_id: customerId, p_admin_user_id: adminUserId },
   )
+}
+
+/**
+ * החזרה אוטומטית מהארכיון כשלקוחה מאורכבת קובעת תור חדש.
+ *
+ * ═══ למה זה קיים, ולמה דווקא כך ═══════════════════════════════════════════
+ *
+ * 🔴 **האינווריאנטה של 0028**: archive_customer חוסמת ארכוב כשיש תור פעיל
+ * בעתיד, בדיוק כדי שלא יהיה תור חי ביומן ששייך לכרטיס שנעלם מהמסך —
+ * כולל תזכורות שממשיכות לצאת אליו. לקוחה מאורכבת שקובעת תור חדש יוצרת
+ * בדיוק את המצב הזה מהכיוון ההפוך, ולכן הכרטיס חוזר לרשימה הפעילה.
+ *
+ * ✅ **אותה לקוחה, לא חדשה.** אין כאן שום יצירה: הזיהוי לפי טלפון מנורמל
+ * (unique על phone_e164) כבר החזיר את השורה הקיימת, וכל מה שקורה כאן הוא
+ * ניקוי שני שדות עליה. ארכיון לעולם אינו יכול לייצר כרטיס כפול.
+ *
+ * ⚠️ UPDATE מותנה ב-`archived_at is not null` — לקוחה פעילה אינה נכתבת
+ * כלל, ולכן אין עלות ואין רעש על מסלול ההזמנה הרגיל.
+ *
+ * ⚠️ **אין כאן שורת customer_crm_activity, ובכוונה.** actor_admin_id שם
+ * הוא NOT NULL, והטבלה היא יומן פעולות **מנהלת**. לחזרה שהלקוחה חוללה
+ * בעצמה אין actor, וכתיבת מזהה מנהלת שרירותית הייתה משקרת ביומן — אותו
+ * שיקול בדיוק כמו בהסרה העצמית מדיוור (applyOptOut). הרישום הסמכותי הוא
+ * `archived_at = null` יחד עם התור החדש עצמו, ששניהם נראים בכרטיס.
+ *
+ * ⚠️ best-effort: כישלון נרשם ללוג ואינו מפיל את בקשת התור, שכבר נשמרה.
+ * שני השדות מתנקים יחד — ה-CHECK `customers_archived_pair` (0028) דורש
+ * זאת, ואי אפשר לנקות רק אחד מהם.
+ */
+export async function restoreArchivedCustomerOnBooking(customerId: string): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db
+    .from('customers')
+    .update({ archived_at: null, archived_by: null })
+    .eq('id', customerId)
+    .not('archived_at', 'is', null)
+
+  if (error) {
+    // ⚠️ בלי טלפון ובלי שם — לוג אינו מקום לנתוני לקוחות.
+    console.error('[crm] auto-unarchive on booking failed', error.message)
+  }
+}
+
+/**
+ * אותה החזרה, כשידוע רק הטלפון (המסלול הציבורי מזהה לפי טלפון בלבד).
+ * `phone_e164` הוא unique, ולכן זהו מפתח מדויק ולא ניחוש.
+ */
+export async function restoreArchivedCustomerByPhoneOnBooking(phoneE164: string): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db
+    .from('customers')
+    .update({ archived_at: null, archived_by: null })
+    .eq('phone_e164', phoneE164)
+    .not('archived_at', 'is', null)
+
+  if (error) {
+    console.error('[crm] auto-unarchive by phone on booking failed', error.message)
+  }
 }
 
 export function unarchiveCustomer(customerId: string, adminUserId: string) {

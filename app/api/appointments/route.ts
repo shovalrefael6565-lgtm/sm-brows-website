@@ -5,6 +5,7 @@ import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { isSameOrigin } from '@/lib/auth/originGuard'
 import { getCustomerById } from '@/lib/db/customers'
 import { recordBookingMarketingConsent } from '@/lib/db/marketing'
+import { restoreArchivedCustomerOnBooking } from '@/lib/db/crm'
 import { createPersonalAreaBookingRequest } from '@/lib/db/appointments'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
@@ -261,6 +262,12 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     )
   }
+
+  /*
+   * 🗂️ אותה החזרה מהארכיון כמו במסלול הציבורי, לפי מזהה הלקוחה המאומת.
+   * ראה ההסבר המלא ב-lib/db/crm.ts.
+   */
+  await restoreArchivedCustomerOnBooking(customer.id)
 
   /*
    * 📣 הסכמת דיוור — אותה התנהגות בדיוק כמו במסלול הציבורי: נכתבת אחרי

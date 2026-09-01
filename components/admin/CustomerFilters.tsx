@@ -4,20 +4,36 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
 
-const FILTER_OPTIONS = [
-  { value: 'all',        label: 'כל הלקוחות' },
-  { value: 'active',     label: 'פעילות' },
-  { value: 'inactive',   label: 'לא פעילות' },
+/*
+ * שתי קבוצות, ובכוונה — הן אינן אותו סוג של בחירה:
+ *
+ *   **מצב הכרטיס** — פעילות / בארכיון / הכל. שלוש הקבוצות שמהן מורכב
+ *   המאגר, ורק כאן נקבע אם לקוחה מאורכבת מוצגת בכלל.
+ *
+ *   **חיתוכים** — חיתוך של אותה רשימה לפי סטטוס, תורים או ביטולים.
+ *
+ * ⚠️ שניהם נוסעים באותו פרמטר (`filter`), משום ש-list_crm_customers מקבלת
+ * ערך אחד. לכן בחירת מצב כרטיס מחליפה חיתוך, ולהפך — חיתוך מציג תמיד את
+ * הפעילות בלבד. זו התנהגות ה-RPC מאז 0028, ולא הוספה כאן.
+ *
+ * ⚠️ 'active'/'inactive' הם **סטטוס ה-CRM** של הלקוחה ולא מצב הארכיון,
+ * ולכן התוויות שלהם אומרות "סטטוס" במפורש — בלעדיו "פעילות" הופיע פעמיים
+ * במשמעויות שונות.
+ */
+const CARD_STATE_OPTIONS = [
+  { value: 'all',                    label: 'פעילות' },
+  { value: 'archived',               label: 'בארכיון' },
+  { value: 'all_including_archived', label: 'הכל' },
+]
+
+const CUT_OPTIONS = [
+  { value: 'active',     label: 'סטטוס: פעילה' },
+  { value: 'inactive',   label: 'סטטוס: לא פעילה' },
   { value: 'has_future', label: 'עם תור עתידי' },
   { value: 'no_future',  label: 'ללא תור עתידי' },
   { value: 'returning',  label: 'חזרו ליותר מטיפול אחד' },
   { value: 'no_show',    label: 'עם אי-הגעה' },
   { value: 'cancelled',  label: 'שביטלו' },
-  /*
-   * 🔒 15H — הערך היחיד שמציג לקוחות מאורכבות, וכל השאר מסתירים אותן.
-   * הוא ממוקם אחרון בכוונה: זו תצוגה חריגה ולא עוד חיתוך של אותה רשימה.
-   */
-  { value: 'archived',   label: 'ארכיון' },
 ]
 
 const SORT_OPTIONS = [
@@ -102,7 +118,12 @@ export default function CustomerFilters({
           className="h-10 px-3 rounded-xl border border-brand-linen-dark bg-white text-sm
                      focus:outline-none focus:ring-2 focus:ring-brand-gold"
         >
-          {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <optgroup label="מצב הכרטיס">
+            {CARD_STATE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </optgroup>
+          <optgroup label="חיתוכים">
+            {CUT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </optgroup>
         </select>
       </div>
 
