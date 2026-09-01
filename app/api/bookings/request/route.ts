@@ -7,6 +7,7 @@ import { readJsonWithLimit, DEFAULT_MAX_JSON_BYTES } from '@/lib/http/bodyLimit'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { bookingRateLimitMessage } from '@/lib/bookingRateLimit'
 import { createPublicBookingRequest } from '@/lib/db/appointments'
+import { recordBookingMarketingConsentByPhone } from '@/lib/db/marketing'
 import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
 import { isShabbat } from '@/lib/shabbat'
 import { isNewBookingSystemEnabled } from '@/lib/featureFlags'
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     phone?: string
     privacyNoticeAcknowledged?: unknown
     privacyNoticeVersion?: unknown
+    marketingConsent?: unknown
   }>(req, DEFAULT_MAX_JSON_BYTES)
   if (!parsed.ok) {
     return parsed.status === 413
@@ -313,6 +315,29 @@ export async function POST(req: NextRequest) {
       message: 'לא הצלחנו לשמור את הבקשה. הבקשה לא נשמרה — אפשר לשלוח לנו אותה בוואטסאפ.',
       fallback: true,
     })
+  }
+
+  /*
+   * 📣 הסכמת דיוור — **אחרי** שהבקשה נשמרה, ורק אם הלקוחה סימנה בעצמה.
+   *
+   * 🔒 אופציונלי לחלוטין: `marketingConsent` שאינו true (חסר, false, כל
+   * ערך אחר) אינו נבדק, אינו נדחה, ואינו כותב דבר — הסכמה קיימת של
+   * הלקוחה נשארת כפי שהיא, וגם היעדרה.
+   *
+   * ⚠️ כישלון כאן אינו משנה את תשובת ה-endpoint: התור כבר נוצר, והתשובה
+   * שנשלחת ללקוחה חייבת לשקף את זה. הכישלון נרשם ללוג בשכבת ה-DB.
+   */
+  if (body.marketingConsent === true) {
+    try {
+      await recordBookingMarketingConsentByPhone(phone)
+    } catch {
+      /*
+       * ⚠️ בלי אובייקט השגיאה עצמו — הודעת שגיאה של הספק עלולה לשאת
+       * מספר טלפון, ולוג אינו מקום לנתוני לקוחות. פרטי הכשל של ה-DB
+       * כבר נרשמים בשכבת lib/db/marketing.ts (error.message בלבד).
+       */
+      console.error('[bookings/request] marketing consent write threw')
+    }
   }
 
   /*

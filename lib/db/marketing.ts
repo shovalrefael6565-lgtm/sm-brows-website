@@ -7,6 +7,9 @@ import {
   CURRENT_OPT_OUT_TOKEN_VERSION,
 } from '@/lib/marketing/tokens'
 import { decideRecipient } from '@/lib/marketing/decide'
+import {
+  buildBookingConsentUpdate, marketingConsentStatus, type MarketingConsentStatus,
+} from '@/lib/marketing/consent'
 
 /**
  * דיוור SMS ללקוחות — שכבת הנתונים.
@@ -516,4 +519,102 @@ export async function applyOptOut(token: string): Promise<OptOutResult> {
    * הסרה שהתבקשה בטלפון — שם יש actor אמיתי.
    */
   return 'opted_out'
+}
+
+/**
+ * רישום הסכמת דיוור שניתנה בטופס ההזמנה.
+ *
+ * ═══ מה הפונקציה הזו עושה, ומה היא לעולם לא ═══════════════════════════════
+ *
+ * ✅ נקראת **רק** כשהלקוחה סימנה בעצמה את התיבה האופציונלית. לא סומנה ⟹
+ *    ה-route כלל אינו קורא לכאן, ושום עמודת consent אינה נכתבת — הסכמה
+ *    קיימת (או היעדרה) נשארת בדיוק כפי שהייתה.
+ * ✅ סימון אחרי הסרה מדיוור הוא re-consent מפורש: `marketing_opted_out_at`
+ *    מתנקה. ראה lib/marketing/consent.ts.
+ *
+ * ❌ אינה נוגעת בתזכורות, בהודעות שירות וב-OTP, ואינה שולחת דבר.
+ * ❌ אינה כותבת customer_crm_activity. `actor_admin_id` שם הוא NOT NULL
+ *    והטבלה היא יומן פעולות **מנהלת** — להסכמה שהלקוחה נתנה בעצמה אין
+ *    actor, בדיוק כמו בהסרה העצמית ב-applyOptOut. הרישום הסמכותי הוא
+ *    שלוש העמודות על customers עצמן (מתי, מאיזה מקור, ובלי actor).
+ *
+ * ⚠️ best-effort: כישלון נרשם ללוג ואינו מפיל את בקשת התור. התור נוצר
+ * כבר, ובקשת התור אינה תלויה בהסכמת דיוור לשום דבר.
+ */
+export async function recordBookingMarketingConsent(customerId: string): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { error } = await db
+    .from('customers')
+    .update(buildBookingConsentUpdate(new Date()))
+    .eq('id', customerId)
+
+  if (error) {
+    // ⚠️ בלי טלפון ובלי שם — לוג אינו מקום לנתוני לקוחות.
+    console.error('[marketing] booking consent write failed', error.message)
+  }
+}
+
+/**
+ * אותו רישום, כשמזהה הלקוחה אינו בידינו — המסלול הציבורי מזהה לפי טלפון
+ * מנורמל בלבד (אין שם session).
+ *
+ * ⚠️ הטלפון כבר נורמל ב-route, ומכאן הוא מפתח מדויק: `phone_e164` הוא
+ * unique ב-customers, ולכן אין כאן ניחוש של "הלקוחה הנכונה".
+ */
+export async function recordBookingMarketingConsentByPhone(phoneE164: string): Promise<void> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('customers')
+    .select('id')
+    .eq('phone_e164', phoneE164)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[marketing] booking consent lookup failed', error.message)
+    return
+  }
+  if (!data) return
+  await recordBookingMarketingConsent(data.id as string)
+}
+
+export interface CustomerMarketingStatus {
+  status: MarketingConsentStatus
+  consentAt: string | null
+  consentSource: string | null
+  optedOutAt: string | null
+}
+
+/**
+ * סטטוס הדיוור של לקוחה בודדת, לתצוגה ב-CRM.
+ *
+ * ⚠️ נקראת בנפרד מ-get_crm_customer ולא דרכה: ה-RPC הזו בונה JSON קבוע
+ * ב-DB, והרחבתה הייתה מיגרציה על פונקציה שכל מסך הלקוחה תלוי בה — כדי
+ * להציג שלוש עמודות שקריאה ישירה מחזירה באותה מידה.
+ */
+export async function getCustomerMarketingStatus(
+  customerId: string,
+): Promise<CustomerMarketingStatus | null> {
+  const db = createSupabaseAdminClient()
+  const { data, error } = await db
+    .from('customers')
+    .select('marketing_consent, marketing_consent_at, marketing_consent_source, marketing_opted_out_at')
+    .eq('id', customerId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[marketing] status load failed', error.message)
+    return null
+  }
+  if (!data) return null
+
+  const optedOutAt = (data.marketing_opted_out_at as string | null) ?? null
+  return {
+    status: marketingConsentStatus({
+      consent: data.marketing_consent === true,
+      optedOutAt,
+    }),
+    consentAt: (data.marketing_consent_at as string | null) ?? null,
+    consentSource: (data.marketing_consent_source as string | null) ?? null,
+    optedOutAt,
+  }
 }

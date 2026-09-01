@@ -5,6 +5,8 @@ import {
   getCrmCustomer, listCustomerNotes, listCrmActivity, listCrmSources,
   listCustomerAppointments, listAppointmentHistory,
 } from '@/lib/db/crm'
+import { getCustomerMarketingStatus } from '@/lib/db/marketing'
+import { MARKETING_CONSENT_STATUS_LABELS } from '@/lib/marketing/consent'
 import { formatPhoneForDisplay } from '@/lib/phone'
 import { buildWhatsAppLinkPlain } from '@/lib/whatsappTemplates'
 import {
@@ -38,11 +40,12 @@ export default async function CustomerProfilePage(
   const customer = await getCrmCustomer(params.customerId)
   if (!customer) notFound()
 
-  const [notes, activity, sources, appointments] = await Promise.all([
+  const [notes, activity, sources, appointments, marketing] = await Promise.all([
     listCustomerNotes(customer.id),
     listCrmActivity(customer.id),
     listCrmSources(),
     listCustomerAppointments(customer.id),
+    getCustomerMarketingStatus(customer.id),
   ])
 
   // ההיסטוריה של כל תור. מספר התורים ללקוחה בודדת קטן מטבעו, ולכן
@@ -128,6 +131,48 @@ export default async function CustomerProfilePage(
             </a>
           </div>
         </div>
+
+        {/*
+          סטטוס דיוור — תצוגה בלבד, ובכוונה.
+
+          🔴 שלושה מצבים ולא שניים: "לא אושר" פירושו שאיש לא ביקש דבר, ואילו
+          "הוסרה מדיוור" היא בקשה מפורשת של הלקוחה שחוסמת שליחה בפועל
+          (decideRecipient). איחוד השניים היה מסתיר את ההבדל שכל החסימה
+          נשענת עליו.
+
+          ⚠️ אין כאן כפתור לשנות את הסטטוס: הסכמה ניתנת ע"י הלקוחה בטופס
+          ההזמנה, והסרה מבוצעת על ידה בקישור ההסרה. מסך אינו מקום שבו
+          מסמנים לקוחה כמסכימה.
+        */}
+        {marketing && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span className="text-brand-muted">דיוור שיווקי:</span>
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                marketing.status === 'granted'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : marketing.status === 'opted_out'
+                  ? 'bg-amber-50 text-brand-gold-text border-brand-gold/40'
+                  : 'bg-brand-cream text-brand-muted border-brand-cream-dark'
+              }`}
+            >
+              {MARKETING_CONSENT_STATUS_LABELS[marketing.status]}
+            </span>
+            {marketing.status === 'granted' && marketing.consentAt && (
+              <span className="text-xs text-brand-muted">
+                מאז {formatDateTimeIL(marketing.consentAt).date}
+                {marketing.consentSource === 'booking_form' && ' · מטופס ההזמנה'}
+                {marketing.consentSource === 'admin_recorded' && ' · תועד ע"י מנהלת'}
+                {marketing.consentSource === 'sms_optin' && ' · הצטרפות ב-SMS'}
+              </span>
+            )}
+            {marketing.status === 'opted_out' && marketing.optedOutAt && (
+              <span className="text-xs text-brand-muted">
+                מאז {formatDateTimeIL(marketing.optedOutAt).date} · הודעות על תור ממשיכות להישלח
+              </span>
+            )}
+          </div>
+        )}
 
         <CrmControls
           customerId={customer.id}

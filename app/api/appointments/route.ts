@@ -4,6 +4,7 @@ import { dispatchNow } from '@/lib/notifications/dispatch'
 import { getCurrentCustomerId } from '@/lib/auth/currentCustomer'
 import { isSameOrigin } from '@/lib/auth/originGuard'
 import { getCustomerById } from '@/lib/db/customers'
+import { recordBookingMarketingConsent } from '@/lib/db/marketing'
 import { createPersonalAreaBookingRequest } from '@/lib/db/appointments'
 import { computePendingExpiresAt } from '@/lib/pendingExpiry'
 import { getBusyRanges, logGoogleCalendarError } from '@/lib/googleCalendar'
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     notes?: unknown
     privacyNoticeAcknowledged?: unknown
     privacyNoticeVersion?: unknown
+    marketingConsent?: unknown
   }
   try {
     body = await req.json()
@@ -258,6 +260,26 @@ export async function POST(req: NextRequest) {
       { error: 'server_error', message: 'לא הצלחנו לשמור את הבקשה. נסי שוב או צרי קשר בוואטסאפ.' },
       { status: 500 },
     )
+  }
+
+  /*
+   * 📣 הסכמת דיוור — אותה התנהגות בדיוק כמו במסלול הציבורי: נכתבת אחרי
+   * שהבקשה נשמרה, ורק אם הלקוחה סימנה בעצמה את התיבה האופציונלית. לא
+   * סומנה ⟹ שום עמודת consent אינה נוגעת, וההסכמה הקיימת נשארת כפי שהיא.
+   *
+   * ⚠️ כאן מזהה הלקוחה כבר בידינו (מסלול מאומת), ולכן אין חיפוש לפי טלפון.
+   */
+  if (body.marketingConsent === true) {
+    try {
+      await recordBookingMarketingConsent(customer.id)
+    } catch {
+      /*
+       * ⚠️ בלי אובייקט השגיאה עצמו — הודעת שגיאה של הספק עלולה לשאת
+       * מספר טלפון, ולוג אינו מקום לנתוני לקוחות. פרטי הכשל של ה-DB
+       * כבר נרשמים בשכבת lib/db/marketing.ts (error.message בלבד).
+       */
+      console.error('[appointments] marketing consent write threw')
+    }
   }
 
   /*

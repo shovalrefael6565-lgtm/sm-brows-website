@@ -13,6 +13,7 @@ import {
   PRIVACY_PATH, PRIVACY_NOTICE_VERSION, BOOKING_PRIVACY_NOTICE,
   NOTES_SENSITIVE_INFO_NOTICE, PRIVACY_ACK_ERROR, PRIVACY_ACK_LABEL,
   splitPrivacyLink, splitNoticeLinks,
+  MARKETING_CONSENT_LABEL,
 } from '@/lib/privacyNotice'
 import { isSpecialDay } from '@/lib/specialAvailability'
 import {
@@ -82,13 +83,18 @@ interface FormData {
   notes: string
   policyAccepted: boolean
   privacyNoticeAcknowledged: boolean
+  /**
+   * 🔒 רשות. אינו נבדק ב-validateFinal, אינו יכול להכשיל שליחה, ומתחיל
+   * false — הסכמת דיוור לעולם אינה מסומנת מראש.
+   */
+  marketingConsent: boolean
 }
 
 type FieldErrors = Partial<Record<keyof FormData, string>>
 
 const EMPTY_FORM: FormData = {
   name: '', phone: '', service: '', variants: [], date: '', isoDate: '', time: '', notes: '',
-  policyAccepted: false, privacyNoticeAcknowledged: false,
+  policyAccepted: false, privacyNoticeAcknowledged: false, marketingConsent: false,
 }
 
 /**
@@ -582,6 +588,8 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
           phone: f.phone,
           privacyNoticeAcknowledged: f.privacyNoticeAcknowledged,
           privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+          // 🔒 רשות. false ⟹ השרת אינו נוגע בהסכמה הקיימת של הלקוחה.
+          marketingConsent: f.marketingConsent,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -1386,6 +1394,53 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 {errors.privacyNoticeAcknowledged && (
                   <p id="err-privacy" className="text-brand-rose-text text-xs mt-2">{errors.privacyNoticeAcknowledged}</p>
                 )}
+              </div>
+
+              {/*
+                אישור דיוור שיווקי — **רשות**, ונפרד לחלוטין מהאישור שמעליו.
+
+                🔒 בלי aria-required, בלי כוכבית, בלי מצב שגיאה ובלי בדיקה
+                ב-validateFinal: תיבה שאינה יכולה לחסום שליחה. הנוסח חי
+                ב-lib/privacyNotice.ts ואינו משוכפל כאן.
+              */}
+              <div>
+                <label
+                  htmlFor="booking-marketing"
+                  className={cn(
+                    'flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-colors',
+                    form.marketingConsent
+                      ? 'border-brand-rose bg-brand-rose-bg'
+                      : 'border-brand-cream-dark bg-white hover:border-brand-rose/40',
+                  )}
+                >
+                  <input
+                    id="booking-marketing"
+                    type="checkbox"
+                    checked={form.marketingConsent}
+                    onChange={(ev) => {
+                      const checked = ev.target.checked
+                      setForm((f) => ({ ...f, marketingConsent: checked }))
+                    }}
+                    className="sr-only peer"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold peer-focus-visible:ring-offset-2',
+                      form.marketingConsent
+                        ? 'border-brand-rose bg-brand-rose'
+                        : 'border-brand-cream-dark bg-white',
+                    )}
+                  >
+                    {form.marketingConsent && <Check className="w-3 h-3 text-white" />}
+                  </span>
+                  <span className="text-sm text-brand-dark leading-relaxed">
+                    {MARKETING_CONSENT_LABEL}
+                    <span className="text-brand-muted text-xs font-normal block mt-0.5">
+                      (אופציונלי — אינו נדרש לקביעת התור)
+                    </span>
+                  </span>
+                </label>
               </div>
 
               {/* אישור מדיניות התורים — חובה לפני שליחת הבקשה */}

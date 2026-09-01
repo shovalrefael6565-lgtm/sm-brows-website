@@ -11,7 +11,7 @@ import { POLICY_PATH } from '@/lib/bookingPolicy'
 import {
   PRIVACY_PATH, PRIVACY_NOTICE_VERSION, BOOKING_PRIVACY_NOTICE,
   NOTES_SENSITIVE_INFO_NOTICE, PRIVACY_ACK_LABEL,
-  splitPrivacyLink, splitNoticeLinks,
+  splitPrivacyLink, splitNoticeLinks, MARKETING_CONSENT_LABEL,
 } from '@/lib/privacyNotice'
 import {
   NATURAL_SERVICE, LIFTING_SERVICE, NATURAL_VARIANTS,
@@ -108,6 +108,11 @@ export default function AccountBookingForm() {
   const [notes, setNotes] = useState('')
   const [policyAccepted, setPolicyAccepted] = useState(false)
   const [privacyNoticeAcknowledged, setPrivacyNoticeAcknowledged] = useState(false)
+  /**
+   * 🔒 רשות. אינו חלק מ-canSubmit, אינו יכול לחסום שליחה, ומתחיל false —
+   * הסכמת דיוור לעולם אינה מסומנת מראש.
+   */
+  const [marketingConsent, setMarketingConsent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
@@ -176,6 +181,7 @@ export default function AccountBookingForm() {
   const reset = () => {
     setService(null); setVariants([]); setSelected(null); setBusy([])
     setTime(null); setNotes(''); setPolicyAccepted(false); setPrivacyNoticeAcknowledged(false)
+    setMarketingConsent(false)
     setError(null); setShowWhatsApp(false); setSlotsUnavailable(false)
   }
 
@@ -204,6 +210,8 @@ export default function AccountBookingForm() {
           notes: notes.trim() || undefined,
           privacyNoticeAcknowledged,
           privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+          // 🔒 רשות. false ⟹ השרת אינו נוגע בהסכמה הקיימת של הלקוחה.
+          marketingConsent,
         }),
       })
       const data = await res.json()
@@ -532,6 +540,41 @@ export default function AccountBookingForm() {
                     </>
                   )
                 })()}
+              </span>
+            </label>
+
+            {/*
+              אישור דיוור שיווקי — **רשות**, ונפרד מהאישור שמעליו. בלי
+              aria-required ובלי השתתפות ב-canSubmit: אינו יכול לחסום שליחה.
+            */}
+            <label
+              htmlFor="account-booking-marketing"
+              className={cn(
+                'flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors',
+                marketingConsent ? 'border-brand-rose bg-brand-rose-bg' : 'border-brand-linen-dark bg-white hover:border-brand-rose/40',
+              )}
+            >
+              <input
+                id="account-booking-marketing"
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={e => setMarketingConsent(e.target.checked)}
+                className="sr-only peer"
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'flex items-center justify-center w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold peer-focus-visible:ring-offset-2',
+                  marketingConsent ? 'border-brand-rose bg-brand-rose' : 'border-brand-cream-dark bg-white',
+                )}
+              >
+                {marketingConsent && <Check className="w-3 h-3 text-white" />}
+              </span>
+              <span className="text-sm text-brand-dark leading-relaxed">
+                {MARKETING_CONSENT_LABEL}
+                <span className="text-brand-muted text-xs font-normal block mt-0.5">
+                  (אופציונלי — אינו נדרש לקביעת התור)
+                </span>
               </span>
             </label>
 

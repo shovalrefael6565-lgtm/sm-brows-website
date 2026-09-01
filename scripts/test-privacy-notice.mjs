@@ -188,6 +188,23 @@ chk('AccountBookingForm: useState(false) עבור privacyNoticeAcknowledged',
 chk('AccountBookingForm: canSubmit דורש privacyNoticeAcknowledged',
   /canSubmit =[\s\S]{0,200}privacyNoticeAcknowledged/.test(accountFormSrc))
 
+// ─── 3ב. תיבת הדיוור השנייה — רשות, ולא מעורבת באישור החובה ─────────────────
+section('תיבת הדיוור האופציונלית מוזכרת בנוסח הפרטיות ואינה מתערבבת באישור החובה')
+
+chk('🔒 BOOKING_PRIVACY_NOTICE מבהיר שסימון הדיוור הוא רשות ואינו תנאי לקביעת התור',
+  /סימון אישור הדיוור הוא רשות ואינו תנאי לקביעת התור/.test(privacyNoticeSrc))
+chk('🔒 BOOKING_PRIVACY_NOTICE מציין את מטרת הדיוור ואת אפשרות ההסרה',
+  /עדכונים והטבות באמצעות 019 SMS/.test(privacyNoticeSrc) &&
+  /להסיר את ההסכמה בכל עת/.test(privacyNoticeSrc))
+chk('🔒 PRIVACY_ACK_LABEL עצמו לא הורחב לכלול דיוור שיווקי',
+  !/דיוור|הטבות|עדכונים/.test(
+    (privacyNoticeSrc.match(/export const PRIVACY_ACK_LABEL = '[^']*'/) ?? [''])[0]))
+chk('🔒 מדיניות הפרטיות מתארת את התיבה השנייה כנפרדת, אופציונלית ולא מסומנת מראש',
+  /תיבה שנייה, נפרדת ואופציונלית/.test(privacyContentSrc) &&
+  /אינה מסומנת מראש ואינה תנאי לקביעת/.test(privacyContentSrc))
+chk('🔒 מדיניות הפרטיות מבהירה שהסרה מדיוור אינה עוצרת הודעות שירות ו-OTP',
+  /אינה עוצרת הודעות שירות בנוגע לתור ואינה עוצרת את קוד הכניסה/.test(privacyContentSrc))
+
 // ─── 4. שני ה-routes דוחים בקשה בלי אישור, לפני כל כתיבה ────────────────────
 section('אכיפת אישור פרטיות בצד השרת, לפני יצירת בקשת התור')
 
