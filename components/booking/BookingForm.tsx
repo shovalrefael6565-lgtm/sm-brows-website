@@ -236,6 +236,20 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   // אזור בחירת סוג הטיפול — כדי לגלול אליו אם ניסו להמשיך בלי לבחור
   const variantRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * ראש השלב הפעיל. כל מעבר שלב גולל לכאן, כך שהלקוחה נוחתת בתחילת השלב
+   * החדש ולא באמצעו.
+   *
+   * ⚠️ עד השינוי הזה לא הייתה גלילה במעבר שלב בכלל: `selectService` גללה
+   * אל כפתור ה"המשך" (ctaRef) שיושב בתחתית הטופס, ומיד אחרי הלחיצה נכנס
+   * לאותו מקום בדיוק תוכן השלב הבא. בזרימת היומן השלב הבא היה היומן —
+   * ולכן הלקוחה "נזרקה" ישירות לבחירת תאריך, בלי לראות שיש עוד שדות.
+   */
+  const stepTopRef = useRef<HTMLDivElement>(null)
+  // שדות הפרטים — לפוקוס כשנחסמה ההתקדמות ליומן בגללם
+  const nameInputRef  = useRef<HTMLInputElement>(null)
+  const phoneInputRef = useRef<HTMLInputElement>(null)
+
   const toMin = (hhmm: string) => {
     const [h, m] = hhmm.split(':').map(Number)
     return h * 60 + m
@@ -272,11 +286,21 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
 
   const minToHHMM = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
 
-  // שלבים: טיפול עם יומן (טבעי/הרמת גבות) → 3 שלבים | שאר → 2 שלבים
+  /**
+   * שלבים: טיפול עם יומן (טבעי/הרמת גבות) → 4 שלבים | שאר → 2 שלבים.
+   *
+   * 🔒 הפרטים האישיים (שם + טלפון) קודמים ליומן, ולא אחריו. הסדר ההפוך
+   * שלח את הלקוחה לבחור תאריך ושעה לפני שידעה שנדרשים ממנה פרטים, והיא
+   * גילתה זאת רק כשה-validation חסם את השליחה בסוף.
+   * שאר הטיפולים (וואטסאפ בלבד) נשארים בשני שלבים — אין להם יומן, ולכן
+   * גם לא הייתה שם הבעיה.
+   */
   const stepLabels = isCalendar
-    ? ['בחירת טיפול', 'בחירת מועד', 'פרטים ואישור']
+    ? ['בחירת טיפול', 'הפרטים שלך', 'בחירת מועד', 'אישור ושליחה']
     : ['בחירת טיפול', 'פרטים ואישור']
   const totalSteps = stepLabels.length
+  // בזרימת היומן שלב 2 מוביל אל היומן — הכפתור אומר לאן, ולא רק "המשך"
+  const continueLabel = isCalendar && step === 2 ? 'המשך לבחירת תאריך' : 'המשך'
 
   const selectedVariants = NATURAL_VARIANTS.filter(v => form.variants.includes(v.id))
   const totalPrice = selectedVariants.reduce((sum, v) => sum + v.price, 0)
@@ -458,13 +482,30 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   }
 
   // ── ניווט בין שלבים ── (מאמת מול ה-refs העדכניים, לא מול closure ישן)
+  /**
+   * גלילה חלקה אל ראש השלב שנכנס זה עתה. ה-timeout מאריך מעבר ל-commit
+   * של React ולאנימציית הכניסה, בדיוק כמו הגלילה ב-selectService.
+   */
+  const scrollToStepTop = () => {
+    setTimeout(() => {
+      stepTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+  }
+
   const validateStep = (s: number): boolean => {
     const f = formRef.current
     const isNat = f.service === NATURAL
     const isCal = isNat || f.service === LIFTING
     const e: FieldErrors = {}
     if (s === 1 && !f.service) e.service = 'יש לבחור טיפול'
+    // 🔒 שלב הפרטים חוסם את הכניסה ליומן. אותה ולידציה בדיוק שרצה
+    // ב-validateFinal על שם/טלפון — רק מוקדם יותר, במקום שבו היא מובנת.
     if (s === 2 && isCal) {
+      if (!f.name.trim()) e.name = 'שדה חובה'
+      if (!f.phone.trim()) e.phone = 'שדה חובה'
+      else if (!isValidIsraeliMobile(f.phone)) e.phone = 'יש להזין מספר נייד ישראלי תקין'
+    }
+    if (s === 3 && isCal) {
       if (isNat && f.variants.length === 0) e.variants = 'יש לבחור סוג טיפול אחד לפחות'
       if (!f.date) e.date = 'יש לבחור תאריך'
       if (!f.time) e.time = 'יש לבחור שעה'
@@ -476,20 +517,32 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
   const goNext = () => {
     const s = stepRef.current
     if (!validateStep(s)) {
-      // אם נחסמו כי לא נבחר סוג טיפול — לגלול אל הבחירה כדי שהקריאה תהיה מול העיניים
       const f = formRef.current
-      if (s === 2 && f.service === NATURAL && f.variants.length === 0) {
+      const isCal = f.service === NATURAL || f.service === LIFTING
+      // הפרטים חסרים — פוקוס על השדה הראשון שנחסם, כדי שהשגיאה תהיה מול
+      // העיניים (ובמובייל גם תפתח את המקלדת במקום הנכון)
+      if (s === 2 && isCal) {
+        const target = !f.name.trim() ? nameInputRef.current : phoneInputRef.current
+        setTimeout(() => {
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          target?.focus({ preventScroll: true })
+        }, 50)
+      }
+      // אם נחסמו כי לא נבחר סוג טיפול — לגלול אל הבחירה כדי שהקריאה תהיה מול העיניים
+      if (s === 3 && f.service === NATURAL && f.variants.length === 0) {
         setTimeout(() => variantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
       }
       return
     }
     const f = formRef.current
-    const total = (f.service === NATURAL || f.service === LIFTING) ? 3 : 2
+    const total = (f.service === NATURAL || f.service === LIFTING) ? 4 : 2
     setStep(cur => Math.min(cur + 1, total))
+    scrollToStepTop()
   }
   const goBack = () => {
     setErrors({})
     setStep(s => Math.max(s - 1, 1))
+    scrollToStepTop()
   }
 
   const validateFinal = () => {
@@ -786,6 +839,75 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     )
   }
 
+  /**
+   * שדות השם והטלפון — מוגדרים פעם אחת ומוצגים במקום אחד בלבד בכל זרימה:
+   * בזרימת היומן בשלב 2 (לפני בחירת התאריך), ובזרימת הוואטסאפ בשלב האחרון.
+   *
+   * ⚠️ text-base במובייל (ולא text-sm) — מתחת ל-16px ספארי ב-iOS מזום על
+   * הטופס ברגע שנוגעים בשדה, והלקוחה מאבדת את ההקשר. בדסקטופ ללא שינוי.
+   */
+  const nameAndPhoneFields = (
+    <>
+      {/* שם */}
+      <div>
+        <label htmlFor="booking-name" className="block text-sm font-semibold text-brand-dark mb-1.5">
+          <span className="flex items-center gap-1.5">
+            <User className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+            שם מלא
+            <span className="text-brand-rose" aria-hidden="true">*</span>
+          </span>
+        </label>
+        <input
+          id="booking-name"
+          ref={nameInputRef}
+          type="text"
+          value={form.name}
+          onChange={setField('name')}
+          placeholder="מה שמך?"
+          autoComplete="name"
+          aria-required="true"
+          aria-invalid={!!errors.name}
+          aria-describedby={errors.name ? 'err-name' : undefined}
+          className={cn(
+            'w-full px-4 py-3.5 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-base sm:text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold',
+            errors.name ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
+          )}
+        />
+        {errors.name && <p id="err-name" role="alert" className="text-brand-rose-text text-xs mt-1">{errors.name}</p>}
+      </div>
+
+      {/* טלפון */}
+      <div>
+        <label htmlFor="booking-phone" className="block text-sm font-semibold text-brand-dark mb-1.5">
+          <span className="flex items-center gap-1.5">
+            <Phone className="w-4 h-4 text-brand-rose" aria-hidden="true" />
+            מספר טלפון
+            <span className="text-brand-rose" aria-hidden="true">*</span>
+          </span>
+        </label>
+        <input
+          id="booking-phone"
+          ref={phoneInputRef}
+          type="tel"
+          inputMode="tel"
+          value={form.phone}
+          onChange={setField('phone')}
+          placeholder="05X-XXXXXXX"
+          autoComplete="tel"
+          dir="ltr"
+          aria-required="true"
+          aria-invalid={!!errors.phone}
+          aria-describedby={errors.phone ? 'err-phone' : undefined}
+          className={cn(
+            'w-full px-4 py-3.5 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-base sm:text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold text-left',
+            errors.phone ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
+          )}
+        />
+        {errors.phone && <p id="err-phone" role="alert" className="text-brand-rose-text text-xs mt-1">{errors.phone}</p>}
+      </div>
+    </>
+  )
+
   return (
     <div>
       {/* ── מחוון התקדמות ── */}
@@ -830,6 +952,10 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
       </ol>
 
       <form onSubmit={handleSubmit} noValidate>
+        {/* ראש השלב הפעיל — יעד הגלילה בכל מעבר שלב (ראה scrollToStepTop).
+            scroll-mt-24 משאיר את מחוון ההתקדמות בתוך המסך אחרי הגלילה. */}
+        <div ref={stepTopRef} className="scroll-mt-24" aria-hidden="true" />
+
         {/* שלבים מתחלפים ללא AnimatePresence mode="wait" — הוא היה גורם לתקיעה
             לסירוגין (השלב הבא לא נטען). כל שלב מותנה ומוצג לבדו, החלפה מיידית. */}
 
@@ -906,10 +1032,52 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
             </motion.div>
           )}
 
-          {/* ═══ שלב 2 (טבעי / הרמת גבות) — בחירת מועד ═══ */}
+          {/* ═══ שלב 2 (טבעי / הרמת גבות) — הפרטים שלך, לפני היומן ═══ */}
           {step === 2 && isCalendar && (
             <motion.div
-              key="step-2-calendar"
+              key="step-2-details"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-5"
+            >
+              <div className="text-center">
+                <h2 className="font-serif text-2xl font-bold text-brand-dark mb-1">
+                  קודם כל — איך נדע למי לחזור?
+                </h2>
+                <p className="text-brand-muted text-sm">
+                  שני פרטים קצרים, ומיד אחריהם בוחרים תאריך ושעה
+                </p>
+              </div>
+
+              {/* הטיפול שנבחר — הקשר, עם מעבר חזרה לשינוי */}
+              <div className="flex items-center justify-between gap-3 bg-brand-cream rounded-2xl border border-brand-cream-dark px-4 py-3">
+                <span className="text-sm text-brand-dark">
+                  <span className="text-brand-muted">הטיפול שנבחר:</span>{' '}
+                  <span className="font-semibold">{form.service}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); scrollToStepTop() }}
+                  className="inline-flex items-center gap-1 text-xs text-brand-rose-text font-semibold hover:underline cursor-pointer flex-shrink-0"
+                >
+                  <Pencil className="w-3 h-3" aria-hidden="true" />
+                  שינוי
+                </button>
+              </div>
+
+              {nameAndPhoneFields}
+
+              <p className="text-brand-muted text-xs leading-relaxed">
+                הפרטים משמשים אותנו רק כדי לאשר את התור ולחזור אלייך לגביו.
+              </p>
+            </motion.div>
+          )}
+
+          {/* ═══ שלב 3 (טבעי / הרמת גבות) — בחירת מועד ═══ */}
+          {step === 3 && isCalendar && (
+            <motion.div
+              key="step-3-calendar"
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -1202,7 +1370,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   <h3 className="text-sm font-bold text-brand-dark">סיכום הבקשה</h3>
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => { setStep(1); scrollToStepTop() }}
                     className="inline-flex items-center gap-1 text-xs text-brand-rose-text font-semibold hover:underline cursor-pointer"
                   >
                     <Pencil className="w-3 h-3" aria-hidden="true" />
@@ -1234,7 +1402,29 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                       <dd className="font-semibold text-brand-dark">{form.date} · {isLifting ? liftingRange : form.time}</dd>
                     </div>
                   )}
+                  {isCalendar && (
+                    <>
+                      <div className="flex justify-between">
+                        <dt className="text-brand-muted">שם</dt>
+                        <dd className="font-semibold text-brand-dark">{form.name}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-brand-muted">טלפון</dt>
+                        <dd className="font-semibold text-brand-dark" dir="ltr">{form.phone}</dd>
+                      </div>
+                    </>
+                  )}
                 </dl>
+                {isCalendar && (
+                  <button
+                    type="button"
+                    onClick={() => { setStep(2); scrollToStepTop() }}
+                    className="inline-flex items-center gap-1 text-xs text-brand-rose-text font-semibold hover:underline cursor-pointer mt-2"
+                  >
+                    <Pencil className="w-3 h-3" aria-hidden="true" />
+                    עריכת השם והטלפון
+                  </button>
+                )}
                 {!isCalendar && (
                   <p className="text-xs text-brand-muted mt-2 pt-2 border-t border-brand-cream-dark">
                     טיפול זה דורש ייעוץ אישי — אחזור אלייך לתיאום מדויק.
@@ -1242,60 +1432,12 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 )}
               </div>
 
-              {/* שם */}
-              <div>
-                <label htmlFor="booking-name" className="block text-sm font-semibold text-brand-dark mb-1.5">
-                  <span className="flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                    שם מלא
-                    <span className="text-brand-rose" aria-hidden="true">*</span>
-                  </span>
-                </label>
-                <input
-                  id="booking-name"
-                  type="text"
-                  value={form.name}
-                  onChange={setField('name')}
-                  placeholder="מה שמך?"
-                  autoComplete="name"
-                  aria-required="true"
-                  aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? 'err-name' : undefined}
-                  className={cn(
-                    'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold',
-                    errors.name ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
-                  )}
-                />
-                {errors.name && <p id="err-name" className="text-brand-rose-text text-xs mt-1">{errors.name}</p>}
-              </div>
-
-              {/* טלפון */}
-              <div>
-                <label htmlFor="booking-phone" className="block text-sm font-semibold text-brand-dark mb-1.5">
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="w-4 h-4 text-brand-rose" aria-hidden="true" />
-                    מספר טלפון
-                    <span className="text-brand-rose" aria-hidden="true">*</span>
-                  </span>
-                </label>
-                <input
-                  id="booking-phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={setField('phone')}
-                  placeholder="05X-XXXXXXX"
-                  autoComplete="tel"
-                  dir="ltr"
-                  aria-required="true"
-                  aria-invalid={!!errors.phone}
-                  aria-describedby={errors.phone ? 'err-phone' : undefined}
-                  className={cn(
-                    'w-full px-4 py-3 rounded-2xl border bg-white text-brand-dark placeholder:text-brand-muted text-sm transition-colors outline-none focus:ring-2 focus:ring-brand-gold focus:border-brand-gold text-left',
-                    errors.phone ? 'border-red-400' : 'border-brand-cream-dark hover:border-brand-gold/50'
-                  )}
-                />
-                {errors.phone && <p id="err-phone" className="text-brand-rose-text text-xs mt-1">{errors.phone}</p>}
-              </div>
+              {/*
+                🔒 בזרימת היומן השם והטלפון כבר נאספו בשלב 2 (לפני היומן)
+                ומוצגים למעלה בסיכום עם קישור לעריכה. כאן הם מופיעים רק
+                בזרימת הוואטסאפ, שאין בה יומן ולכן גם אין בה שלב נפרד.
+              */}
+              {!isCalendar && nameAndPhoneFields}
 
               {/* הערות */}
               <div>
@@ -1551,17 +1693,26 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                 </button>
               )}
 
+              {/*
+                ⚠️ key שונה לכל אחד מהשניים. בלעדיו React ממחזר את אותה
+                צומת DOM ורק מחליף לה את ה-type; בלחיצה האחרונה על "המשך"
+                ה-type כבר "submit" כשהדפדפן מבצע את פעולת ברירת המחדל של
+                אותה לחיצה — הטופס נשלח מיד עם הכניסה לשלב האחרון, ושגיאות
+                האישורים נצבעו באדום לפני שהלקוחה הספיקה לסמן משהו.
+              */}
               {step < totalSteps ? (
                 <button
+                  key="nav-next"
                   type="button"
                   onClick={goNext}
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-dark text-white font-bold text-base px-7 py-3.5 rounded hover:bg-brand-dark/90 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-2"
                 >
-                  המשך
+                  {continueLabel}
                   <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
                 </button>
               ) : (
                 <button
+                  key="nav-submit"
                   type="submit"
                   aria-label="שליחת בקשה לתור"
                   disabled={phase === 'saving'}
