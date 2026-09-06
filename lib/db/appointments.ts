@@ -2,7 +2,7 @@ import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import {
-  BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
+  DAY_MIN,
   israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
 } from '@/lib/israelTime'
 import { PUBLIC_BOOKING_MAX_PER_IP_PER_HOUR } from '@/lib/bookingRateLimit'
@@ -1450,7 +1450,17 @@ export async function markAppointmentCompletedByAdmin(
  * טווחי תפוסה (HH:MM ישראל) מתוך תורים פעילים (pending/confirmed) ב-DB
  * לתאריך נתון — מיועד להתמזג עם טווחי התפוסה מ-Google Calendar כדי
  * שבקשה שממתינה לאישור תיחסם מהצגה כפנויה ללקוחה אחרת. מראה בדיוק את
- * לוגיקת ה-clamping של getBusyRanges ב-lib/googleCalendar.ts.
+ * אותה לוגיקה כמו getBusyRanges ב-lib/googleCalendar.ts.
+ *
+ * ⚠️ **עד 06.09.2026 הטווחים נגזמו כאן ל-09:00–19:00 וכל תור שנפל כולו
+ * מחוץ לחלון נעלם** — ראה את ההסבר המלא מעל getBusyRanges. בייצור זה הסתיר
+ * תורים אמיתיים בשעות שנפתחו ב-specialAvailability (19:30–21:30), הציג
+ * אותן כפנויות, והפיל את הלקוחה על ה-EXCLUDE constraint בשליחה.
+ *
+ * 🔒 **וכישלון קריאה זורק, ולא מחזיר [].** רשימה ריקה כאן פירושה "אין אף
+ * תור ב-DB", וזו בדיוק ההתחזות ליום ריק ש-lib/bookingAvailability.ts נכתב
+ * כדי למנוע: ה-Promise.all שם אמור להידחות ולהחזיר 503, אבל ה-catch הזה
+ * בלע את הכישלון לפניו והחזיר "פנוי" על כל היום.
  */
 export async function getDbBusyRangesForDate(isoDate: string): Promise<{ start: string; end: string }[]> {
   const db = createSupabaseAdminClient()
@@ -1464,8 +1474,9 @@ export async function getDbBusyRangesForDate(isoDate: string): Promise<{ start: 
     .lt('starts_at', timeMax)
 
   if (error) {
+    // 🔒 fail-closed. ראה ההערה מעל הפונקציה — [] כאן הוא "היום פנוי".
     console.error('[appointments] busy lookup failed', error.message)
-    return []
+    throw new Error(`db busy lookup failed: ${error.message}`)
   }
 
   const ranges: { start: string; end: string }[] = []
@@ -1486,9 +1497,8 @@ export async function getDbBusyRangesForDate(isoDate: string): Promise<{ start: 
     else if (endDate === isoDate) endMin = israelMinutes(end)
     else continue
 
-    const s = Math.max(startMin, BUSINESS_START_MIN)
-    const e = Math.min(endMin, BUSINESS_END_MIN)
-    if (s < e) ranges.push({ start: minToHHMM(s), end: minToHHMM(e) })
+    // 🔒 ללא גזימה לשעות הפעילות — ראה ההערה שמעל הפונקציה.
+    if (startMin < endMin) ranges.push({ start: minToHHMM(startMin), end: minToHHMM(endMin) })
   }
   return ranges
 }

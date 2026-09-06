@@ -1,6 +1,6 @@
 import { google } from 'googleapis'
 import {
-  BUSINESS_START_MIN, BUSINESS_END_MIN, DAY_MIN,
+  DAY_MIN,
   israelDateStr, israelMinutes, minToHHMM, dayBoundsUtc, israelWallTimeToUtc,
 } from './israelTime'
 import { CALENDAR_EVENT_SOURCE, deterministicEventId } from './calendarLink'
@@ -35,9 +35,21 @@ function getCalendarId() {
 
 /**
  * Busy time ranges (HH:MM Israel) for a date — a faithful reflection of the
- * real calendar: every timed event that overlaps the business window
- * (09:00–19:00 Israel) on that date is blocked, clamped to the window.
- * No AM/PM guessing — the calendar is the source of truth.
+ * real calendar: every timed event on that date is blocked, clamped only to
+ * the day itself. No AM/PM guessing — the calendar is the source of truth.
+ *
+ * ⚠️ **עד 06.09.2026 הטווחים נגזמו כאן לחלון 09:00–19:00, וכל אירוע שנפל
+ * כולו מחוץ לחלון נזרק בשקט** (`s = max(start, 09:00)`, `e = min(end, 19:00)`,
+ * ואז `if (s < e)`). כל עוד שעות הפעילות היו גם הגבול היחיד של הזמינות זה
+ * היה בלתי מזיק — אבל `lib/specialAvailability.ts` פותח ימים בשעות חריגות
+ * (למשל 19:30–21:30), והזמינות המוצגת כללה אותן בזמן שהתפוסה בהן נעלמה.
+ * התוצאה בייצור: שעות שכבר נקבע בהן תור הוצגו כפנויות, והלקוחה נחסמה רק
+ * ב-EXCLUDE constraint בשליחה ("השעה שנבחרה נתפסה הרגע").
+ *
+ * 🔒 הגזימה הוסרה. טווח תפוסה רחב מדי אינו יכול *לפתוח* שום שעה — הוא
+ * נבדק תמיד מול סלוטים שכבר עברו את כללי הרשת (BUSINESS_SHIFTS /
+ * specialSlotsFor). גזימה, לעומת זאת, יכולה להסתיר תפוסה אמיתית. אין כאן
+ * סימטריה, ולכן אין כאן שיקול דעת.
  */
 export async function getBusyRanges(date: string): Promise<{ start: string; end: string }[]> {
   const auth = getAuth()
@@ -80,10 +92,8 @@ export async function getBusyRanges(date: string): Promise<{ start: string; end:
     else if (endDate === date) endMin = israelMinutes(end)
     else continue // event ended before today
 
-    // Clamp to the business window and keep only a positive overlap.
-    const s = Math.max(startMin, BUSINESS_START_MIN)
-    const e = Math.min(endMin, BUSINESS_END_MIN)
-    if (s < e) ranges.push({ start: minToHHMM(s), end: minToHHMM(e) })
+    // 🔒 ללא גזימה לשעות הפעילות — ראה ההערה שמעל הפונקציה.
+    if (startMin < endMin) ranges.push({ start: minToHHMM(startMin), end: minToHHMM(endMin) })
   }
 
   return ranges
