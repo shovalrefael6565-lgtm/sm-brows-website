@@ -48,8 +48,10 @@ const {
   BOOKING_HORIZON_DAYS, calendarDayOffset, isWithinBookingHorizon,
   BUSINESS_SHIFTS, SLOT_INTERVAL_MINUTES,
 } = await import('../lib/bookingWindow.ts')
-const { selectVisibleSlots, selectDisplaySlots, INITIAL_SLOTS, MIN_AVAILABLE_SLOTS } =
-  await import('../lib/slotSelection.ts')
+const {
+  selectVisibleSlots, selectDisplaySlots, slotsForOffset,
+  INITIAL_SLOTS, MIN_AVAILABLE_SLOTS,
+} = await import('../lib/slotSelection.ts')
 
 const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 const mins = t => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
@@ -234,13 +236,44 @@ const FREE_DAY = { year: 2026, month: 7, day: 20 }
 const show = (busy, durationMin) =>
   selectDisplaySlots({ ...FREE_DAY, busyRanges: busy, durationMin, now })
 
-chk('הקבועים: 8 ראשוניים, יעד מינימום 6',
+chk('הקבועים: 8 בקצה הסולם, יעד מינימום 6',
   INITIAL_SLOTS === 8 && MIN_AVAILABLE_SLOTS === 6)
+
+// ── סולם המחסור: 3-4 היום · 6 מחר · 8 מכאן והלאה ──────────────────────────
+{
+  chk('היום — 3 או 4 סלוטים (יציב לתאריך)',
+    [0, 1, 2, 3].every(k => [3, 4].includes(slotsForOffset(0, k))))
+  chk('מחר — 6', [0, 1].every(k => slotsForOffset(1, k) === 6))
+  chk('מיום 2 והלאה — 8',
+    [2, 3, 6, 12, 20].every(o => slotsForOffset(o, 0) === 8 && slotsForOffset(o, 1) === 8))
+
+  // now = שלישי 04.08 ~12:00. חלון ההכנה חוסם עד 12:40, ולכן היום פנוי
+  // רק בערב — 9 סלוטים חוקיים, הרבה מעל הסולם.
+  const today = selectDisplaySlots({ year: 2026, month: 7, day: 4, busyRanges: [], durationMin: 20, now })
+  chk('🔒 היום מציג 3-4 בלבד למרות ש-9 סלוטים פנויים — תחושת ביקוש',
+    today.length >= 3 && today.length <= 4, `${today.length}: ${today.join(',')}`)
+  const tomorrow = selectDisplaySlots({ year: 2026, month: 7, day: 5, busyRanges: [], durationMin: 20, now })
+  chk('🔒 מחר מציג 6 — גג הסולם, לא 8',
+    tomorrow.length === 6, `${tomorrow.length}: ${tomorrow.join(',')}`)
+
+  // 🔒 הסולם גובר על היעד: תפוסה כבדה היום לא מטפסת אותו חזרה ל-6
+  const busyToday = selectDisplaySlots({
+    year: 2026, month: 7, day: 4, durationMin: 40, now,
+    busyRanges: [{ start: '16:00', end: '16:40' }],
+  })
+  chk('🔒 היום, טיפול 40 דק׳ אחרי תפוסה — עדיין ≤4, החשיפה לא מטפסת ל-6',
+    busyToday.length <= 4, `${busyToday.length}: ${busyToday.join(',')}`)
+  chk('🔒 מחר, אחרי תפוסה — עדיין ≤6',
+    selectDisplaySlots({
+      year: 2026, month: 7, day: 5, durationMin: 40, now,
+      busyRanges: [{ start: '09:00', end: '10:00' }],
+    }).length <= 6)
+}
 
 // (1) יום פתוח מציג ~8 סלוטים ראשוניים
 {
   const free20 = show([], 20)
-  chk('✅ (1) יום פנוי — 8 סלוטים ראשוניים (טיפול 20 דק׳)',
+  chk('✅ (1) יום פנוי רחוק — 8 סלוטים ראשוניים (טיפול 20 דק׳)',
     free20.length === INITIAL_SLOTS, free20.join(','))
   const morning = free20.filter(t => mins(t) < mins('16:00')).length
   chk('✅ (1) הפיזור נשמר בין שתי המשמרות (בוקר וערב, לא הכול ברצף אחד)',

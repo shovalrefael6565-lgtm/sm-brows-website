@@ -82,8 +82,15 @@ function refBusinessDayOffset(year, month, day, now) {
   return count
 }
 
-/** כמות ההצגה ביום פנוי — עותק עצמאי של INITIAL_SLOTS */
-const REF_INITIAL_SLOTS = 8
+/**
+ * סולם המחסור — עותק עצמאי של slotsForOffset.
+ * ⚠️ הליטרלים מכוונים; שינוי הסולם מחייב עדכון גם כאן.
+ */
+function refSlotsForOffset(offset, seed) {
+  if (offset === 0) return 3 + (seed % 2)
+  if (offset === 1) return 6
+  return 8
+}
 
 /**
  * טווח ההזמנה — עותק *עצמאי* של isWithinBookingHorizon.
@@ -145,8 +152,9 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
   if (refDow === 5 || refDow === 6) return []
 
   const seed = refDateSeed(viewYear, viewMonth, selectedDay)
+  const refOffset = refBusinessDayOffset(viewYear, viewMonth, selectedDay, now)
   const maxSlots = refWithinHorizon(viewYear, viewMonth, selectedDay, now)
-    ? REF_INITIAL_SLOTS
+    ? refSlotsForOffset(refOffset, seed)
     : 0
 
   const nowParts = new Intl.DateTimeFormat('en-US', {
@@ -175,7 +183,7 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
   const evening = refSeededShuffle(free.filter(s => toMin(s) >= EVENING_FROM), seed)
   const morning = refSeededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
 
-  const targetMorning = 3
+  const targetMorning = maxSlots <= 4 ? 1 : maxSlots <= 6 ? 2 : 3
   const targetEvening = maxSlots - targetMorning
 
   let picked = [...morning.slice(0, targetMorning), ...evening.slice(0, targetEvening)]
@@ -399,7 +407,7 @@ section('מקור אמת יחיד — אין עותק שני של האלגורי
     dialog.includes("from '@/lib/slotSelection'"))
 
   // הפונקציות שמרכיבות את האלגוריתם חייבות להיות מוגדרות רק בקובץ אחד
-  for (const fn of ['seededShuffle', 'dateSeed']) {
+  for (const fn of ['slotsForOffset', 'seededShuffle', 'dateSeed']) {
     chk(`אין הגדרה מקומית של ${fn} בקומפוננטות`,
       !bookingForm.includes(`function ${fn}`) && !dialog.includes(`function ${fn}`))
   }

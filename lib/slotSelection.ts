@@ -24,8 +24,8 @@
 
 import { specialSlotsFor } from './specialAvailability'
 import {
-  isWithinBookingHorizon, isFridayOrSaturday, TIME_SLOTS, MIN_LEAD_MINUTES,
-  BUSINESS_SHIFTS, SLOT_INTERVAL_MINUTES,
+  businessDayOffset, isWithinBookingHorizon, isFridayOrSaturday,
+  TIME_SLOTS, MIN_LEAD_MINUTES, BUSINESS_SHIFTS, SLOT_INTERVAL_MINUTES,
 } from './bookingWindow'
 
 export interface BusyRange {
@@ -45,14 +45,24 @@ const TRIPLE_FROM = EVENING_FROM
 /** תקרת ה-fallback המבוקר — לעולם לא "כל הזמינות" */
 export const FALLBACK_MAX = 3
 
-/**
- * כמה סלוטים מציגים ביום פנוי — נקודת הפתיחה של ההצגה המצומצמת.
- *
- * ⚠️ עד 06.09.2026 הכמות הייתה סולם לפי מרחק (3 היום, 5 מחר, 6-7 בהמשך).
- * הסולם הוחלף בכמות אחידה: יום פנוי מציג 8, וההצטמצמות בפועל נובעת
- * מזמינות אמיתית (תפוסה, חלון הכנה) ולא ממספר מלאכותי.
- */
+/** כמה סלוטים מציגים ביום פנוי שאינו היום/מחר — קצה הסולם */
 export const INITIAL_SLOTS = 8
+
+/**
+ * סולם המחסור — כמה סלוטים מציגים ביום פנוי, לפי מרחק ביום-עסקים.
+ *
+ *   היום  → 3 או 4 (יציב לתאריך)   מעט אפשרויות = תחושת ביקוש
+ *   מחר   → 6
+ *   מכאן  → INITIAL_SLOTS (8)
+ *
+ * זו החלטת חוויית משתמש, לא כלל עסקי: השרת אינו אוכף אותה, וכל סלוט
+ * חוקי ופנוי קביל גם אם לא נבחר להצגה (ראה ההערה ב-lib/bookingWindow.ts).
+ */
+export function slotsForOffset(offset: number, seed: number): number {
+  if (offset === 0) return 3 + (seed % 2) // 3 או 4, יציב לתאריך
+  if (offset === 1) return 6
+  return INITIAL_SLOTS
+}
 
 /**
  * יעד המינימום: כמה אפשרויות **זמינות** הלקוחה אמורה לראות.
@@ -63,6 +73,16 @@ export const INITIAL_SLOTS = 8
  * את אותן בדיקות (רשת/משמרת, חלון הכנה, תפוסה מ-Google ומה-DB).
  */
 export const MIN_AVAILABLE_SLOTS = 6
+
+/**
+ * ⚠️ **הסולם גובר על היעד.** היעד ליום הוא min(6, הסולם), ולכן היום
+ * (3-4) לא מטפס בחזרה ל-6 אחרי שתפוסה מכרסמת בו — אחרת החשיפה
+ * ההדרגתית הייתה מבטלת בדיוק את תחושת המחסור שהסולם קיים בשבילה.
+ * מיום 2 והלאה הסולם הוא 8, ולכן שם היעד הוא 6 המלאים.
+ */
+function targetFor(offset: number, seed: number): number {
+  return Math.min(MIN_AVAILABLE_SLOTS, slotsForOffset(offset, seed))
+}
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0')
@@ -185,12 +205,14 @@ function legalFreeSlots({
  * קביעת התור וגם את מסך שינוי המועד — וזו בדיוק המטרה.
  */
 export function selectVisibleSlots(params: SelectSlotsParams): string[] {
-  const { year, month, day } = params
+  const { year, month, day, now = new Date() } = params
   const seed = dateSeed(year, month, day)
   const { regular: free, special: specialFree } = legalFreeSlots(params)
   // 🔒 גבול הטווח (30 יום) כבר נאכף ב-legalFreeSlots: מחוץ לטווח הרשת
   // הרגילה ריקה, ולכן maxSlots יוצא 0 — בדיוק אותו ענף שהיה קודם.
-  const maxSlots = free.length > 0 ? INITIAL_SLOTS : 0
+  const maxSlots = free.length > 0
+    ? slotsForOffset(businessDayOffset(year, month, day, now), seed)
+    : 0
 
   // מעבר לטווח ההזמנה: רק הסלוטים המיוחדים (אם יש), אחרת אין זמינות
   if (maxSlots === 0) return specialFree
@@ -200,8 +222,9 @@ export function selectVisibleSlots(params: SelectSlotsParams): string[] {
   const morning = seededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
 
   // פיזור בין שתי המשמרות. שתיהן באורך זהה (9 סלוטים כל אחת), וההטיה
-  // לערב נשמרת כפי שהייתה — היא מכוונת, הערב מבוקש יותר.
-  const targetMorning = 3
+  // לערב נשמרת כפי שהייתה — היא מכוונת, הערב מבוקש יותר. הסולם המקורי
+  // היה `maxSlots <= 5 ? 1 : 2`; כאן הוא רק הורחב לקצה החדש (8).
+  const targetMorning = maxSlots <= 4 ? 1 : maxSlots <= 6 ? 2 : 3
   const targetEvening = maxSlots - targetMorning
 
   let picked = [
@@ -337,8 +360,10 @@ function revealOrder(pool: string[], visible: string[], seed: number): string[] 
  * לגמרי שפשוט לא נבחרו להצגה.
  *
  * ── הפתרון ─────────────────────────────────────────────────────────────
- * כל עוד המוצג נמוך מ-MIN_AVAILABLE_SLOTS, חושפים עוד סלוט מהמאגר
- * ובודקים שוב. עוצרים ברגע שהגענו ליעד או שהמאגר נגמר.
+ * כל עוד המוצג נמוך מהיעד של אותו יום (`targetFor` — min(6, הסולם)),
+ * חושפים עוד סלוט מהמאגר ובודקים שוב. עוצרים ברגע שהגענו ליעד או
+ * שהמאגר נגמר. ⚠️ היום ומחר מוגבלים לסולם שלהם ולא ל-6, כדי שהחשיפה
+ * לא תבטל את תחושת המחסור.
  *
  * 🔒 **אין כאן המצאה של שעות.** המאגר הוא `legalFreeSlots` — אותן בדיקות
  * בדיוק שההצגה הרגילה עוברת: רשת שנגזרת משעות העבודה (ולכן הטיפול נכנס
@@ -349,19 +374,21 @@ function revealOrder(pool: string[], visible: string[], seed: number): string[] 
 export function selectDisplaySlots(
   params: SelectSlotsParams & { durationMin: number },
 ): string[] {
-  const { durationMin, year, month, day } = params
+  const { durationMin, year, month, day, now = new Date() } = params
+  const seed = dateSeed(year, month, day)
+  const target = targetFor(businessDayOffset(year, month, day, now), seed)
+
   let visible = selectVisibleSlots(params)
   let shown = displayedFor(visible, durationMin)
-  if (shown.length >= MIN_AVAILABLE_SLOTS) return shown
+  if (shown.length >= target) return shown
 
   const { regular, special } = legalFreeSlots(params)
   const pool = [...regular, ...special].filter(s => !visible.includes(s))
-  const seed = dateSeed(year, month, day)
 
   // ⚠️ סדר החשיפה מחושב מחדש בכל סיבוב: סלוט שנחשף זה עתה יוצר צמידויות
   // חדשות, ובלי החישוב מחדש התוספת הבאה לא הייתה מנצלת אותן.
   let remaining = pool
-  while (remaining.length > 0 && shown.length < MIN_AVAILABLE_SLOTS) {
+  while (remaining.length > 0 && shown.length < target) {
     const next = revealOrder(remaining, visible, seed)[0]
     visible = [...visible, next].sort((a, b) => toMin(a) - toMin(b))
     remaining = remaining.filter(s => s !== next)
