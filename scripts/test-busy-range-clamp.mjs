@@ -11,8 +11,8 @@
  *     const e = Math.min(endMin,   BUSINESS_END_MIN)    // 19:00
  *     if (s < e) ranges.push(...)                       // 19:20–19:40 ⟹ נזרק
  *
- * lib/specialAvailability.ts פותח ימים בשעות חריגות (19:30–21:30 ב-08.09
- * וב-10.09.2026). הזמינות המוצגת כללה את השעות האלה — התפוסה בהן לא.
+ * lib/specialAvailability.ts פותח ימים בשעות חריגות (ערב 19:00/19:30–21:30
+ * ב-08.09 וב-10.09.2026). הזמינות המוצגת כללה את השעות האלה — התפוסה בהן לא.
  * בייצור זה הסתיר 9 תורים confirmed אמיתיים: הלקוחה ראתה שעה פנויה, בחרה
  * אותה, ונחסמה רק ע"י ה-EXCLUDE constraint בשליחה ("השעה שנבחרה נתפסה
  * הרגע"). אותו באג בדיוק גם הציג שעות שכבר נקבע בהן תור כפנויות.
@@ -70,26 +70,33 @@ for (const [name, code] of [['lib/googleCalendar.ts', CAL], ['lib/db/appointment
 section('2. תפוסה אחרי 19:00 חוסמת את השעות החריגות')
 // ════════════════════════════════════════════════════════════════════════════
 
-// 10.09.2026 — חלון מיוחד 19:30–21:30 (lib/specialAvailability.ts)
+// 10.09.2026 — חלון מיוחד בערב (lib/specialAvailability.ts).
+// ⚠️ שעת ההתחלה המדויקת של החלון היא נתון עסקי שמשתנה, ולכן היא נגזרת
+// כאן ולא כתובה קשיח: מה שנבדק הוא ההתנהגות, לא הקונפיגורציה.
 const NOW = new Date('2026-09-06T09:00:00+03:00')
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
 const special = specialSlotsFor(2026, 8, 10)
-chk('לתאריך הבדיקה יש בכלל חלון מיוחד אחרי 19:00',
-  special.includes('19:30') && special.every(s => s >= '19:30'), special.join(','))
+chk('לתאריך הבדיקה יש בכלל חלון מיוחד שכולו ב-19:00 ומעלה',
+  special.length > 0 && special.every(s => toMin(s) >= 19 * 60), special.join(','))
+
+const probe = special[0]                       // הסלוט המיוחד הראשון
+const cover = { start: probe, end: minPlus(probe, 20) }
+function minPlus(t, d) {
+  const m = toMin(t) + d
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
 
 const day = { year: 2026, month: 8, day: 10, now: NOW, durationMin: 20 }
 const free = selectDisplaySlots({ ...day, busyRanges: [] })
-chk('בלי תפוסה — 19:30 מוצגת', free.includes('19:30'))
+chk(`בלי תפוסה — ${probe} מוצגת`, free.includes(probe))
 
 // טווח שכולו אחרי 19:00 — בדיוק מה שהגזימה הישנה הייתה זורקת
-const busy = [{ start: '19:20', end: '19:40' }]
-const blocked = selectDisplaySlots({ ...day, busyRanges: busy })
-chk('🔒 עם תפוסה 19:20–19:40 — 19:30 כבר לא מוצגת', !blocked.includes('19:30'))
-chk('🔒 גם 19:20 עצמה חסומה', !blocked.includes('19:20'))
-chk('שעה חריגה שאינה חופפת נשארת מוצגת', blocked.includes('20:50') || blocked.includes('21:10'))
+const blocked = selectDisplaySlots({ ...day, busyRanges: [cover] })
+chk(`🔒 עם תפוסה ${cover.start}–${cover.end} — ${probe} כבר לא מוצגת`, !blocked.includes(probe))
+chk('שעות חריגות אחרות נשארות מוצגות', blocked.some(s => toMin(s) >= 19 * 60))
 
 // מה שהגזימה הישנה הייתה עושה לטווח הזה
-const oldClamped = [{ start: '19:20', end: '19:40' }].flatMap(({ start, end }) => {
-  const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+const oldClamped = [cover].flatMap(({ start, end }) => {
   const s = Math.max(toMin(start), 9 * 60), e = Math.min(toMin(end), 19 * 60)
   return s < e ? [{ start, end }] : []
 })
