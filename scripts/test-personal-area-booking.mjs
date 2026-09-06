@@ -247,13 +247,21 @@ chk('🔒 אין בטופס חישוב תפוגה משלו', !/expires|pending_e
 }
 
 {
-  // אותו אלגוריתם, אותה תוצאה — 40 דק' מציג רק התחלות עם רצף
+  // אותו אלגוריתם, אותה תוצאה — 40 דק' מציג רק התחלות חוקיות עם רצף.
+  //
+  // ⚠️ עד 06.09.2026 נבדק כאן ש-40 דק' הוא **תת-קבוצה** של 20 דק'. זה כבר
+  // אינו נכון, ובכוונה: החשיפה ההדרגתית (MIN_AVAILABLE_SLOTS) חושפת עבור
+  // 40 דק' סלוטים חוקיים נוספים שההצגה של 20 דק' לא הייתה זקוקה להם.
+  // מה שנשאר תקף — וזה מה שנבדק — הוא שכל אפשרות שמוצגת היא באמת שעת
+  // התחלה חוקית שבה הטיפול כולו נכנס בתוך משמרת העבודה.
   const params = { year: 2026, month: 8, day: 14, busyRanges: [], now: at('2026-09-10', '10:00') }
   const short = selectDisplaySlots({ ...params, durationMin: 20 })
   const long = selectDisplaySlots({ ...params, durationMin: 40 })
-  chk('40 דק׳ מקבל תת-קבוצה של 20 דק׳ (רק התחלות עם רצף)',
-    long.every(s => short.includes(s)) && long.length <= short.length,
-    `${short.length} → ${long.length}`)
+  chk('40 דק׳ — כל אפשרות היא התחלה חוקית (isValidLiftingStart)',
+    long.length > 0 && long.every(t => isValidLiftingStart(params.year, params.month, params.day, t, params.now)),
+    `${short.length} → ${long.length}: ${long.join(',')}`)
+  chk('40 דק׳ — כל אפשרות היא גם סלוט תקין ברשת',
+    long.every(t => isValidTimeSlot(params.year, params.month, params.day, t, params.now)))
 }
 
 

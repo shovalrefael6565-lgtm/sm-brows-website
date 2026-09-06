@@ -18,7 +18,7 @@
  * לקוחה באותו רינדור.
  */
 
-import { isSpecialDay, specialSlotsFor } from './specialAvailability'
+import { isSpecialDay, specialSlotsFor, SLOT_INTERVAL_MINUTES } from './specialAvailability'
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0')
@@ -113,13 +113,48 @@ export function isBookableDate(
   return isWithinBookingHorizon(year, month, day, now) || isSpecialDay(year, month, day)
 }
 
-/** רשת הסלוטים הרגילה — 20 דק', 09:00–11:00 ו-15:00–19:00 (זהה ל-buildTimeSlots) */
-export const TIME_SLOTS: string[] = (() => {
+/**
+ * ⏰ **שעות העבודה — מקור אמת יחיד.**
+ *
+ * כל רשת הסלוטים נגזרת מכאן, ואין בקוד עוד מספר שעה שני. שינוי שעות
+ * הפעילות = עריכת המערך הזה בלבד (ואז עדכון הטקסטים הגלויים באתר
+ * וב-JSON-LD, שאינם יכולים להיגזר בזמן ריצה).
+ *
+ * ⚠️ עד 06.09.2026 המשמרות היו 09:00–11:00 ו-15:00–19:00.
+ *
+ * 🔒 המשמרות קובעות אך ורק אילו שעות **קיימות**. הן אינן פותחות ימים:
+ * שישי/שבת, חגים וימים חסומים ביומן Google, תורים קיימים ובקשות pending
+ * ממשיכים להיחסם כל אחד במנגנון שלו, ללא שינוי.
+ */
+export const BUSINESS_SHIFTS: readonly { start: string; end: string }[] = [
+  { start: '09:00', end: '12:00' },
+  { start: '16:00', end: '19:00' },
+]
+
+/**
+ * משך סלוט הבסיס ברשת (דקות) — טיפול ארוך יותר נבנה מסלוטים רצופים.
+ * 🔒 מוגדר ב-lib/specialAvailability.ts ומיוצא כאן מחדש, כדי שהמרווח
+ * שבין תור לתור יהיה מספר אחד בלבד בכל המערכת.
+ */
+export { SLOT_INTERVAL_MINUTES }
+
+/**
+ * רשת הסלוטים הרגילה, נגזרת מ-BUSINESS_SHIFTS.
+ *
+ * 🔒 סלוט נכנס לרשת רק אם הוא **מסתיים** בתוך המשמרת: הסלוט האחרון בבוקר
+ * הוא 11:40 (מסתיים 12:00) ובערב 18:40 (מסתיים 19:00). ומכאן גם הכלל
+ * לטיפול ארוך: הרמת גבות (40 דק') דורשת שני סלוטים רצופים ברשת, ולכן
+ * 11:40 אינה שעת התחלה חוקית עבורה — הטיפול היה חורג מ-12:00.
+ */
+export const TIME_SLOTS: string[] = BUSINESS_SHIFTS.flatMap(shift => {
   const slots: string[] = []
-  for (let m = 9 * 60; m <= 10 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  for (let m = 15 * 60; m <= 18 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  const from = toMin(shift.start)
+  const until = toMin(shift.end) - SLOT_INTERVAL_MINUTES
+  for (let m = from; m <= until; m += SLOT_INTERVAL_MINUTES) {
+    slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  }
   return slots
-})()
+})
 
 /**
  * האם השעה תקינה לתאריך הזה. הרשת המלאה (בוקר+ערב) חלה רק על תאריכים

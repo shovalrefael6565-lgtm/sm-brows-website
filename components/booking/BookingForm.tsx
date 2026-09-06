@@ -16,15 +16,14 @@ import {
   MARKETING_CONSENT_LABEL,
 } from '@/lib/privacyNotice'
 import { isSpecialDay } from '@/lib/specialAvailability'
-import {
-  getIsraelToday, selectVisibleSlots, filterLiftingStarts,
-} from '@/lib/slotSelection'
+import { getIsraelToday, selectDisplaySlots } from '@/lib/slotSelection'
 import { isWithinBookingHorizon } from '@/lib/bookingWindow'
 import { isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
 import { buildBookingRequestMessage } from '@/lib/whatsappTemplates'
 import {
   NATURAL_SERVICE as NATURAL, LIFTING_SERVICE as LIFTING,
-  LIFTING_PRICE, LIFTING_DURATION_MIN as LIFTING_MINUTES, NATURAL_VARIANTS,
+  LIFTING_PRICE, LIFTING_DURATION_MIN as LIFTING_MINUTES, NATURAL_DURATION_MIN,
+  NATURAL_VARIANTS,
 } from '@/lib/services'
 
 interface ServiceOption {
@@ -254,19 +253,24 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
    * הזמינות המוצגת. האלגוריתם עצמו חי ב-lib/slotSelection.ts — מקור אמת
    * משותף לעמוד קביעת התור ולמסך שינוי המועד באזור האישי, כדי ששניהם
    * יציגו בדיוק את אותה זמינות מצומצמת ומבוקרת.
+   *
+   * ⚠️ עד 06.09.2026 קראנו כאן ל-selectVisibleSlots ואז סיננו לבד ב-
+   * filterLiftingStarts — כלומר עותק שני של השלב האחרון, שדילג על
+   * החשיפה ההדרגתית. התוצאה: טיפול של 40 דק' הציג 5 אפשרויות ביום שבו
+   * היו 7 חוקיות. `selectDisplaySlots` עושה את שני השלבים יחד, והוא
+   * אותה פונקציה בדיוק שהאזור האישי כבר משתמש בה.
    */
-  const visibleSlots = selectedDay === null || slotsUnavailable
+  const displaySlots = selectedDay === null || slotsUnavailable
     ? []
-    : selectVisibleSlots({
+    : selectDisplaySlots({
         year: viewYear,
         month: viewMonth,
         day: selectedDay,
         busyRanges,
+        durationMin: isLifting ? LIFTING_MINUTES : NATURAL_DURATION_MIN,
       })
 
   const minToHHMM = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
-  const liftingStarts = filterLiftingStarts(visibleSlots)
-  const displaySlots = isLifting ? liftingStarts : visibleSlots
 
   // שלבים: טיפול עם יומן (טבעי/הרמת גבות) → 3 שלבים | שאר → 2 שלבים
   const stepLabels = isCalendar

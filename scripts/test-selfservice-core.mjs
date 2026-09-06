@@ -40,10 +40,16 @@ const toMin = hhmm => {
   return h * 60 + m
 }
 
+/**
+ * ⚠️ **הליטרלים של שעות העבודה כאן מכוונים** — 09:00–12:00 ו-16:00–19:00,
+ * הסלוט האחרון בכל משמרת מסתיים בדיוק בסופה. עותק עצמאי של BUSINESS_SHIFTS,
+ * ולכן **שינוי שעות העבודה מחייב עדכון גם כאן.** פינון הערכים עצמם נעשה
+ * במפורש ב-scripts/test-booking-core.mjs.
+ */
 function refBuildTimeSlots() {
   const slots = []
-  for (let m = 9 * 60; m <= 10 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  for (let m = 15 * 60; m <= 18 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  for (let m = 9 * 60; m <= 11 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  for (let m = 16 * 60; m <= 18 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   return slots
 }
 
@@ -76,11 +82,8 @@ function refBusinessDayOffset(year, month, day, now) {
   return count
 }
 
-function refSlotsForOffset(offset, seed) {
-  if (offset === 0) return 3
-  if (offset === 1) return 5
-  return 6 + (seed % 2)
-}
+/** כמות ההצגה ביום פנוי — עותק עצמאי של INITIAL_SLOTS */
+const REF_INITIAL_SLOTS = 8
 
 /**
  * טווח ההזמנה — עותק *עצמאי* של isWithinBookingHorizon.
@@ -129,7 +132,7 @@ function refSeededShuffle(arr, seed) {
 function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
   const REF_MIN_LEAD_MINUTES = 40
   const SLOT_DURATION = 20
-  const EVENING_FROM = 15 * 60
+  const EVENING_FROM = 16 * 60
   const timeSlots = refBuildTimeSlots()
   const isSlotTaken = slot => {
     const slotStart = toMin(slot)
@@ -137,10 +140,13 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
     return busyRanges.some(({ start, end }) => toMin(start) < slotEnd && toMin(end) > slotStart)
   }
 
+  // 🔒 שישי/שבת סגורים — עותק עצמאי של הגייט ב-legalFreeSlots
+  const refDow = new Date(viewYear, viewMonth, selectedDay).getDay()
+  if (refDow === 5 || refDow === 6) return []
+
   const seed = refDateSeed(viewYear, viewMonth, selectedDay)
-  const offset = refBusinessDayOffset(viewYear, viewMonth, selectedDay, now)
-  let maxSlots = refWithinHorizon(viewYear, viewMonth, selectedDay, now)
-    ? refSlotsForOffset(offset, seed)
+  const maxSlots = refWithinHorizon(viewYear, viewMonth, selectedDay, now)
+    ? REF_INITIAL_SLOTS
     : 0
 
   const nowParts = new Intl.DateTimeFormat('en-US', {
@@ -166,12 +172,10 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
     .filter(slot => toMin(slot) >= minStartMin)
     .filter(slot => !isSlotTaken(slot))
 
-  maxSlots = Math.max(maxSlots, Math.min(4, free.length))
-
   const evening = refSeededShuffle(free.filter(s => toMin(s) >= EVENING_FROM), seed)
   const morning = refSeededShuffle(free.filter(s => toMin(s) < EVENING_FROM), seed + 1)
 
-  const targetMorning = maxSlots <= 5 ? 1 : 2
+  const targetMorning = 3
   const targetEvening = maxSlots - targetMorning
 
   let picked = [...morning.slice(0, targetMorning), ...evening.slice(0, targetEvening)]
@@ -395,7 +399,7 @@ section('מקור אמת יחיד — אין עותק שני של האלגורי
     dialog.includes("from '@/lib/slotSelection'"))
 
   // הפונקציות שמרכיבות את האלגוריתם חייבות להיות מוגדרות רק בקובץ אחד
-  for (const fn of ['slotsForOffset', 'seededShuffle', 'dateSeed']) {
+  for (const fn of ['seededShuffle', 'dateSeed']) {
     chk(`אין הגדרה מקומית של ${fn} בקומפוננטות`,
       !bookingForm.includes(`function ${fn}`) && !dialog.includes(`function ${fn}`))
   }
