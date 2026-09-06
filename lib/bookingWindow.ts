@@ -1,5 +1,5 @@
 /**
- * חלון הזמינות הרגיל ("שבוע קדימה") ורשת הסלוטים — עותק בצד השרת של אותם
+ * חלון הזמינות (טווח ההזמנה) ורשת הסלוטים — עותק בצד השרת של אותם
  * כללים בדיוק כפי שממומשים ב-components/booking/BookingForm.tsx, כדי
  * שאפשר יהיה לאמת בקשת תור מול השרת ולא רק מול מה שהוצג בדפדפן.
  *
@@ -57,14 +57,50 @@ export function businessDayOffset(
   return count
 }
 
+/**
+ * טווח ההזמנה — עד כמה ימים *קלנדריים* קדימה מהיום ניתן לראות ולהזמין.
+ *
+ * ⚠️ **מקור אמת יחיד.** עד כאן הטווח היה כתוב כליטרל `<= 6` ("שבוע קדימה",
+ * בימי עסקים) בארבעה מקומות נפרדים — כאן פעמיים, ב-lib/slotSelection.ts
+ * וב-components/booking/BookingForm.tsx — וארבעתם יכלו להתבדר בשקט. מכאן
+ * הגבול מוגדר פעם אחת, והשרת, הטופס ואלגוריתם ההצגה קוראים את אותו ערך.
+ *
+ * 🔒 הרחבת הטווח **אינה** פותחת אף יום שהיה סגור. שישי/שבת (isFridayOrSaturday),
+ * ימים שנחסמו ביומן Google (getBusyRanges), חגים שנחסמו ביומן, תורים קיימים
+ * ובקשות pending — כל אחד מהם נבדק במנגנון שלו, בדיוק כמו לפני השינוי. כל
+ * מה שהערך הזה קובע הוא עד כמה רחוק *בכלל* מותר להסתכל.
+ */
+export const BOOKING_HORIZON_DAYS = 30
+
+/** מספר ימים קלנדריים מהיום (ישראל) עד התאריך היעד. תאריך שעבר ⟶ שלילי */
+export function calendarDayOffset(
+  year: number, month: number, day: number, now: Date = new Date(),
+): number {
+  const { y, m, d } = israelTodayYMD(now)
+  const today = new Date(y, m, d)
+  const target = new Date(year, month, day)
+  // round ולא floor: שני התאריכים בחצות מקומית, ומעבר שעון קיץ הופך את
+  // ההפרש ל-23 או 25 שעות ליום.
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
+}
+
+/** האם התאריך בתוך טווח ההזמנה: לא עבר, ולא מעבר ל-BOOKING_HORIZON_DAYS */
+export function isWithinBookingHorizon(
+  year: number, month: number, day: number, now: Date = new Date(),
+): boolean {
+  const offset = calendarDayOffset(year, month, day, now)
+  return offset >= 0 && offset <= BOOKING_HORIZON_DAYS
+}
+
 export function isFridayOrSaturday(year: number, month: number, day: number): boolean {
   const dow = new Date(year, month, day).getDay()
   return dow === 5 || dow === 6
 }
 
 /**
- * האם התאריך פתוח להזמנה: לא עבר, לא שישי/שבת, ובתוך חלון השבוע קדימה
- * הרגיל (עד 6 ימי עסקים) — או שנפתח במפורש בזמינות המיוחדת.
+ * האם התאריך פתוח להזמנה: לא עבר, לא שישי/שבת, ובתוך טווח ההזמנה
+ * (BOOKING_HORIZON_DAYS ימים קלנדריים קדימה) — או שנפתח במפורש בזמינות
+ * המיוחדת.
  */
 export function isBookableDate(
   year: number, month: number, day: number, now: Date = new Date(),
@@ -74,7 +110,7 @@ export function isBookableDate(
   const today = new Date(y, m, d)
   const target = new Date(year, month, day)
   if (target.getTime() < today.getTime()) return false
-  return businessDayOffset(year, month, day, now) <= 6 || isSpecialDay(year, month, day)
+  return isWithinBookingHorizon(year, month, day, now) || isSpecialDay(year, month, day)
 }
 
 /** רשת הסלוטים הרגילה — 20 דק', 09:00–11:00 ו-15:00–19:00 (זהה ל-buildTimeSlots) */
@@ -87,15 +123,15 @@ export const TIME_SLOTS: string[] = (() => {
 
 /**
  * האם השעה תקינה לתאריך הזה. הרשת המלאה (בוקר+ערב) חלה רק על תאריכים
- * שבתוך חלון השבוע קדימה הרגיל — בדיוק כמו ב-BookingForm
- * (`if (maxSlots === 0) return specialFree`): מעבר לחלון, רק הסלוטים
+ * שבתוך טווח ההזמנה — בדיוק כמו ב-BookingForm
+ * (`if (maxSlots === 0) return specialFree`): מעבר לטווח, רק הסלוטים
  * שהוגדרו במפורש בזמינות המיוחדת קבילים, לא כל הרשת.
  */
 export function isValidTimeSlot(
   year: number, month: number, day: number, hhmm: string, now: Date = new Date(),
 ): boolean {
   if (!/^\d{2}:\d{2}$/.test(hhmm)) return false
-  const inNormalWindow = businessDayOffset(year, month, day, now) <= 6
+  const inNormalWindow = isWithinBookingHorizon(year, month, day, now)
   if (inNormalWindow && TIME_SLOTS.includes(hhmm)) return true
   return specialSlotsFor(year, month, day).includes(hhmm)
 }

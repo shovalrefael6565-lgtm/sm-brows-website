@@ -79,8 +79,25 @@ function refBusinessDayOffset(year, month, day, now) {
 function refSlotsForOffset(offset, seed) {
   if (offset === 0) return 3
   if (offset === 1) return 5
-  if (offset <= 6) return 6 + (seed % 2)
-  return 0
+  return 6 + (seed % 2)
+}
+
+/**
+ * טווח ההזמנה — עותק *עצמאי* של isWithinBookingHorizon.
+ *
+ * ⚠️ **הליטרל 30 כאן מכוון, בדיוק כמו REF_MIN_LEAD_MINUTES.** תפקיד
+ * הקובץ הזה הוא להיות עותק בלתי תלוי של האלגוריתם, ולכן import של
+ * BOOKING_HORIZON_DAYS היה מרוקן את ההשוואה. פינון הערך עצמו נעשה
+ * במפורש ב-scripts/test-booking-core.mjs.
+ *
+ * ⚠️ ולכן: **שינוי BOOKING_HORIZON_DAYS מחייב עדכון גם כאן.**
+ */
+function refWithinHorizon(year, month, day, now) {
+  const today = refIsraelToday(now)
+  const target = new Date(year, month, day)
+  target.setHours(0, 0, 0, 0)
+  const offset = Math.round((target.getTime() - today.getTime()) / 86400000)
+  return offset >= 0 && offset <= 30
 }
 
 function refSeededShuffle(arr, seed) {
@@ -122,7 +139,9 @@ function refVisibleSlots(viewYear, viewMonth, selectedDay, busyRanges, now) {
 
   const seed = refDateSeed(viewYear, viewMonth, selectedDay)
   const offset = refBusinessDayOffset(viewYear, viewMonth, selectedDay, now)
-  let maxSlots = refSlotsForOffset(offset, seed)
+  let maxSlots = refWithinHorizon(viewYear, viewMonth, selectedDay, now)
+    ? refSlotsForOffset(offset, seed)
+    : 0
 
   const nowParts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Jerusalem',

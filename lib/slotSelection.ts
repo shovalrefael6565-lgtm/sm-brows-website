@@ -23,7 +23,7 @@
  */
 
 import { specialSlotsFor } from './specialAvailability'
-import { businessDayOffset, TIME_SLOTS, MIN_LEAD_MINUTES } from './bookingWindow'
+import { businessDayOffset, isWithinBookingHorizon, TIME_SLOTS, MIN_LEAD_MINUTES } from './bookingWindow'
 
 export interface BusyRange {
   start: string
@@ -72,12 +72,19 @@ export function dateSeed(year: number, month: number, day: number): number {
   return ((year * 31 + (month + 1)) * 31 + day) >>> 0
 }
 
-/** כמה משבצות להציג ביום הזה (3 היום, 5 מחר, 6-7 בהמשך השבוע, מעבר ל-6 ימי עסקים — אין) */
+/**
+ * כמה משבצות להציג ביום הזה: 3 היום, 5 מחר, 6-7 מכאן והלאה.
+ *
+ * ⚠️ **צפיפות התצוגה בלבד — לא גבול הטווח.** עד להרחבת הטווח ל-30 יום
+ * הפונקציה החזירה גם 0 עבור offset > 6, ובכך שימשה בפועל *גם* כגבול
+ * החלון. הגבול חולץ ל-`isWithinBookingHorizon` (lib/bookingWindow.ts)
+ * ונבדק ב-selectVisibleSlots לפני הקריאה לכאן, כדי שיהיה מספר אחד ולא
+ * שניים. הערכים לימים 0/1/2-6 לא השתנו כהוא זה.
+ */
 export function slotsForOffset(offset: number, seed: number): number {
   if (offset === 0) return 3
   if (offset === 1) return 5
-  if (offset <= 6) return 6 + (seed % 2) // 6 או 7, יציב לתאריך
-  return 0 // מעבר ל-6 ימי עסקים — לא זמין
+  return 6 + (seed % 2) // 6 או 7, יציב לתאריך
 }
 
 /** ערבוב פסאודו-אקראי מבוסס זרע — אותו תאריך תמיד חוזר עם אותה תוצאה */
@@ -123,7 +130,11 @@ export function selectVisibleSlots({
 }: SelectSlotsParams): string[] {
   const seed = dateSeed(year, month, day)
   const offset = businessDayOffset(year, month, day, now)
-  let maxSlots = slotsForOffset(offset, seed)
+  // 🔒 גבול הטווח נבדק כאן, פעם אחת, מול המספר של lib/bookingWindow.ts.
+  // מחוץ לטווח ⟶ 0, כלומר בדיוק אותו ענף `maxSlots === 0` שהיה קודם.
+  let maxSlots = isWithinBookingHorizon(year, month, day, now)
+    ? slotsForOffset(offset, seed)
+    : 0
 
   const nowParts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Jerusalem',
@@ -146,7 +157,7 @@ export function selectVisibleSlots({
     .filter(slot => toMin(slot) >= minStartMin)
     .filter(slot => !isSlotTaken(slot, busyRanges))
 
-  // מעבר לחלון השבוע קדימה: רק הסלוטים המיוחדים (אם יש), אחרת אין זמינות
+  // מעבר לטווח ההזמנה: רק הסלוטים המיוחדים (אם יש), אחרת אין זמינות
   if (maxSlots === 0) return specialFree
 
   const free = TIME_SLOTS
@@ -237,7 +248,7 @@ export function selectVisibleSlots({
     picked = freeSorted.slice(0, FALLBACK_MAX)
   }
 
-  // איחוד עם הזמינות המיוחדת (אם התאריך נופל גם בחלון השבוע קדימה וגם בחלון
+  // איחוד עם הזמינות המיוחדת (אם התאריך נופל גם בטווח ההזמנה וגם בחלון
   // המיוחד) — התוספת לא גורעת מהבחירה הרגילה ולא משנה אותה.
   const merged = picked.concat(specialFree.filter(s => !picked.includes(s)))
   return merged.sort((a, b) => toMin(a) - toMin(b))

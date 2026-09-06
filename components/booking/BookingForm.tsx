@@ -19,7 +19,7 @@ import { isSpecialDay } from '@/lib/specialAvailability'
 import {
   getIsraelToday, selectVisibleSlots, filterLiftingStarts,
 } from '@/lib/slotSelection'
-import { businessDayOffset as businessDayOffsetOf } from '@/lib/bookingWindow'
+import { isWithinBookingHorizon } from '@/lib/bookingWindow'
 import { isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
 import { buildBookingRequestMessage } from '@/lib/whatsappTemplates'
 import {
@@ -63,12 +63,13 @@ function fmtDate(year: number, month: number, day: number) {
 }
 
 /**
- * ימי עסקים מהיום (ישראל) עד התאריך הנבחר, פוסח על שישי+שבת.
+ * האם התאריך בתוך טווח ההזמנה (30 יום קדימה).
  * עטיפה דקה סביב המימוש המשותף ב-lib/bookingWindow.ts, שממנו ניזון גם
- * אלגוריתם ההצגה (lib/slotSelection.ts) וגם האימות בשרת.
+ * אלגוריתם ההצגה (lib/slotSelection.ts) וגם האימות בשרת — כדי שהלוח לא
+ * יוכל להציג יום שהשרת ידחה, או להסתיר יום שהשרת מקבל.
  */
-function businessDayOffset(year: number, month: number, day: number): number {
-  return businessDayOffsetOf(year, month, day)
+function withinHorizon(year: number, month: number, day: number): boolean {
+  return isWithinBookingHorizon(year, month, day)
 }
 
 interface FormData {
@@ -321,7 +322,7 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
       const dow = date.getDay()
       if (dow === 5 || dow === 6) continue
       if (
-        businessDayOffset(viewYear, viewMonth, d) <= 6 ||
+        withinHorizon(viewYear, viewMonth, d) ||
         isSpecialDay(viewYear, viewMonth, d)
       ) {
         hasAvailable = true
@@ -395,11 +396,12 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
     return dow === 5 || dow === 6
   }
   /**
-   * מעבר ל-6 ימי עסקים מהיום — לא ניתן להזמין דרך האתר,
-   * למעט תאריכים שנפתחו במפורש בזמינות המיוחדת (lib/specialAvailability.ts)
+   * מעבר לטווח ההזמנה (BOOKING_HORIZON_DAYS ימים קדימה) — לא ניתן להזמין
+   * דרך האתר, למעט תאריכים שנפתחו במפורש בזמינות המיוחדת
+   * (lib/specialAvailability.ts)
    */
   const isBeyondWindow = (day: number) =>
-    businessDayOffset(viewYear, viewMonth, day) > 6 &&
+    !withinHorizon(viewYear, viewMonth, day) &&
     !isSpecialDay(viewYear, viewMonth, day)
   const isDisabled = (day: number) =>
     isPast(day) || isClosedDay(day) || isBeyondWindow(day)
