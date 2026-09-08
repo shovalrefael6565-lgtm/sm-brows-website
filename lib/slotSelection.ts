@@ -396,3 +396,35 @@ export function selectDisplaySlots(
   }
   return shown
 }
+
+/**
+ * 🔒 **כל שעות ההתחלה החוקיות והפנויות של היום, ללא סינון תצוגה.**
+ *
+ * זהו בדיוק אותו מאגר ש-`selectVisibleSlots` ו-`selectDisplaySlots` שואבות
+ * ממנו (`legalFreeSlots`) — רק בלי שלב הבחירה. כל סלוט כאן עבר את *אותן*
+ * בדיקות: שישי/שבת, הרשת שנגזרת מ-BUSINESS_SHIFTS, טווח ה-30 יום, חלון
+ * ההכנה, ואי-חפיפה מול busyRanges (Google Calendar + תורים/pending ב-DB).
+ *
+ * ⚠️ **פונקציה נוספת בלבד — אף אחת מהפונקציות הקיימות אינה קוראת לה.**
+ * היא נוספה עבור רשימת ההמתנה (lib/waitlist.ts), שצריכה את המאגר המלא כדי
+ * לחסר ממנו את המוצג. `selectVisibleSlots` ו-`selectDisplaySlots` לא שונו
+ * ולו בתו אחד, ולכן הזמינות הציבורית זהה ביט-בביט למה שהייתה.
+ *
+ * 🔒 טיפול ארוך מ-20 דק' (הרמת גבות) דורש שהסלוט הצמוד יהיה גם הוא במאגר —
+ * כלומר גם קיים ברשת וגם פנוי. זו אותה דרישה בדיוק ש-`filterLiftingStarts`
+ * מפעילה על המוצג, רק שכאן היא מופעלת על המאגר המלא. סלוט שהטיפול חורג
+ * ממנו מחוץ למשמרת (למשל 11:40 להרמת גבות) נופל כאן, כי 12:00 אינו ברשת.
+ */
+export function legalStartTimes(
+  params: SelectSlotsParams & { durationMin: number },
+): string[] {
+  const { durationMin } = params
+  const { regular, special } = legalFreeSlots(params)
+  const pool = [...new Set([...regular, ...special])].sort((a, b) => toMin(a) - toMin(b))
+  if (durationMin <= SLOT_DURATION) return pool
+  const blocks = Math.ceil(durationMin / SLOT_DURATION)
+  return pool.filter(s =>
+    Array.from({ length: blocks - 1 }, (_, i) => minToHHMM(toMin(s) + (i + 1) * SLOT_DURATION))
+      .every(next => pool.includes(next)),
+  )
+}

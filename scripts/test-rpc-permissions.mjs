@@ -373,6 +373,22 @@ const ASSERTION_MIGRATIONS = {
     'privacy_retention_purge_notification_attempts(timestamptz,integer)',
     'privacy_retention_reset_old_notes(timestamptz,integer)',
   ],
+  /**
+   * 0037 — רשימת המתנה.
+   *
+   * 🔴 שתיהן כותבות, ושתיהן service_role בלבד:
+   *
+   *   create_waitlist_request — יוצרת/מקשרת לקוחה (link_or_create_customer_by_phone)
+   *     ואוכפת שלוש מגבלות קצב. חשיפה ל-anon הייתה מאפשרת לייצר כרטיסי
+   *     לקוחה ובקשות המתנה בלי לעבור דרך ה-route — כלומר בלי בדיקת IP,
+   *     בלי אישור פרטיות ובלי ה-revalidation מול היומן.
+   *   set_waitlist_request_status — פעולה ניהולית. חשיפה הייתה מאפשרת
+   *     לכל מחזיק מפתח anon לסגור בקשות המתנה של לקוחות.
+   */
+  '0037_waitlist_requests.sql': [
+    'create_waitlist_request(text,text,text,text[],integer,timestamptz,inet,integer,text,boolean)',
+    'set_waitlist_request_status(uuid,text)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

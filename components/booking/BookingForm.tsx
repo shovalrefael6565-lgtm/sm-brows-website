@@ -17,6 +17,7 @@ import {
 } from '@/lib/privacyNotice'
 import { isSpecialDay } from '@/lib/specialAvailability'
 import { getIsraelToday, selectDisplaySlots } from '@/lib/slotSelection'
+import WaitlistDialog from '@/components/booking/WaitlistDialog'
 import { isWithinBookingHorizon } from '@/lib/bookingWindow'
 import { isValidIsraeliMobile, formatPhoneForDisplay } from '@/lib/phone'
 import { buildBookingRequestMessage } from '@/lib/whatsappTemplates'
@@ -211,6 +212,15 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
    * בתשובת כישלון, וכאן נסגרת אותה דלת גם בצד הלקוח.
    */
   const [slotsUnavailable, setSlotsUnavailable] = useState(false)
+
+  /**
+   * רשימת המתנה — שכבה נוספת בלבד.
+   *
+   * 🔒 פתיחת הדיאלוג אינה נוגעת ב-`displaySlots`, ב-`busyRanges` ובאף
+   * מצב שמזין את בחירת השעה. הזמינות הציבורית ממשיכה להתנהג בדיוק כפי
+   * שהתנהגה — ראה lib/waitlist.ts.
+   */
+  const [waitlistOpen, setWaitlistOpen] = useState(false)
 
   // ── שמירת הבקשה (רק לטיפולים עם יומן — natural/lifting) ──
   const [session, setSession] = useState<SessionInfo | null>(null)
@@ -1352,6 +1362,52 @@ export default function BookingForm({ newBookingSystemEnabled }: BookingFormProp
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* ══ לא מצאת שעה? — רשימת המתנה / וואטסאפ ══
+                  ⚠️ אזור נמוך-בולטות בכוונה: הוא נמצא *אחרי* בחירת השעה
+                  ולא לצידה, כדי שלא יתחרה בסלוטים המוצגים. */}
+              {newFlowActive && form.date && !loadingSlots && (
+                <div className="mt-6 pt-5 border-t border-brand-cream-dark">
+                  <p className="text-sm text-brand-medium text-center mb-3">
+                    לא מצאת שעה שמתאימה לך?
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWaitlistOpen(true)}
+                      className="h-12 rounded-xl border border-brand-rose/40 bg-brand-rose-bg
+                                 text-sm font-semibold text-brand-rose-text
+                                 hover:bg-brand-rose/15 transition-colors cursor-pointer
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                    >
+                      הצטרפי לרשימת ההמתנה
+                    </button>
+                    <a
+                      href={`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-12 rounded-xl border border-brand-cream-dark bg-white
+                                 text-sm font-semibold text-brand-dark
+                                 flex items-center justify-center
+                                 hover:border-brand-rose hover:text-brand-rose-text transition-colors"
+                    >
+                      דברי איתנו ב-WhatsApp
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {waitlistOpen && (
+                <WaitlistDialog
+                  serviceKey={form.service}
+                  variants={form.variants}
+                  durationMin={isLifting ? LIFTING_MINUTES : NATURAL_DURATION_MIN}
+                  fullName={form.name}
+                  phone={form.phone}
+                  whatsappHref={`${WHATSAPP_BASE}?text=${buildWhatsAppMessage()}`}
+                  onClose={() => setWaitlistOpen(false)}
+                />
+              )}
             </motion.div>
           )}
 
