@@ -24,7 +24,7 @@ Shoval performs every treatment personally — the client is never passed to sta
 
 - **Booking:** appointment-based. Natural design and brow lifting are booked online via OTP phone authentication. Microblading and course enrollment go through WhatsApp only.
 - **Location:** עיר היין, אשקלון
-- **Hours:** Sun–Thu 9:00–11:00 and 15:00–19:00; closed Friday/Saturday (Shabbat-aware)
+- **Hours:** Sun–Thu 09:00–13:00 and 16:00–19:00; closed Friday/Saturday (Shabbat-aware)
 - **Reminders:** SMS/WhatsApp reminders sent automatically via QStash ~24–48 hours before appointment
 - **Admin:** Shoval manages her schedule through an internal admin panel with Google Calendar sync
 - **Course format:** 2 days in-person, small groups, Ashkelon — day 1 theory, day 2 practical on a live model

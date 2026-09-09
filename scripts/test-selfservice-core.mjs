@@ -41,14 +41,14 @@ const toMin = hhmm => {
 }
 
 /**
- * ⚠️ **הליטרלים של שעות העבודה כאן מכוונים** — 09:00–12:00 ו-16:00–19:00,
+ * ⚠️ **הליטרלים של שעות העבודה כאן מכוונים** — 09:00–13:00 ו-16:00–19:00,
  * הסלוט האחרון בכל משמרת מסתיים בדיוק בסופה. עותק עצמאי של BUSINESS_SHIFTS,
  * ולכן **שינוי שעות העבודה מחייב עדכון גם כאן.** פינון הערכים עצמם נעשה
  * במפורש ב-scripts/test-booking-core.mjs.
  */
 function refBuildTimeSlots() {
   const slots = []
-  for (let m = 9 * 60; m <= 11 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  for (let m = 9 * 60; m <= 12 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   for (let m = 16 * 60; m <= 18 * 60 + 40; m += 20) slots.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
   return slots
 }
@@ -328,8 +328,8 @@ section('הצגה מצומצמת — לא כל הזמינות')
     const specialExtra = specialSlotsFor(
       checkedDay.getFullYear(), checkedDay.getMonth(), checkedDay.getDate(),
     ).length
-    chk('ברשת האמיתית יש 18 סלוטים (6 בוקר + 12 ערב)',
-      TIME_SLOTS.length === 18, `count=${TIME_SLOTS.length}`)
+    chk('ברשת האמיתית יש 21 סלוטים (12 בוקר + 9 ערב)',
+      TIME_SLOTS.length === 21, `count=${TIME_SLOTS.length}`)
     chk('ביום פנוי לגמרי מוצגים לכל היותר 7 (+זמינות מיוחדת), ולא כל הרשת',
       slots.length <= 7 + specialExtra && slots.length < TIME_SLOTS.length,
       `הוצגו ${slots.length}`)
