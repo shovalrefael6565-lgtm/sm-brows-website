@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { WHATSAPP_BASE } from '@/lib/utils'
+import VideoPlayButton from './VideoPlayButton'
 
 const CONSULT_URL = `${WHATSAPP_BASE}?text=${encodeURIComponent('היי שובל 🤍 רציתי לקבל פרטים ולייעוץ על מיקרובליידינג')}`
 
@@ -12,10 +13,19 @@ export default function MicrobladingTeaser() {
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [started, setStarted] = useState(false)
 
+  /*
+    ⚠️ ה-observer מותנה ב-started, ובכוונה: לפני הלחיצה הוא בכלל לא קיים,
+    כך שהסרטון לא רץ לבד — וגם לא יורד. עם preload="none" הבייט הראשון
+    של 5.3MB נשלח רק כשקוראים ל-play(), כלומר רק אחרי לחיצה.
+
+    אחרי שהמבקרת בחרה להפעיל, ההשהיה ביציאה מהמסך והחזרה בכניסה אליו
+    נשמרות בדיוק כפי שהיו — זו אופטימיזציה של סוללה, לא הפעלה אוטומטית.
+  */
   useEffect(() => {
     const v = videoRef.current
-    if (!v) return
+    if (!v || !started) return
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) v.play().catch(() => {})
@@ -25,7 +35,15 @@ export default function MicrobladingTeaser() {
     )
     io.observe(v)
     return () => io.disconnect()
-  }, [])
+  }, [started])
+
+  /*
+    ⚠️ רק מסמנים started. ה-effect שלמעלה הוא שמרכיב את ה-observer, ו-observe()
+    מפעיל את ה-callback מיד עם מצב החיתוך הנוכחי — כלומר הניגון מתחיל מעצמו
+    כשהסרטון על המסך. play() נוסף כאן היה מתנגש עם ה-pause() של ה-observer
+    ודוחה את ההבטחה ב-AbortError.
+  */
+  const start = useCallback(() => setStarted(true), [])
 
   return (
     <section
@@ -128,6 +146,10 @@ export default function MicrobladingTeaser() {
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-dark/80 lg:bg-gradient-to-r lg:from-transparent lg:via-transparent lg:to-brand-dark pointer-events-none"
           />
+
+          {!started && (
+            <VideoPlayButton onClick={start} label="הפעלת הסרטון של המיקרובליידינג" />
+          )}
         </motion.div>
       </div>
     </section>

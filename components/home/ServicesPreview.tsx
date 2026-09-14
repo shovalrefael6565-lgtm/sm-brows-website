@@ -6,6 +6,7 @@ import { useState, useRef, useCallback, useEffect, type CSSProperties } from 're
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { services } from '@/lib/data'
 import { WHATSAPP_BASE } from '@/lib/utils'
+import VideoPlayButton from './VideoPlayButton'
 
 const nd = services.find(s => s.id === 'natural-design')!
 const mb = services.find(s => s.id === 'microblading')!
@@ -105,17 +106,42 @@ export default function ServicesPreview() {
   const stageRef      = useRef<HTMLDivElement>(null)
   const activeRef     = useRef(0)          // mirrors `active` for callbacks
   const visibleRef    = useRef(false)      // true when stage is in viewport
+  const [started, setStarted] = useState(false)
+  const startedRef    = useRef(false)      // mirrors `started` for callbacks
 
-  // Single source of truth: play iff active===0 AND section visible
+  // Single source of truth: play iff the visitor pressed play
+  // AND natural-design is the active treatment AND the section is visible.
   const syncVideo = useCallback(() => {
     const v = videoRef.current
     if (!v) return
-    if (activeRef.current === 0 && visibleRef.current) {
+    if (startedRef.current && activeRef.current === 0 && visibleRef.current) {
       v.play().catch(() => {})
     } else {
       v.pause()
     }
   }, [])
+
+  /*
+    ⚠️ אין כאן play() ישיר, ובכוונה: syncVideo הוא מקור האמת היחיד לניגון,
+    ואם קוראים ל-play() במקביל אליו הוא עלול לרוץ מיד אחר כך, למצוא שהבמה
+    עדיין לא נראית מספיק, ולקרוא ל-pause(). זה דוחה את ההבטחה של play()
+    עם AbortError — ובגרסה הראשונה ה-catch של השגיאה הזו ביטל את הלחיצה
+    של המבקרת והחזיר את הכפתור. מסמנים started ונותנים ל-syncVideo להחליט.
+
+    הקריאה סינכרונית בתוך ה-onClick, כך שמחוות המשתמשת נשמרת.
+  */
+  const startVideo = useCallback(() => {
+    startedRef.current = true
+    /*
+      ⚠️ אם אפשר היה ללחוץ על הכפתור — הבמה על המסך, בהגדרה. בלי השורה
+      הזו הלחיצה תלויה בכך שה-observer כבר הספיק לדווח שהבמה נראית, ואם
+      הדיווח הראשון עדיין לא הגיע, syncVideo נופל ל-else ומשהה מיד — כלומר
+      לחיצה שלא עושה כלום. ה-observer יתקן את הערך בגלילה הבאה החוצה.
+    */
+    visibleRef.current = true
+    setStarted(true)
+    syncVideo()
+  }, [syncVideo])
 
   // Keep activeRef in sync and resync on every treatment switch
   useEffect(() => {
@@ -123,37 +149,23 @@ export default function ServicesPreview() {
     syncVideo()
   }, [active, syncVideo])
 
-  // Warm-up observer — starts the fetch while the stage is still off-screen.
-  //
-  // ⚠️ Two observers, not one, and the reason is the whole point: they need
-  // different rootMargins. The stage used to make its very first byte request
-  // at the moment it became 25% visible, so the download and the decoder
-  // spin-up both happened while the viewer was already looking at it — a
-  // visible hitch on arrival. This one fires a screenful early and does
-  // nothing but `load()`, so by the time the playback observer says "go" the
-  // data is already there.
-  //
-  // 🔒 `preload` stays "none" in the markup and is only raised here. That is
-  // what keeps the video off the homepage's initial load entirely: a visitor
-  // who never scrolls past the testimonials never requests a single byte of
-  // it. Setting preload="auto" on the element instead would fetch it for
-  // everyone, on every page load — 4.3MB nobody asked for.
+  // המשך ניגון אחרי שהמבקרת לחצה (החלפת טאב וחזרה, יציאה וכניסה למסך)
   useEffect(() => {
-    const el = stageRef.current
-    const v = videoRef.current
-    if (!el || !v) return
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return
-        v.preload = 'auto'
-        v.load()
-        io.disconnect()   // one-shot: the fetch only needs starting once
-      },
-      { rootMargin: '600px 0px' },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+    startedRef.current = started
+    syncVideo()
+  }, [started, syncVideo])
+
+  // אין יותר warm-up observer.
+  //
+  // עד עכשיו ישב כאן observer שני, עם rootMargin של מסך שלם, שהעלה את
+  // preload ל-"auto" וקרא ל-load() עוד לפני שהסקשן נכנס למסך. הוא היה
+  // מוצדק כל עוד הסרטון התחיל לרוץ לבד: בלעדיו ההורדה והתנעת המפענח
+  // קרו בדיוק כשהצופה כבר הסתכלה על הסקשן, וזו הייתה קפיצה גלויה.
+  //
+  // ⚠️ מרגע שההפעלה דורשת לחיצה, ה-prefetch הזה הפך להורדה של 4.3MB
+  // עבור כל מי שגוללה עד לכאן — ורובן לא ילחצו לעולם. preload="none"
+  // בתגית נשאר כמו שהוא, ועכשיו הוא באמת אומר "כלום עד לחיצה":
+  // ה-play() שבלחיצה הוא מה שמתחיל את ההורדה.
 
   // Intersection observer — play/pause as section enters/leaves viewport.
   // threshold 0.25 requires a quarter of the stage to be visible before playback.
@@ -184,6 +196,9 @@ export default function ServicesPreview() {
     position: 'absolute',
     inset: 0,
     opacity: isFront ? 1 : 0,
+    // ⚠️ שקוף אבל עדיין ב-DOM: בלי זה כפתור ההפעלה שבשכבת הווידאו היה
+    // נשאר יעד לחיצה בלתי-נראה מעל התמונה של טאב אחר.
+    pointerEvents: isFront ? 'auto' : 'none',
     transition: `opacity ${xDuration}s ease-in-out`,
     willChange: 'opacity',
     transform: 'translateZ(0)',
@@ -310,6 +325,18 @@ export default function ServicesPreview() {
               className="w-full h-full object-cover"
               style={{ objectPosition: ND_IMG_POS }}
             />
+
+            {/*
+              placement="corner": שם הטיפול, המשפט ושני ה-CTA יושבים על
+              תחתית הבמה, וכפתור פרוס-על-הכל היה חוסם אותם ללחיצה.
+            */}
+            {!started && active === 0 && (
+              <VideoPlayButton
+                onClick={startVideo}
+                label="הפעלת הסרטון של עיצוב גבות טבעיות"
+                placement="corner"
+              />
+            )}
           </div>
 
           {/* Bottom gradient — deep enough that all text sits in solid contrast zone */}
