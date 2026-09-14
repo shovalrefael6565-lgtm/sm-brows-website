@@ -1,7 +1,7 @@
-import Image from 'next/image'
 import { CalendarDays, MapPin, Users } from 'lucide-react'
 import { course } from '@/lib/course'
 import CourseCta from './CourseCta'
+import CourseVideo from './CourseVideo'
 
 const META = [
   { icon: CalendarDays, label: course.duration },
@@ -24,9 +24,15 @@ export default function CourseHero() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
-          {/* Text */}
-          <div>
+        {/*
+          פריסה: במובייל הסדר הוא כותרת → סרטון → גוף הטקסט, כך שהסרטון
+          נמצא גבוה בעמוד ולא מתחת לכל ה-CTA. בדסקטופ חוזרים לשתי עמודות
+          והסרטון תופס את העמודה השנייה לכל גובהה — בדיוק כמו התמונה קודם.
+          ⚠️ הסדר ב-DOM נשאר כותרת-ראשונה; רק המיקום בגריד משתנה.
+        */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] gap-8 lg:gap-x-16 lg:gap-y-0 items-center lg:items-stretch">
+          {/* כותרת */}
+          <div className="lg:col-start-1 lg:row-start-1 lg:self-end">
             <div className="w-12 h-px bg-gold-gradient mb-6 opacity-70" aria-hidden="true" />
             <h1
               id="course-hero-heading"
@@ -35,7 +41,15 @@ export default function CourseHero() {
               {course.name}
               <span className="block text-brand-rose-text mt-2">{course.tagline}</span>
             </h1>
+          </div>
 
+          {/* Video — הסרטון הוא הפנים של העמוד */}
+          <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-center">
+            <CourseVideo />
+          </div>
+
+          {/* גוף הטקסט + קריאות לפעולה */}
+          <div className="lg:col-start-1 lg:row-start-2 lg:self-start">
             <div className="w-16 h-px bg-gold-gradient mb-6" aria-hidden="true" />
 
             <p className="text-brand-medium text-base sm:text-lg leading-relaxed max-w-xl mb-8">
@@ -62,28 +76,6 @@ export default function CourseHero() {
             </div>
           </div>
 
-          {/* Image */}
-          <div className="relative">
-            <div
-              aria-hidden="true"
-              className="absolute -inset-3 sm:-inset-4 rounded-[2rem] border border-brand-gold/25"
-            />
-            <div className="relative aspect-[4/5] sm:aspect-[5/5] lg:aspect-[4/5] rounded-[1.75rem] overflow-hidden shadow-soft-lg">
-              <Image
-                src="/page32.jpg"
-                alt="עיצוב גבות טבעיות בקורס של שובל"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 45vw"
-                quality={80}
-                className="object-cover"
-              />
-              <div
-                className="absolute inset-0 bg-gradient-to-t from-brand-dark/25 via-transparent to-transparent"
-                aria-hidden="true"
-              />
-            </div>
-          </div>
         </div>
       </div>
     </section>

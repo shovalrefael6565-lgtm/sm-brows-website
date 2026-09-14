@@ -36,3 +36,9 @@ npm-debug.log*
 sm-brows-*.json
 *-service-account*.json
 video-originals/
+
+# מקורות וידאו גולמיים (MOV מהטלפון) שיושבים ב-public/ — לעולם לא נכנסים
+# לריפו ולא נפרסים: מה שמוגש בפועל הוא הגרסאות הדחוסות public/videos/*.mp4.
+# בלי זה, git add -A היה מכניס 36MB לריפו ומעלה אותם לאתר.
+public/**/*.MOV
+public/**/*.mov
