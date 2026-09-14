@@ -18,6 +18,14 @@ const MB_CONSULT = `${WHATSAPP_BASE}?text=${encodeURIComponent('היי שובל 
 const ND_VIDEO_SRC = '/videos/natural-brow-design-home.mp4'
 const ND_POSTER    = nd.homeImages?.[0] ?? nd.images[1] ?? nd.images[0]
 const ND_IMG_POS   = nd.homeImagePositions?.[0] ?? nd.imagePositions?.[1] ?? '50% 30%'
+/*
+  ⚠️ הפוסטר של הווידאו הוא הפריים הראשון של הווידאו עצמו, ולא ND_POSTER.
+  ND_POSTER הוא תמונת טיפול מ-lib/data.ts (natural-10.webp) — לקוחה אחרת,
+  בחדר אחר — כך שעד עכשיו הסקשן הציג תמונה אחת ובלחיצה קפץ לתמונה אחרת
+  לגמרי. הקובץ הזה מופק מ-0.00 שניות של הקליפ, ולכן הלחיצה לא מזיזה פיקסל.
+  אותו ND_IMG_POS חל על שניהם, כך שהחיתוך זהה.
+*/
+const ND_VIDEO_POSTER = '/videos/natural-brow-design-home-poster.webp'
 
 interface Treatment {
   id: string
@@ -316,7 +324,7 @@ export default function ServicesPreview() {
             <video
               ref={videoRef}
               src={ND_VIDEO_SRC}
-              poster={ND_POSTER}
+              poster={ND_VIDEO_POSTER}
               muted
               loop
               playsInline

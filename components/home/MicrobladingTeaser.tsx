@@ -133,7 +133,7 @@ export default function MicrobladingTeaser() {
           <video
             ref={videoRef}
             src="/tizer-1.mp4"
-            poster="/tizer-1-poster.webp"
+            poster="/videos/tizer-1-poster.webp"
             muted
             loop
             playsInline
