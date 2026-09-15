@@ -189,6 +189,25 @@ html.a11y-stop-animations *::after {
   color: #2c1810;
 }
 
+/* קישורים פנימיים בתוך גוף המאמר — brand-rose-text, אותו צבע קישור כמו בשאר האתר */
+.prose-custom a {
+  color: #96534a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: color 0.2s;
+}
+
+.prose-custom a:hover {
+  color: #6b4545;
+}
+
+.prose-custom a:focus-visible {
+  outline: 2px solid #c4847a;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* ── Before/After desktop infinite scroll ── */
 /* 9 images × (440px width + 20px gap) = 4140px — exact seamless loop */
 @keyframes ba-scroll {

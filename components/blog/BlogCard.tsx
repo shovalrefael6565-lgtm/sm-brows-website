@@ -30,9 +30,10 @@ export default function BlogCard({ post, priority = false, headingLevel = 3 }: P
       >
         <Image
           src={post.image}
-          alt={`תמונה ראשית של המאמר: ${post.title}`}
+          alt={post.imageAlt}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          style={post.imagePosition ? { objectPosition: post.imagePosition } : undefined}
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           priority={priority}
         />

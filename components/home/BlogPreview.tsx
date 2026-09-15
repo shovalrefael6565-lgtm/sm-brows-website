@@ -52,14 +52,24 @@ export default function BlogPreview() {
           role="list"
           aria-label="מאמרים אחרונים"
         >
-          {blogPosts.map((post, i) => (
+          {/*
+            ⚠️ slice(0, 3) ולא כל הפוסטים: הרשת כאן היא md:grid-cols-3,
+            והמאמר הרביעי נשאר לבדו בשורה שנייה. "לכל המאמרים" למעלה
+            הוא המסלול לשאר. הסדר הוא סדר lib/data.ts — החדש ראשון.
+          */}
+          {blogPosts.slice(0, 3).map((post, i) => (
             <motion.li
               key={post.id}
               initial={{ opacity: 0, y: 32 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: i * 0.12, duration: 0.6 }}
             >
-              <BlogCard post={post} priority={i === 0} />
+              {/*
+                ⚠️ בלי priority: הסקשן הזה יושב עמוק מתחת לקפל (הוא נטען
+                דרך DeferredSections), ותמונה עם priority כאן מתחרה על
+                רוחב הפס עם ה-LCP האמיתי של דף הבית — ההירו.
+              */}
+              <BlogCard post={post} />
             </motion.li>
           ))}
         </ul>

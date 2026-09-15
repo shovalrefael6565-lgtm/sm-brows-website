@@ -211,7 +211,20 @@ section('5. מבנה כותרות ו-ARIA')
 
   const card = stripComments(src(join('components', 'blog', 'BlogCard.tsx')))
   chk('BlogCard מקבל רמת כותרת כ-prop', /headingLevel\?: 2 \| 3/.test(card))
-  chk('/blog מעביר headingLevel={2}', /headingLevel=\{2\}/.test(stripComments(src(join('app', 'blog', 'page.tsx')))))
+  /*
+    הרשימה של /blog עברה ל-components/blog/BlogList.tsx (סינון לפי קטגוריה
+    דורש state), ולכן זה הקובץ שמעביר את headingLevel. הבדיקה עצמה לא
+    השתנתה: הכרטיסים ב-/blog יושבים מתחת ל-h1 וחייבים להיות h2.
+  */
+  const blogList = stripComments(src(join('components', 'blog', 'BlogList.tsx')))
+  chk('/blog מעביר headingLevel={2}', /headingLevel=\{2\}/.test(blogList))
+  chk('/blog מרנדר את BlogList', /<BlogList/.test(stripComments(src(join('app', 'blog', 'page.tsx')))))
+  /*
+    הכרטיס המומלץ בראש /blog מרנדר את הכותרת בעצמו — גם הוא h2, מאותה
+    סיבה בדיוק, ואין לו prop לרמה.
+  */
+  const featured = stripComments(src(join('components', 'blog', 'FeaturedPostCard.tsx')))
+  chk('FeaturedPostCard משתמש ב-h2', /<h2/.test(featured) && !/<h1|<h3/.test(featured))
 
   /*
     🔴 התקלה: BeforeAfterSlider עטף את עצמו ב-role="img". תוכן של role="img"

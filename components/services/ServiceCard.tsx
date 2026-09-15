@@ -191,13 +191,20 @@ export default function ServiceCard({ service, index }: Props) {
   const isEven = index % 2 === 0
 
   return (
+    /*
+      ⚠️ id={service.id} — קישורים מהצורה /services#natural-design כבר
+      נוצרים בחיפוש של ה-Navbar וגם ממאמרים, אבל לא היה להם יעד: רק
+      לספוטלייט של המיקרובליידינג היה id. scroll-mt-24 מפצה על הניווט
+      הצף, בדיוק כמו בסקשנים האחרים בעמוד.
+    */
     <motion.article
+      id={service.id}
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
       transition={{ delay: index * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       aria-label={`טיפול: ${service.name}`}
-      className={`grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center ${
+      className={`scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center ${
         isEven ? '' : 'lg:[&>*:first-child]:order-2'
       }`}
     >

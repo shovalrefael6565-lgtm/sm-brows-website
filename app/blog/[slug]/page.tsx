@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Clock } from 'lucide-react'
 import { blogPosts } from '@/lib/data'
+import BookingCTA from '@/components/blog/BookingCTA'
 import { WHATSAPP_URL, SITE_URL, absoluteUrl, BUSINESS_ID, PERSON_ID, PERSON_NAME } from '@/lib/utils'
 import { breadcrumbJsonLd } from '@/lib/breadcrumbs'
 
@@ -19,13 +20,23 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params;
   const post = blogPosts.find((p) => p.slug === params.slug)
   if (!post) return {}
+  /*
+    ⚠️ metaTitle/metaDescription ולא post.title/post.excerpt ישירות:
+    התבנית ב-app/layout.tsx מוסיפה " | S.M BROWS" לכל title, וכותרת מאמר
+    ארוכה נחתכת בתוצאות החיפוש. פוסט שלא מגדיר אותם מתנהג בדיוק כמו קודם.
+  */
+  const metaTitle = post.metaTitle ?? post.title
+  const metaDescription = post.metaDescription ?? post.excerpt
+
   return {
-    title: post.title,
-    description: post.excerpt,
+    title: metaTitle,
+    description: metaDescription,
     alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
+      title: metaTitle,
+      description: metaDescription,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      siteName: 'S.M BROWS',
       images: [{ url: post.image }],
       type: 'article',
       locale: 'he_IL',
@@ -33,8 +44,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: post.title,
-      description: post.excerpt,
+      title: metaTitle,
+      description: metaDescription,
       images: [post.image],
     },
   }
@@ -74,6 +85,25 @@ export default async function BlogPostPage(props: Props) {
     articleSection: post.category,
   }
 
+  /*
+    FAQPage — רק אם למאמר יש שאלות, ורק מתוך אותו מערך שהעמוד מרנדר
+    בפועל מטה. אותו כלל בדיוק כמו ב-/faq (lib/faq.ts): סימון שמתאר
+    שאלות שאינן גלויות בעמוד הוא הפרה של המדיניות של Google.
+  */
+  const faqJsonLd = post.faq?.length
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        '@id': `${SITE_URL}/blog/${post.slug}#faq`,
+        inLanguage: 'he-IL',
+        mainEntity: post.faq.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: { '@type': 'Answer', text: item.a },
+        })),
+      }
+    : null
+
   return (
     <article lang="he" dir="rtl">
       <script
@@ -91,14 +121,25 @@ export default async function BlogPostPage(props: Props) {
           ),
         }}
       />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
       {/* Hero */}
       <div className="relative h-64 sm:h-80 lg:h-96">
+        {/*
+          ⚠️ objectPosition ולא חיתוך ברירת מחדל: תמונות הלקוחות הן פורטרט,
+          והחיתוך הרחב של הירו מוריד בדיוק את הגבות — מה שהמאמר מדבר עליהן.
+        */}
         <Image
           src={post.image}
-          alt={`תמונה ראשית של המאמר: ${post.title}`}
+          alt={post.imageAlt}
           fill
           priority
           sizes="100vw"
+          style={post.imagePosition ? { objectPosition: post.imagePosition } : undefined}
           className="object-cover"
         />
         <div
@@ -155,6 +196,25 @@ export default async function BlogPostPage(props: Props) {
                 className="prose-custom"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
+
+              {/*
+                ⚠️ אותו מערך שממנו נבנה ה-FAQPage JSON-LD למעלה, ובאותה
+                טיפוגרפיה של גוף המאמר — בלי שפה עיצובית חדשה ובלי אקורדיון
+                שמסתיר את התשובות מה-DOM.
+              */}
+              {post.faq && post.faq.length > 0 && (
+                <section aria-labelledby="post-faq-heading" className="prose-custom">
+                  <h2 id="post-faq-heading">שאלות נפוצות</h2>
+                  {post.faq.map((item) => (
+                    <div key={item.q}>
+                      <h3>{item.q}</h3>
+                      <p>{item.a}</p>
+                    </div>
+                  ))}
+                </section>
+              )}
+
+              {post.closing && <BookingCTA closing={post.closing} />}
             </div>
 
             {/* Sidebar */}
@@ -199,11 +259,18 @@ export default async function BlogPostPage(props: Props) {
                             className="flex items-start gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-lg"
                           >
                             <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                              {/*
+                                ⚠️ ה-alt כאן היה כותרת המאמר — כלומר אותו
+                                טקסט בדיוק של הקישור שעוטף אותו, פעמיים
+                                ברצף לקורא מסך. התמונה דקורטיבית בהקשר הזה
+                                (הכותרת לידה היא שם הקישור), ולכן alt ריק.
+                              */}
                               <Image
                                 src={related.image}
-                                alt={related.title}
+                                alt=""
                                 fill
                                 sizes="56px"
+                                style={related.imagePosition ? { objectPosition: related.imagePosition } : undefined}
                                 className="object-cover"
                               />
                             </div>
@@ -253,8 +320,18 @@ function renderMarkdown(md: string): string {
   return result.join('\n')
 }
 
+/**
+ * ⚠️ קישורים פנימיים בלבד: ה-href חייב להתחיל ב-"/" ומורכב מתווי נתיב
+ * בלבד. ה-HTML הזה נכנס דרך dangerouslySetInnerHTML, ולכן אסור שטקסט
+ * המאמר יוכל להזריק סכימה שרירותית (javascript:, data:) או תגית משלו.
+ * escape() כבר רץ לפני כן, כך שהטקסט שנשאר נקי מ-<, > ו-&.
+ */
+const INTERNAL_LINK = /\[([^\]]+)\]\((\/[A-Za-z0-9\-_/#]*)\)/g
+
 function inlineFormat(s: string): string {
-  return escape(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  return escape(s)
+    .replace(INTERNAL_LINK, '<a href="$2">$1</a>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 }
 
 function escape(s: string): string {
