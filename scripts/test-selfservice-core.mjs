@@ -309,7 +309,23 @@ chk(`ה-helper מחזיר בדיוק את אותם סלוטים כמו BookingFo
 section('הצגה מצומצמת — לא כל הזמינות')
 
 {
-  // יום בתוך החלון, פנוי לגמרי: 16 סלוטים אמיתיים ברשת, מוצגים לכל היותר 7
+  /*
+    יום בתוך החלון, פנוי לגמרי: הרשת מלאה, ומוצג ממנה רק ראש סולם המחסור.
+
+    🔴 היה כאן ליטרל `7`. הוא נכתב בשלב 7, כשראש הסולם היה 7, ונשאר מאחור
+    כש-881384f העלה אותו ל-8 (היום 3-4 · מחר 6 · מכאן 8) — אותו commit
+    שכן עדכן את refSlotsForOffset כאן למטה ל-8.
+
+    ⚠️ הפער לא התגלה במשך תשעה ימים כי הסבילות כללה `+ specialExtra`:
+    עד 10.09.2026 היה חלון זמינות מיוחדת פעיל (lib/specialAvailability.ts),
+    היום הנבדק נפל בתוכו, ו-`8 <= 7 + specialExtra` עבר. ברגע שהחלון פג
+    specialExtra ירד ל-0 והבדיקה נשברה — בלי ששום קוד השתנה.
+
+    ולכן עכשיו הסבילות נגזרת מהסולם של הבדיקה עצמה ולא ממספר כתוב. זה
+    שומר על העיקרון של הקובץ (עותק עצמאי של האלגוריתם, לא ייבוא ממנו)
+    ובו בזמן מונע ליטרל שמתיישן בשקט. מה שנבדק כאן לא השתנה: ההצגה
+    מצומצמת ואינה חושפת את כל הרשת.
+  */
   let checkedDay = null
   for (let i = 1; i < 20; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
@@ -328,11 +344,19 @@ section('הצגה מצומצמת — לא כל הזמינות')
     const specialExtra = specialSlotsFor(
       checkedDay.getFullYear(), checkedDay.getMonth(), checkedDay.getDate(),
     ).length
+    const checkedOffset = refBusinessDayOffset(
+      checkedDay.getFullYear(), checkedDay.getMonth(), checkedDay.getDate(), NOW,
+    )
+    const ladder = refSlotsForOffset(
+      checkedOffset,
+      refDateSeed(checkedDay.getFullYear(), checkedDay.getMonth(), checkedDay.getDate()),
+    )
     chk('ברשת האמיתית יש 21 סלוטים (12 בוקר + 9 ערב)',
       TIME_SLOTS.length === 21, `count=${TIME_SLOTS.length}`)
-    chk('ביום פנוי לגמרי מוצגים לכל היותר 7 (+זמינות מיוחדת), ולא כל הרשת',
-      slots.length <= 7 + specialExtra && slots.length < TIME_SLOTS.length,
-      `הוצגו ${slots.length}`)
+    chk('ראש סולם המחסור הוא 8 ליום מעבר למחר', ladder === 8, `ladder=${ladder}`)
+    chk('ביום פנוי לגמרי מוצגים לכל היותר לפי הסולם (+זמינות מיוחדת), ולא כל הרשת',
+      slots.length <= ladder + specialExtra && slots.length < TIME_SLOTS.length,
+      `הוצגו ${slots.length} מתוך ${TIME_SLOTS.length}, תקרה ${ladder + specialExtra}`)
     chk('הסלוטים המוצגים הם תת-קבוצה של הרשת האמיתית',
       slots.every(s => TIME_SLOTS.includes(s) || specialSlotsFor(
         checkedDay.getFullYear(), checkedDay.getMonth(), checkedDay.getDate()).includes(s)))
