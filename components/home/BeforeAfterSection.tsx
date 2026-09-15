@@ -5,15 +5,21 @@ import { motion, useInView } from 'framer-motion'
 import Image from 'next/image'
 import { useDialogA11y } from '@/lib/useDialogA11y'
 
+/*
+  ⚠️ WebP ולא PNG: שמונת הצילומים האלה שקלו ~2.9MB כל אחד (23MB בסך הכול
+  ברפו ובכל build). ההמרה נעשתה ב-q=90 מאותם קבצים בדיוק — אותן מידות
+  (1440×1080), בלי חיתוך, בלי ריטוש ובלי שינוי בתוצאת הטיפול — וירדה
+  ל-1.1MB לכל השמונה. ה-PNG המקוריים נשארים בהיסטוריית git.
+*/
 const IMAGES = [
-  { src: '/images/before-after/before-after-01.PNG', alt: 'עיצוב גבות לפני ואחרי 1' },
-  { src: '/images/before-after/before-after-02.PNG', alt: 'עיצוב גבות לפני ואחרי 2' },
-  { src: '/images/before-after/before-after-03.PNG', alt: 'עיצוב גבות לפני ואחרי 3' },
-  { src: '/images/before-after/before-after-04.PNG', alt: 'עיצוב גבות לפני ואחרי 4' },
-  { src: '/images/before-after/before-after-05.PNG', alt: 'עיצוב גבות לפני ואחרי 5' },
-  { src: '/images/before-after/before-after-06.PNG', alt: 'עיצוב גבות לפני ואחרי 6' },
-  { src: '/images/before-after/before-after-07.PNG', alt: 'עיצוב גבות לפני ואחרי 7' },
-  { src: '/images/before-after/before-after-08.PNG', alt: 'עיצוב גבות לפני ואחרי 8' },
+  { src: '/images/before-after/before-after-01.webp', alt: 'עיצוב גבות לפני ואחרי 1' },
+  { src: '/images/before-after/before-after-02.webp', alt: 'עיצוב גבות לפני ואחרי 2' },
+  { src: '/images/before-after/before-after-03.webp', alt: 'עיצוב גבות לפני ואחרי 3' },
+  { src: '/images/before-after/before-after-04.webp', alt: 'עיצוב גבות לפני ואחרי 4' },
+  { src: '/images/before-after/before-after-05.webp', alt: 'עיצוב גבות לפני ואחרי 5' },
+  { src: '/images/before-after/before-after-06.webp', alt: 'עיצוב גבות לפני ואחרי 6' },
+  { src: '/images/before-after/before-after-07.webp', alt: 'עיצוב גבות לפני ואחרי 7' },
+  { src: '/images/before-after/before-after-08.webp', alt: 'עיצוב גבות לפני ואחרי 8' },
 ]
 
 const INTERVAL = 3500
