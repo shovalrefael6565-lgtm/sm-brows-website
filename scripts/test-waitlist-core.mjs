@@ -194,13 +194,13 @@ section('12 — revalidation לפני שמירה')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-section('טווח ההזמנה — 30 יום, ללא שינוי')
+section('טווח ההזמנה — 37 יום, ללא שינוי בלוגיקה')
 
 {
   const inside  = selectWaitlistOptions(opts({ year: 2026, month: 9, day: 5 }))
   const outside = selectWaitlistOptions(opts({ year: 2026, month: 10, day: 20 }))
   chk('בתוך הטווח יש מה להציע', inside.length > 0)
-  chk('🔒 מעבר ל-30 יום אין שעות המתנה', outside.length === 0, `קיבלנו ${outside.length}`)
+  chk('🔒 מעבר לטווח (20.11, 73 יום) אין שעות המתנה', outside.length === 0, `קיבלנו ${outside.length}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

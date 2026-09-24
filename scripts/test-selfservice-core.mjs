@@ -95,7 +95,7 @@ function refSlotsForOffset(offset, seed) {
 /**
  * טווח ההזמנה — עותק *עצמאי* של isWithinBookingHorizon.
  *
- * ⚠️ **הליטרל 30 כאן מכוון, בדיוק כמו REF_MIN_LEAD_MINUTES.** תפקיד
+ * ⚠️ **הליטרל 37 כאן מכוון, בדיוק כמו REF_MIN_LEAD_MINUTES.** תפקיד
  * הקובץ הזה הוא להיות עותק בלתי תלוי של האלגוריתם, ולכן import של
  * BOOKING_HORIZON_DAYS היה מרוקן את ההשוואה. פינון הערך עצמו נעשה
  * במפורש ב-scripts/test-booking-core.mjs.
@@ -107,7 +107,7 @@ function refWithinHorizon(year, month, day, now) {
   const target = new Date(year, month, day)
   target.setHours(0, 0, 0, 0)
   const offset = Math.round((target.getTime() - today.getTime()) / 86400000)
-  return offset >= 0 && offset <= 30
+  return offset >= 0 && offset <= 37
 }
 
 function refSeededShuffle(arr, seed) {
