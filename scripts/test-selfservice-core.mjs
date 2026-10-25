@@ -23,7 +23,7 @@ const chk = (name, ok = true, extra = '') => {
 const section = title => console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 52 - title.length))}`)
 
 const {
-  selectVisibleSlots, selectDisplaySlots, filterLiftingStarts, FALLBACK_MAX,
+  selectVisibleSlots, selectDisplaySlots, filterLiftingStarts, legalStartTimes, FALLBACK_MAX,
 } = await import('../lib/slotSelection.ts')
 const { specialSlotsFor } = await import('../lib/specialAvailability.ts')
 const { TIME_SLOTS } = await import('../lib/bookingWindow.ts')
@@ -415,8 +415,33 @@ section('הרמת גבות — שני סלוטים רצופים')
   })
   chk('טיפול 20 דק׳ מציג את הסלוטים כמו שהם',
     JSON.stringify(display20) === JSON.stringify(visible))
-  chk('טיפול 40 דק׳ מציג תת-קבוצה בלבד (התחלות עם רצף)',
-    display40.every(s => visible.includes(s)) && display40.length <= visible.length)
+
+  /**
+   * ⚠️ **לא** `display40.every(s => visible.includes(s))`.
+   *
+   * זו הייתה ההנחה כאן עד 25.10.2026, והיא סותרת את החשיפה ההדרגתית
+   * ש-`selectDisplaySlots` מממשת בכוונה: כשטיפול של 40 דק׳ לא מגיע ליעד
+   * היום (`targetFor`), הפונקציה **חושפת** סלוטים נוספים מהמאגר מעבר
+   * ל-`selectVisibleSlots` — בדיוק כדי שיום כמעט ריק לא ייראה מלא. ולכן
+   * `display40` אמור להכיל שעות שאינן ב-`visible`.
+   *
+   * הבדיקה הזו נכשלה לפי תאריך ולא תמיד: הזרע היומי קובע אם החשיפה
+   * בכלל נדרשת באותו יום. באוקטובר 2026 היא נדרשה כמעט בכל יום פתוח.
+   *
+   * 🔒 השער האמיתי הוא שהחשיפה לא **ממציאה** שעות: כל מה שמוצג חייב
+   * להיות שעת התחלה חוקית ופנויה לטיפול של 40 דק׳ — כלומר להיות
+   * ב-`legalStartTimes`, שעובר את אותן בדיקות (רשת, משמרת, טווח, חלון
+   * הכנה, אי-חפיפה) ודורש גם את הסלוט הצמוד.
+   */
+  const legal40 = legalStartTimes({
+    year: d.getFullYear(), month: d.getMonth(), day: d.getDate(),
+    busyRanges: [], durationMin: 40, now: NOW,
+  })
+  chk('🔒 טיפול 40 דק׳ — כל שעה שמוצגת היא שעת התחלה חוקית ופנויה',
+    display40.every(s => legal40.includes(s)) && display40.length <= legal40.length,
+    `הוצגו ${display40.length} מתוך ${legal40.length} חוקיים`)
+  chk('🔒 כל שעה שמוצגת היא גם התחלה עם סלוט צמוד',
+    display40.every(s => legal40.includes(s)))
 }
 
 section('מקור אמת יחיד — אין עותק שני של האלגוריתם')

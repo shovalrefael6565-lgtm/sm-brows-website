@@ -153,7 +153,8 @@ export interface SelectSlotsParams {
  *   • היום אינו שישי/שבת;
  *   • הוא ברשת שנגזרת משעות העבודה (BUSINESS_SHIFTS), ולכן הטיפול נכנס
  *     בתוך המשמרת — או שהוא נפתח במפורש בזמינות המיוחדת;
- *   • התאריך בתוך טווח ההזמנה (30 יום) — אחרת הרשת הרגילה כלל אינה חלה;
+ *   • התאריך בתוך טווח ההזמנה (BOOKING_HORIZON_DAYS) — אחרת הרשת הרגילה
+ *     כלל אינה חלה;
  *   • חלון ההכנה (MIN_LEAD_MINUTES) עבור היום;
  *   • אינו חופף שום טווח תפוסה — ו-busyRanges הוא בדיוק מה שהחזיר
  *     `resolveAvailability`: Google Calendar + תורים/pending מה-DB, ממוזגים.
@@ -208,7 +209,7 @@ export function selectVisibleSlots(params: SelectSlotsParams): string[] {
   const { year, month, day, now = new Date() } = params
   const seed = dateSeed(year, month, day)
   const { regular: free, special: specialFree } = legalFreeSlots(params)
-  // 🔒 גבול הטווח (30 יום) כבר נאכף ב-legalFreeSlots: מחוץ לטווח הרשת
+  // 🔒 גבול הטווח (BOOKING_HORIZON_DAYS) כבר נאכף ב-legalFreeSlots: מחוץ לטווח הרשת
   // הרגילה ריקה, ולכן maxSlots יוצא 0 — בדיוק אותו ענף שהיה קודם.
   const maxSlots = free.length > 0
     ? slotsForOffset(businessDayOffset(year, month, day, now), seed)
@@ -368,7 +369,7 @@ function revealOrder(pool: string[], visible: string[], seed: number): string[] 
  *
  * 🔒 **אין כאן המצאה של שעות.** המאגר הוא `legalFreeSlots` — אותן בדיקות
  * בדיוק שההצגה הרגילה עוברת: רשת שנגזרת משעות העבודה (ולכן הטיפול נכנס
- * כולו במשמרת), טווח 30 יום, חלון ההכנה, ואי-חפיפה מול Google Calendar
+ * כולו במשמרת), טווח ההזמנה, חלון ההכנה, ואי-חפיפה מול Google Calendar
  * ומול תורים/pending ב-DB. יום סגור, שבת, חג או יום חסום ביומן מגיעים
  * לכאן עם מאגר ריק, ואז אין מה לחשוף. אם נותרו 3 סלוטים חוקיים — יוצגו 3.
  */
@@ -403,7 +404,7 @@ export function selectDisplaySlots(
  *
  * זהו בדיוק אותו מאגר ש-`selectVisibleSlots` ו-`selectDisplaySlots` שואבות
  * ממנו (`legalFreeSlots`) — רק בלי שלב הבחירה. כל סלוט כאן עבר את *אותן*
- * בדיקות: שישי/שבת, הרשת שנגזרת מ-BUSINESS_SHIFTS, טווח ה-30 יום, חלון
+ * בדיקות: שישי/שבת, הרשת שנגזרת מ-BUSINESS_SHIFTS, טווח ההזמנה, חלון
  * ההכנה, ואי-חפיפה מול busyRanges (Google Calendar + תורים/pending ב-DB).
  *
  * ⚠️ **פונקציה נוספת בלבד — אף אחת מהפונקציות הקיימות אינה קוראת לה.**

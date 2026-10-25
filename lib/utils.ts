@@ -30,8 +30,8 @@ export const PHONE_E164 = '+972552932813'
                          אין לשנות אותו כחלק משינוי שיווקי/SEO.
 */
 export const LOCATION = 'עיר היין, אשקלון'
-export const STREET_ADDRESS = 'הכורמים 14'
-export const APPOINTMENT_LOCATION = 'הכורמים, אשקלון'
+export const STREET_ADDRESS = 'חמרא 10'
+export const APPOINTMENT_LOCATION = 'חמרא, אשקלון'
 export const EMAIL = 'shoval3654579@gmail.com'
 export const INSTAGRAM_URL = 'https://www.instagram.com/shovalmeira/'
 export const FACEBOOK_URL = 'https://www.facebook.com/shovalvahdy'

@@ -72,8 +72,7 @@ const APPROVED = [
   'תאריך: 24 אוגוסט 2026',
   'שעה: 17:00',
   '',
-  'כתובת: הכורמים 14, קומה 4, דירה 16',
-  '(הבניין על הכיכר)',
+  'כתובת: חמרא 10, קומה 8, דירה 33',
   `קוד כניסה לבניין: ${CODE}`,
   '',
   'הטיפול שלך:',
@@ -173,7 +172,7 @@ section('2. 🔒 כלל ה-cutoff')
 section('3. פרטי הסטודיו — נקודה אחת')
 
 chk('הפרטים הציבוריים מרוכזים בקבוע אחד',
-  STUDIO_DETAILS.address.includes('הכורמים 14')
+  STUDIO_DETAILS.address.includes('חמרא 10')
   && STUDIO_DETAILS.paymentPhone === '054-7261564')
 
 /**
@@ -194,7 +193,7 @@ chk('🔒 buildingCode אינו שדה של STUDIO_DETAILS',
   const clean = stripComments(src('lib/whatsappTemplates.ts'))
   const body = clean.slice(clean.indexOf('export function buildApprovalMessage'))
   chk('🔒 אין כתובת/תשלום קשיחים בתוך buildApprovalMessage',
-    !body.includes('הכורמים') && !body.includes('054-7261564'))
+    !body.includes('חמרא') && !body.includes('054-7261564'))
 }
 
 /**
@@ -311,8 +310,7 @@ section('7. שלושת הנוסחים המאושרים (snapshot)')
     'תאריך חדש: 25 אוגוסט 2026',
     'שעה חדשה: 18:00',
     '',
-    'כתובת: הכורמים 14, קומה 4, דירה 16',
-    '(הבניין על הכיכר)',
+    'כתובת: חמרא 10, קומה 8, דירה 33',
     `קוד כניסה לבניין: ${CODE}`,
     '',
     'לשינוי או ביטול:',
@@ -374,7 +372,7 @@ section('8. 🔒 תזכורת ידנית ב-WhatsApp (snapshot)')
     'תאריך: 24 אוגוסט 2026',
     'שעה: 17:00',
     '',
-    'כתובת: הכורמים 14, קומה 4, דירה 16',
+    'כתובת: חמרא 10, קומה 8, דירה 33',
     '',
     'ניפגש',
   ].join('\n')
@@ -388,12 +386,16 @@ section('8. 🔒 תזכורת ידנית ב-WhatsApp (snapshot)')
   chk('🔒 הכתובת זהה ל-STUDIO_DETAILS.address (אין עותק שני)',
     got.includes(`כתובת: ${STUDIO_DETAILS.address}`))
   /**
-   * ⚠️ בניגוד ל-buildApprovalMessage, הנוסח הזה **אינו** כולל addressNote
-   * ('(הבניין על הכיכר)') ואינו כולל אמצעי תשלום — זה מה שאושר: תזכורת
-   * תמציתית, לא חזרה על הודעת האישור המלאה.
+   * ⚠️ בניגוד ל-buildApprovalMessage, הנוסח הזה אינו כולל אמצעי תשלום —
+   * זה מה שאושר: תזכורת תמציתית, לא חזרה על הודעת האישור המלאה.
+   *
+   * ⚠️ עד המעבר לחמרא 10 היה כאן גם שער על `addressNote`
+   * ('(הבניין על הכיכר)'). השדה עצמו הוסר מ-STUDIO_DETAILS כשהשורה ירדה
+   * מהנוסח המאושר, ולכן אין יותר מה לשמור עליו כאן.
    */
-  chk('🔒 אין addressNote בתזכורת (בכוונה, בניגוד להודעת האישור)',
-    !got.includes(STUDIO_DETAILS.addressNote))
+  chk('🔒 אין אמצעי תשלום בתזכורת (בכוונה, בניגוד להודעת האישור)',
+    !got.includes(STUDIO_DETAILS.paymentMethods)
+    && !got.includes(STUDIO_DETAILS.paymentPhone))
   chk('🔒 אין קישור בתזכורת (בכוונה — זו תזכורת, לא כפתור ניהול)',
     !/https?:/.test(got))
 }

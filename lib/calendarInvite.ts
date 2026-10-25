@@ -47,7 +47,6 @@ function eventTitle(treatment: string): string {
 function eventDescription(treatment: string, durationMin: number): string {
   return [
     `${treatment} · ${durationMin} דק׳`,
-    STUDIO_DETAILS.addressNote,
     `לצפייה בתור, שינוי מועד או ביטול: ${SITE_URL}/account`,
   ].join('\n')
 }

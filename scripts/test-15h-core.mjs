@@ -106,18 +106,33 @@ const APPT = {
 const ics = buildIcs(APPT, new Date('2026-08-11T10:00:00.000Z'))
 const googleUrl = buildGoogleCalendarUrl(APPT)
 
+/**
+ * 🔒 ביטול הקיפול — בדיוק מה שכל לקוח יומן עושה לפני שהוא קורא ערך.
+ *
+ * ⚠️ נוסף אחרי כשל אמיתי. RFC 5545 מקפל כל שורה ב-75 אוקטטים ל-`CRLF` +
+ * רווח, ולכן מחרוזת תוכן **עלולה להיחצות בדיוק על גבול הקיפול**: בשינוי
+ * הכתובת של 25.10.2026 ירדה שורה מתיאור האירוע, הגבול זז, ו-`/account`
+ * יצא `/accoun` + `CRLF ` + `t`. ה-ICS היה תקין לגמרי וכל לקוח יומן היה
+ * מציג את הקישור כראוי — רק `ics.includes('/account')` נשבר.
+ *
+ * ⚠️ ולכן: **כל בדיקת תוכן על גוף ה-ICS עוברת דרך `unfolded`**, ולא על
+ * `ics` הגולמי. בדיקות על **מבנה** הקובץ (CRLF, 75 אוקטטים, רווח מוביל)
+ * חייבות להישאר על `ics` הגולמי — הן בודקות בדיוק את מה שזה מבטל.
+ */
+const unfolded = ics.replace(/\r\n /g, '')
+
 chk('הקובץ נפתח ונסגר כ-VCALENDAR תקין',
   ics.startsWith('BEGIN:VCALENDAR\r\n') && ics.trimEnd().endsWith('END:VCALENDAR'))
 chk('כל השורות מופרדות ב-CRLF (דרישת RFC 5545)', !/[^\r]\n/.test(ics))
-chk('DTSTART מחושב נכון ב-UTC', ics.includes('DTSTART:20260901T073000Z'))
-chk('DTEND = התחלה + משך (45 דק׳)', ics.includes('DTEND:20260901T081500Z'))
-chk('DTSTAMP נלקח מהשעון שהוזרק', ics.includes('DTSTAMP:20260811T100000Z'))
+chk('DTSTART מחושב נכון ב-UTC', unfolded.includes('DTSTART:20260901T073000Z'))
+chk('DTEND = התחלה + משך (45 דק׳)', unfolded.includes('DTEND:20260901T081500Z'))
+chk('DTSTAMP נלקח מהשעון שהוזרק', unfolded.includes('DTSTAMP:20260811T100000Z'))
 chk('UID יציב שנגזר ממזהה התור — הורדה חוזרת מעדכנת ולא מכפילה',
-  ics.includes('UID:smbappt3f8b1c2d4e5a6789abcdef0123456789@smbrows.co.il'))
-chk('שם הטיפול מופיע בכותרת', ics.includes('S.M BROWS'))
-chk('הכתובת מופיעה כ-LOCATION', /LOCATION:.*הכורמים/.test(ics))
-chk('המשך מופיע בתיאור', ics.includes('45'))
-chk('קישור לאזור האישי מופיע', ics.includes('/account'))
+  unfolded.includes('UID:smbappt3f8b1c2d4e5a6789abcdef0123456789@smbrows.co.il'))
+chk('שם הטיפול מופיע בכותרת', unfolded.includes('S.M BROWS'))
+chk('הכתובת מופיעה כ-LOCATION', /LOCATION:.*חמרא/.test(unfolded))
+chk('המשך מופיע בתיאור', unfolded.includes('45'))
+chk('קישור לאזור האישי מופיע', unfolded.includes('/account'))
 
 /*
  * 🔴 הבדיקה הקריטית של הנושא הזה.

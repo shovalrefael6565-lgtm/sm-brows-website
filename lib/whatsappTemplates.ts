@@ -116,8 +116,7 @@ export function buildBookingRequestMessage(p: BookingRequestMessageParams): stri
  * מפת Google, ומספר ה-Bit הוא מספר עסקי מפורסם. אין להם מה להסתיר.
  */
 export const STUDIO_DETAILS = {
-  address: 'הכורמים 14, קומה 4, דירה 16',
-  addressNote: '(הבניין על הכיכר)',
+  address: 'חמרא 10, קומה 8, דירה 33',
   paymentMethods: 'מזומן / Bit / PayBox / כרטיס אשראי',
   paymentPhone: '054-7261564',
 } as const
@@ -211,7 +210,6 @@ export function buildApprovalMessage(params: ApprovalMessageParams): string {
     `שעה: ${params.time}`,
     '',
     `כתובת: ${STUDIO_DETAILS.address}`,
-    STUDIO_DETAILS.addressNote,
     `קוד כניסה לבניין: ${params.buildingCode}`,
     '',
     'הטיפול שלך:',
@@ -366,7 +364,6 @@ export function buildRescheduleApprovedMessage(p: RescheduleApprovedMessageParam
     `שעה חדשה: ${p.time}`,
     '',
     `כתובת: ${STUDIO_DETAILS.address}`,
-    STUDIO_DETAILS.addressNote,
     `קוד כניסה לבניין: ${p.buildingCode}`,
     '',
     'לשינוי או ביטול:',
@@ -419,8 +416,8 @@ export function buildRescheduleRejectedMessage(p: RescheduleRejectedMessageParam
  *
  * ⚠️ הכתובת מגיעה מ-`STUDIO_DETAILS.address` — אותו מקור אמת יחיד שמזין
  * גם את `buildApprovalMessage` ואת `buildRescheduleApprovedMessage`. אין
- * כאן `addressNote` ('(הבניין על הכיכר)') ואין אמצעי תשלום: זה מה שאושר —
- * תזכורת תמציתית, לא חזרה על הודעת האישור המלאה.
+ * כאן אמצעי תשלום: זה מה שאושר — תזכורת תמציתית, לא חזרה על הודעת
+ * האישור המלאה.
  *
  * ⚠️ שם המותג כאן הוא **'SM BROWS'** בלי נקודות, בדיוק כפי שאושר בנוסח
  * הזה. אינו קשור ל-`'S.M BROWS'` שמופיע במקומות אחרים (לדוגמה

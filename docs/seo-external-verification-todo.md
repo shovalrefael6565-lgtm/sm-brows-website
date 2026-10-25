@@ -100,10 +100,10 @@ smbrows.co.il החזיר `HTTP 403` עם `x-vercel-mitigated: challenge` ועמ�
 
 ### 5.3 קישור המפה ב-/contact — להחלטת שובל
 `components/contact/ContactContent.tsx` מקשר ל־
-`https://maps.google.com/?q=הכורמים+אשקלון`.
+`https://maps.google.com/?q=הכורמים+אשקלון` (הוחלף מאז ל-LOCATION).
 
 זהו **שם הרחוב בלבד** — בלי מספר בית, בלי קומה, בלי דירה. הכתובת
-המלאה (`הכורמים 14, קומה 4, דירה 16`) חיה רק ב-`lib/whatsappTemplates.ts`
+המלאה (מאז 25.10.2026: `חמרא 10, קומה 8, דירה 33`) חיה רק ב-`lib/whatsappTemplates.ts`
 ונמסרת ללקוחה בהודעת אישור התור; אומת שהיא לא מגיעה לשום HTML ולשום
 חבילת JS ציבורית.
 
