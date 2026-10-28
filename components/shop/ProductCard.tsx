@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingBag, Check, Download, Star, Monitor } from 'lucide-react'
+import { ShoppingBag, Check, Download, Star, Monitor, ArrowLeft } from 'lucide-react'
 import { type Product } from '@/lib/data'
 import { cn, WHATSAPP_URL } from '@/lib/utils'
 import { useCart } from '@/lib/cart'
@@ -20,6 +21,81 @@ export default function ProductCard({ product }: Props) {
     addItem(product.id, product.name, product.price)
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
+  }
+
+  /*
+   * ── מוצר בקרוב ───────────────────────────────────────────────────────────
+   *
+   * 🔒 מצב מלא ולא תווית: אין מחיר, אין "הוסף לסל", ואין קריאה ל-addItem.
+   * הענף הזה יוצא **לפני** כל שימוש ב-product.price וב-handleAdd, כדי
+   * שמוצר coming_soon לא יוכל להגיע לעגלה בשום מסלול.
+   *
+   * ⚠️ `useCart` נקרא למעלה ממילא — חוקי ההוקים אוסרים קריאה מותנית —
+   * אבל ה-`addItem` שמוחזר ממנו אינו בשימוש כאן. זו קריאת context בלבד,
+   * בלי תופעת לוואי.
+   *
+   * ⚠️ תווית "בקרוב" נגזרת מ-status ואינה נלקחת מ-product.badge: badge
+   * חופשי היה מאפשר מוצר coming_soon שמוצג כ"בסטסלר".
+   */
+  if (product.status === 'coming_soon') {
+    const href = product.slug ? `/shop/${product.slug}` : null
+
+    return (
+      <article
+        aria-label={`מוצר בקרוב: ${product.name}`}
+        className="group bg-white rounded-3xl overflow-hidden shadow-soft hover:shadow-soft-lg transition-all duration-300 hover:-translate-y-1 flex flex-col border border-brand-cream-dark/50"
+      >
+        <div className="relative h-52 bg-brand-cream overflow-hidden flex-shrink-0">
+          {/*
+            ⚠️ object-contain ולא cover, מאותה סיבה כמו ב-ProductGallery:
+            תמונת המוצר הראשית היא לרוחב (3:2) והמסגרת כאן קרובה לריבוע,
+            כך ש-cover היה חותך את צידי הקומפוזיציה — כלומר את המוצר עצמו.
+            🔒 הגובה קבוע (h-52) ולכן אין layout shift.
+          */}
+          <Image
+            src={product.image}
+            alt={product.imageAlts?.[0] ?? `תמונה של ${product.name}`}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-contain transition-transform duration-500 group-hover:scale-105"
+          />
+          <span className="absolute top-3 end-3 inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-xs font-bold px-2.5 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-dark/70" aria-hidden="true" />
+            בקרוב
+          </span>
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-brand-dark/10 to-transparent"
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className="p-5 flex flex-col flex-1">
+          {/* ⚠️ תווית הקטגוריה אופציונלית — ראה Product.category. */}
+          {product.category && (
+            <span className="text-xs text-brand-gold-text font-semibold uppercase tracking-wider mb-1">
+              {product.category}
+            </span>
+          )}
+          <h3 className="font-semibold text-brand-dark mb-2 leading-snug">{product.name}</h3>
+          <p className="text-brand-medium text-xs leading-relaxed mb-4 flex-1">
+            {product.description}
+          </p>
+
+          {/* ⚠️ אין מחיר ואין כפתור סל — במקומם המסלול היחיד: עמוד המוצר.
+              מוצר coming_soon בלי slug אינו מקבל קישור, כי אין לאן לקשר. */}
+          {href && (
+            <Link
+              href={href}
+              aria-label={`לפרטים על ${product.name}`}
+              className="mt-auto inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm bg-brand-rose-bg text-brand-rose-text border border-brand-rose-light hover:bg-brand-rose hover:text-white hover:border-brand-rose transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+            >
+              לפרטים
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+      </article>
+    )
   }
 
   if (product.isPremium) {

@@ -92,17 +92,86 @@ export interface BlogPost {
   closing?: BlogClosing
 }
 
-export interface Product {
+/**
+ * גוון לבחירה בעמוד המוצר.
+ *
+ * 🔒 הרשימה שעל המוצר היא גם **רשימת ההיתר של השרת**: הגוון שמגיע מהדפדפן
+ * מסונן מול ה-id-ים שמוגדרים כאן ולעולם אינו נשמר כפי שהתקבל — אותו שיקול
+ * בדיוק שבגללו durationMin נגזר מ-lib/services.ts ואינו מתקבל מהקלט.
+ */
+export interface ProductShade {
   id: string
   name: string
+  /** דגימת צבע לצ'יפ הבחירה. גוון בלי hex מוצג כטקסט בלבד. */
+  hex?: string
+}
+
+export interface Product {
+  id: string
+  /**
+   * המזהה בכתובת: /shop/<slug>.
+   *
+   * ⚠️ אופציונלי בכוונה — שמונת המוצרים הראשונים נוצרו בלי slug ואין להם
+   * עמוד משלהם. מוצר בלי slug אינו מקבל route ואינו נכנס ל-sitemap, ולכן
+   * הוספת השדה אינה פותחת עמודים למוצרי הדמה הקיימים.
+   *
+   * 🔴 ה-slug נשמר ב-DB כ-`product_slug` על כל הרשמה לרשימת ההמתנה. שינוי
+   * slug של מוצר שכבר נאספו עליו הרשמות מנתק אותן מהמוצר — שינוי כזה דורש
+   * עדכון נתונים, לא רק עריכת המערך כאן.
+   */
+  slug?: string
+  name: string
+  /**
+   * השם כפי שהוא נקרא **בתוך משפט**, בלי שם המותג.
+   *
+   * ⚠️ קיים כי "נעדכן אותך כשה-SHOVAL MIARA Micro Brow Pen עולה לאתר"
+   * אינו עברית. גזירה אוטומטית מ-`name` (הסרת תחילית המותג ברג'קס) הייתה
+   * מסתירה את ההחלטה הזו בתוך קומפוננטה ונשברת בשקט במוצר הבא.
+   * מוצר בלי השדה נופל חזרה ל-`name`.
+   */
+  shortName?: string
   description: string
   price: number
   image: string
-  category: string
+  /**
+   * תווית הקטגוריה מעל שם המוצר.
+   *
+   * ⚠️ אופציונלית: מוצר שלא שויך לקטגוריה פשוט אינו מציג תווית, במקום
+   * לשאת מחרוזת ממלאת מקום. שמונת המוצרים הקיימים אינם מושפעים.
+   */
+  category?: string
   badge?: string
   isDigital?: boolean
   isPremium?: boolean
   includes?: string[]
+
+  /**
+   * ⚠️ `'coming_soon'` הוא **מצב מלא, לא תווית**: אין לו מחיר, אין לו
+   * "הוסף לסל", והמסלול היחיד שלו הוא הרשמה לעדכון. ProductCard חייב
+   * להסתעף עליו **לפני** כל שימוש ב-price וב-useCart.
+   *
+   * ⚠️ תווית ה"בקרוב" נגזרת מהמצב הזה ואינה נכתבת ב-badge: badge חופשי היה
+   * מאפשר מוצר coming_soon שמוצג כ"בסטסלר".
+   *
+   * מוצר בלי status נחשב 'available' — ולכן שמונת הקיימים אינם משתנים.
+   */
+  status?: 'available' | 'coming_soon'
+  /** גלריית תמונות המוצר. `image` נשאר התמונה הראשית (כרטיס + OG). */
+  images?: string[]
+  /**
+   * תיאור מילולי לכל תמונה ב-`images`, לפי אותו סדר.
+   *
+   * ⚠️ נכתב לכל תמונה בנפרד ולא נגזר מהשם — בדיוק מאותה סיבה שתועדה
+   * ב-BlogPost.imageAlt: alt שנבנה מהכותרת מתאר את עצמו ולא את מה שבתמונה.
+   *
+   * 🔒 תמונה שנושאת טקסט מוטבע חייבת שהטקסט הזה יופיע ב-alt — אחרת הוא
+   * פשוט אינו קיים עבור מי שאינה רואה את התמונה.
+   */
+  imageAlts?: string[]
+  /** בחירת גוון — אופציונלית לחלוטין. ראה ProductShade לגבי אכיפת השרת. */
+  shades?: ProductShade[]
+  /** פסקאות התיאור בעמוד המוצר. `description` נשאר השורה הקצרה לכרטיס. */
+  longDescription?: string[]
 }
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -993,5 +1062,76 @@ export const products: Product[] = [
     isDigital: true,
     isPremium: true,
     includes: ['חוברת מקצועית דיגיטלית', 'פגישת זום אישית', 'תמיכה לאחר הקורס'],
+  },
+  /*
+   * ── Micro Brow Pen — מוצר Coming Soon ────────────────────────────────────
+   *
+   * ⚠️ **אין כאן `shades`, וזו החלטה ולא השמטה.** הגוונים שיושקו בפועל טרם
+   * נקבעו, ובחירת גוון שאינה תואמת את המלאי האמיתי היא הבטחה ללקוחה שאי
+   * אפשר לקיים. ProductNotifyDialog מרנדר את בורר הגוונים רק כש-`shades`
+   * קיים — כלומר היכולת נשמרת, והיא פשוט אינה מופעלת עד שתהיה רשימה.
+   *
+   * ⚠️ אין `category` — לא נמסרה תווית קטגוריה, והשדה אופציונלי בדיוק כדי
+   * שלא תידרש מחרוזת ממלאת מקום.
+   *
+   * ⚠️ אין `badge`: תווית "בקרוב" נגזרת מ-`status` ואינה נכתבת ידנית —
+   * ראה ההערה ב-Product.status.
+   *
+   * 🔴 ה-slug הוא המפתח שנשמר ב-DB על כל הרשמה (`product_interest_requests
+   * .product_slug`). הוא שונה מ-`coming-soon-product` ל-`micro-brow-pen`
+   * **לפני** שנאספה ההרשמה הראשונה ולפני שהעמוד פורסם, ולכן לא היה מה
+   * לנדוד. שינוי נוסף אחרי שיש שורות ינתק אותן מהמוצר — ראה Product.slug.
+   */
+  {
+    id: 'p9',
+    slug: 'micro-brow-pen',
+    status: 'coming_soon',
+    name: 'SHOVAL MIARA Micro Brow Pen',
+    shortName: 'Micro Brow Pen',
+    description:
+      'עט גבות ליצירת מראה טבעי, מדויק ומלא יותר – בדיוק במקום שצריך.',
+    longDescription: [
+      'ה-Micro Brow Pen החדש של SHOVAL MIARA נמצא כרגע בשלבי פיתוח לקראת ההשקה. ' +
+        'רוצה להיות בין הראשונות לדעת כשהוא עולה לאתר? הצטרפי לרשימת ההמתנה.',
+    ],
+    /*
+     * ⚠️ 0 ולא מחיר אמיתי: למוצר coming_soon אין מחיר מוצג, ושום קומפוננטה
+     * אינה מגיעה לשדה הזה. ראה Product.status.
+     */
+    price: 0,
+    /*
+     * 🔒 התמונות מקומיות ו-tracked תחת public/ — `npm run test:image-integrity`
+     * סורק את lib/ ודורש git ls-files לכל נתיב, וקובץ untracked מפיל אותו.
+     *
+     * ⚠️ יחסי הגובה-רוחב מעורבים (hero/packaging לרוחב 3:2, closed/tip
+     * לגובה 2:3, branding ריבועי), ולכן ProductGallery מציג אותן ב-contain
+     * בתוך מסגרת ריבועית ולא ב-cover — ראה ההסבר שם.
+     */
+    image: '/images/shop/micro-brow-pen/micro-brow-pen-hero.png',
+    images: [
+      '/images/shop/micro-brow-pen/micro-brow-pen-hero.png',
+      '/images/shop/micro-brow-pen/micro-brow-pen-packaging.png',
+      '/images/shop/micro-brow-pen/micro-brow-pen-closed.png',
+      '/images/shop/micro-brow-pen/micro-brow-pen-tip.png',
+      '/images/shop/micro-brow-pen/micro-brow-pen-branding.png',
+    ],
+    /*
+     * ⚠️ שתיים מהתמונות (hero ו-tip) נושאות טקסט מוטבע, והוא חוזר כאן
+     * במלואו: בלעדיו הכיתוב "Natural Hair-Like Brow Effect" ו-"4-Tip
+     * Microblade Applicator" פשוט אינם קיימים למי שאינה רואה את התמונה.
+     */
+    imageAlts: [
+      'עט ה-Micro Brow Pen של SHOVAL MIARA נשען על קופסת המוצר, על משטח אבן בהיר. ' +
+        'על הרקע הכיתוב: SHOVAL MIARA — Micro Brow Pen, Natural Hair-Like Brow Effect.',
+      'העט והקופסה שלו מונחים זה לצד זה על משטח אבן בהיר. על שניהם הכיתוב ' +
+        'SHOVAL MIARA — Micro Brow Pen.',
+      'העט סגור ועומד זקוף: גוף בגוון שמפניה עם טבעת זהב, ועליו הכיתוב ' +
+        'SHOVAL MIARA — Micro Brow Pen.',
+      'תקריב של קצה העט הפתוח — מצביע שחור ובו ארבעה חודים דקים — לצד המחשה של ' +
+        'שערות גבה מצוירות. בתמונה הכיתוב: 4-Tip Microblade Applicator, ' +
+        'קצה מיקרו ליצירת מראה טבעי ומדויק.',
+      'תקריב של גוף העט בזווית, עם המיתוג SHOVAL MIARA — Micro Brow Pen, ' +
+        'והקופסה מטושטשת ברקע.',
+    ],
   },
 ]

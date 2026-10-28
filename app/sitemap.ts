@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { blogPosts } from '@/lib/data'
+import { blogPosts, products } from '@/lib/data'
 
 const SITE_URL = 'https://smbrows.co.il'
 
@@ -44,5 +44,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }))
 
-  return [...staticRoutes, ...blogRoutes]
+  /*
+    עמודי המוצרים — רק מוצרים שיש להם slug, כלומר בדיוק אלה שמייצרים route
+    ב-app/shop/[slug]. מוצרי הדמה בלי slug אינם מקבלים עמוד ולכן אינם כאן.
+
+    ⚠️ בלי lastModified, מאותה סיבה בדיוק שהעמודים הסטטיים למעלה בלי —
+    אין למוצר תאריך שינוי אמיתי (התוכן חי בקוד), ו-`new Date()` היה מצהיר
+    "השתנה הרגע" בכל דיפלוי. עדיף להשמיט תג אופציונלי מלהמציא תאריך.
+  */
+  const productRoutes: MetadataRoute.Sitemap = products
+    .filter(product => Boolean(product.slug))
+    .map(product => ({
+      url: `${SITE_URL}/shop/${product.slug}`,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    }))
+
+  return [...staticRoutes, ...blogRoutes, ...productRoutes]
 }
