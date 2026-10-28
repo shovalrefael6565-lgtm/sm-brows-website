@@ -149,12 +149,37 @@ export async function POST(req: NextRequest) {
   const db = createSupabaseAdminClient()
 
   if (mode === 'dry_run') {
-    const { data, error } = await db.rpc('privacy_retention_dry_run', { p_batch_limit: batchLimit })
-    if (error) {
-      console.error('[internal/privacy-retention] dry_run failed', error.code ?? 'unknown')
+    /*
+     * ⚠️ שתי קריאות, דוח אחד.
+     *
+     * `privacy_retention_product_interest_dry_run` (0040) היא פונקציה
+     * נפרדת ולא קטגוריה נוספת בתוך `privacy_retention_dry_run` — 0032
+     * כבר רץ בפרודקשן, והדוקטרינה בפרויקט (0007→0008) היא לא לשכתב
+     * פונקציה של מיגרציה שהוחלה אלא להוסיף לצידה. האיחוד נעשה כאן, כך
+     * שהצרכן עדיין מקבל דוח יחיד ואין שתי נקודות כניסה.
+     */
+    const [core, productInterest] = await Promise.all([
+      db.rpc('privacy_retention_dry_run', { p_batch_limit: batchLimit }),
+      db.rpc('privacy_retention_product_interest_dry_run', { p_batch_limit: batchLimit }),
+    ])
+
+    if (core.error) {
+      console.error('[internal/privacy-retention] dry_run failed', core.error.code ?? 'unknown')
       return noStore({ ok: false, error: 'dry_run_failed' }, 500)
     }
-    return noStore({ ok: true, mode: 'dry_run', result: data })
+    if (productInterest.error) {
+      console.error(
+        '[internal/privacy-retention] product_interest dry_run failed',
+        productInterest.error.code ?? 'unknown',
+      )
+      return noStore({ ok: false, error: 'dry_run_failed' }, 500)
+    }
+
+    return noStore({
+      ok: true,
+      mode: 'dry_run',
+      result: { ...(core.data ?? {}), ...(productInterest.data ?? {}) },
+    })
   }
 
   // ── mode === 'execute' ────────────────────────────────────────────────────
@@ -162,18 +187,27 @@ export async function POST(req: NextRequest) {
     return noStore({ error: 'confirm_required' }, 400)
   }
 
-  // ⚠️ שלוש קריאות RPC עצמאיות, לא טרנזקציה אחת — ר' התיעוד בראש הקובץ
-  // וב-docs/data-retention-policy.md. כל אחת idempotent בפני עצמה.
-  const [otpSessions, notificationAttempts, notesReset] = await Promise.all([
+  /*
+   * ⚠️ ארבע קריאות RPC עצמאיות, לא טרנזקציה אחת — ר' התיעוד בראש הקובץ
+   * וב-docs/data-retention-policy.md. כל אחת idempotent בפני עצמה.
+   *
+   * 🔒 `purge_product_interest` (0040) מוחקת **אך ורק** שורות
+   * product_interest_requests שעברו את תקופת השמירה. היא אינה נוגעת
+   * ב-product_launch_runs, ב-customers ובעמודות הדיוור — נאכף בבלוק
+   * האימות של המיגרציה עצמה.
+   */
+  const [otpSessions, notificationAttempts, notesReset, productInterest] = await Promise.all([
     db.rpc('privacy_retention_purge_otp_sessions', { p_batch_limit: batchLimit }),
     db.rpc('privacy_retention_purge_notification_attempts', { p_batch_limit: batchLimit }),
     db.rpc('privacy_retention_reset_old_notes', { p_batch_limit: batchLimit }),
+    db.rpc('privacy_retention_purge_product_interest', { p_batch_limit: batchLimit }),
   ])
 
   for (const [name, res] of [
     ['otp_sessions', otpSessions],
     ['notification_attempts', notificationAttempts],
     ['notes_reset', notesReset],
+    ['product_interest', productInterest],
   ] as const) {
     if (res.error) {
       console.error(`[internal/privacy-retention] ${name} failed`, res.error.code ?? 'unknown')
@@ -187,6 +221,7 @@ export async function POST(req: NextRequest) {
       otp_sessions: otpSessions.error ? null : otpSessions.data,
       notification_attempts: notificationAttempts.error ? null : notificationAttempts.data,
       notes_reset: notesReset.error ? null : notesReset.data,
+      product_interest: productInterest.error ? null : productInterest.data,
     },
   })
 }

@@ -57,3 +57,19 @@ export function areRemindersEnabled(): boolean {
 export function areNotificationsEnabled(): boolean {
   return envFlagEnabled(process.env.NOTIFICATIONS_ENABLED)
 }
+
+/**
+ * ההרשמה לעדכון על השקת מוצר (0038). ברירת המחדל כבויה בכל סביבה.
+ *
+ * ⚠️ **דגל נפרד מ-`NEW_BOOKING_SYSTEM_ENABLED`, ובכוונה.** הרשמה לעדכון
+ * על מוצר אינה חלק ממערכת התורים: היא אינה נוגעת בזמינות, ביומן או
+ * בתזכורות, ואין סיבה שכיבוי מערכת ההזמנות יסגור אותה — או שהדלקתה
+ * תפתח את ההזמנות.
+ *
+ * ⚠️ עובר נרמול (`envFlagEnabled`) כמו התזכורות וההתראות, ולא השוואה
+ * קשיחה: זה דגל הפעלה של תת-מערכת ולא killswitch. ראה את ההסבר על
+ * הערך המלוכלך שהשאיר את מנוע התזכורות כבוי בשקט.
+ */
+export function isProductInterestEnabled(): boolean {
+  return envFlagEnabled(process.env.PRODUCT_INTEREST_ENABLED)
+}

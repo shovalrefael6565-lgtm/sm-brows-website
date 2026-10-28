@@ -389,6 +389,34 @@ const ASSERTION_MIGRATIONS = {
     'create_waitlist_request(text,text,text,text[],integer,timestamptz,inet,integer,text,boolean)',
     'set_waitlist_request_status(uuid,text)',
   ],
+
+  /**
+   * 0038 — הרשמה לעדכון על השקת מוצר.
+   *
+   * 🔴 כותבת, ו-service_role בלבד:
+   *
+   *   create_product_interest — כותבת טלפון (PII) לטבלה שאין עליה policies,
+   *     ואוכפת שתי מגבלות קצב ואת אישור הפרטיות. חשיפה ל-anon הייתה
+   *     מאפשרת להזרים טלפונים לרשימה בלי לעבור דרך ה-route — כלומר בלי
+   *     בדיקת IP מהימן, בלי מגבלת גודל גוף, בלי אימות ה-slug מול הקטלוג
+   *     ובלי נרמול הטלפון.
+   *
+   * ⚠️ היא **אינה** יוצרת לקוחה, בשונה מ-create_waitlist_request — ראה
+   * ההסבר בראש 0038 — אבל זה אינו מקל בדרישת ההרשאות: טלפון הוא PII.
+   */
+  '0038_product_interest.sql': [
+    'create_product_interest(text,text,text,text,inet,integer,text,boolean)',
+  ],
+
+  /**
+   * 0040 — retention להרשמות מוצר. שתיהן service_role בלבד: חשיפת ה-purge
+   * ל-anon הייתה מאפשרת למחוק לידים, וחשיפת ה-dry-run הייתה חושפת ספירות.
+   */
+  '0040_product_interest_retention.sql': [
+    'privacy_retention_product_interest_dry_run(timestamptz,integer)',
+    'privacy_retention_purge_product_interest(timestamptz,integer)',
+  ],
+
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()
