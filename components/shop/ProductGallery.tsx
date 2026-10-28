@@ -33,9 +33,20 @@ const FADE_MS = 200
  * סביב התמונה. `cover` ממלא את המסגרת.
  *
  * ⚠️ **המחיר, בעיניים פקוחות:** בכל תמונה שאינה ריבועית נחתך כשליש —
- * בצדדים או למעלה ולמטה. אושר במכוון לטובת מסגרת מלאה. 🔴 אם תתווסף
- * תמונה שנושאת טקסט מוטבע בשוליה, הטקסט ייחתך; כזו צריכה להיות ריבועית
- * או לקבל טיפול נפרד.
+ * בצדדים או למעלה ולמטה. אושר במכוון לטובת מסגרת מלאה.
+ *
+ * 🔒 **`object-top` ולא ברירת המחדל `center`, וזה כלל אחד ולא חריג לכל
+ * תמונה.** בתמונות הפורטרט (2:3) הכותרת — "SHOVAL MIARA / Micro Brow
+ * Pen" — יושבת בשישית העליונה, ו-`center` חתך אותה באמצע האותיות.
+ * עיגון למעלה מזיז את כל החיתוך (33%) לתחתית.
+ *
+ * ⚠️ מדוע זה בטוח כהגדרה גורפת: בתמונות הרוחב (3:2) החיתוך הוא **אופקי
+ * בלבד**, ולכן רכיב ה-Y של object-position אינו משפיע עליהן כלל, ו-1:1
+ * אינה נחתכת. כלומר הכלל נוגע בדיוק לשתי התמונות שהוא נועד להן.
+ *
+ * 🔴 המחיר של העיגון: בתמונות הפורטרט נחתך השליש התחתון — חלק מגוף
+ * העט והכיתוב בעברית שמתחתיו. תמונה חדשה שנושאת מידע בתחתיתה צריכה
+ * להיות ריבועית או לקבל טיפול נפרד.
  *
  * 🔒 **המסגרת הריבועית קבועה (aspect-square) ולכן אין layout shift**:
  * המקום נתפס לפני שהתמונה נטענת, והחלפת תמונה אינה משנה את גובה העמוד
@@ -127,7 +138,7 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
               fetchPriority={i === 0 ? 'high' : 'auto'}
               sizes="(max-width: 1024px) 100vw, 50vw"
               className={cn(
-                'object-cover transition-opacity duration-200 ease-out motion-reduce:transition-none',
+                'object-cover object-top transition-opacity duration-200 ease-out motion-reduce:transition-none',
                 isCurrent
                   ? 'opacity-100 z-[2]'
                   : isLeaving
@@ -199,7 +210,9 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
                   alt=""
                   fill
                   sizes="(max-width: 640px) 20vw, 10vw"
-                  className="object-cover"
+                  // אותו עיגון כמו הראשית — אחרת הממוזערת מראה חלק אחר
+                  // של התמונה ממה שייפתח בלחיצה.
+                  className="object-cover object-top"
                 />
               </button>
             </li>
