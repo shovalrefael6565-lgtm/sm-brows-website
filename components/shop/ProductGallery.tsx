@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,9 @@ interface Props {
   comingSoon?: boolean
 }
 
+/** משך ה-crossfade. 🔒 חייב להישאר תואם ל-duration-200 שבמחלקה. */
+const FADE_MS = 200
+
 /**
  * גלריית תמונות המוצר — תמונה ראשית + בחירה מתוך רצועת ממוזערות.
  *
@@ -21,26 +24,65 @@ interface Props {
  * לבד כל 3.5 שניות כי הוא ויטרינה; כאן המבקרת בוחנת מוצר, ותמונה שמתחלפת
  * תוך כדי התבוננות היא הפרעה. ההחלפה נעשית רק ביוזמתה.
  *
- * ═══ 🔒 object-contain, ולא object-cover ═══
+ * ═══ 🔒 object-cover, בהחלטה מודעת ═══
  *
- * תמונות המוצר אינן באותו יחס: חלקן לרוחב (3:2), חלקן לגובה (2:3) וחלקן
- * ריבועיות. `object-cover` בתוך מסגרת ריבועית היה חותך כשליש מכל תמונה
- * שאינה ריבועית — כלומר חותך את המוצר עצמו, ובתמונות שנושאות טקסט מוטבע
- * גם את הכיתוב. `contain` על רקע קרם מציג כל תמונה בשלמותה.
+ * תמונות המוצר אינן באותו יחס: hero ו-packaging הן 3:2, closed ו-tip הן
+ * 2:3, ו-branding ריבועית. `object-contain` בתוך מסגרת ריבועית הותיר
+ * פס רקע של כשליש מהמסגרת — למעלה ולמטה בתמונות הרוחב, ובצדדים בתמונות
+ * הגובה — וכיוון שגוון הקרם (#FAF7F5) כמעט לבן, הפס נראה כמסגרת לבנה
+ * סביב התמונה. `cover` ממלא את המסגרת.
+ *
+ * ⚠️ **המחיר, בעיניים פקוחות:** בכל תמונה שאינה ריבועית נחתך כשליש —
+ * בצדדים או למעלה ולמטה. אושר במכוון לטובת מסגרת מלאה. 🔴 אם תתווסף
+ * תמונה שנושאת טקסט מוטבע בשוליה, הטקסט ייחתך; כזו צריכה להיות ריבועית
+ * או לקבל טיפול נפרד.
  *
  * 🔒 **המסגרת הריבועית קבועה (aspect-square) ולכן אין layout shift**:
  * המקום נתפס לפני שהתמונה נטענת, והחלפת תמונה אינה משנה את גובה העמוד
  * גם כשהיחס של הבאה שונה.
+ *
+ * ═══ 🔒 למה חמש שכבות ולא תמונה אחת שמחליפה src ═══
+ *
+ * קודם היה כאן `<Image key={current} src={current} …>` יחיד. `key`
+ * שמשתנה מאלץ את React לפרק את הצומת ולבנות חדש, כלומר הקונטיינר נשאר
+ * **ריק** עד שהתמונה הבאה מפוענחת — וזה ההבהוב: רגע אחד של רקע חשוף.
+ *
+ * כאן כל חמש התמונות מורכבות ב-DOM מהרינדור הראשון וכולן נטענות מיד
+ * (`priority` לראשונה, `loading="eager"` לשאר), ולכן בלחיצה אין מה
+ * להמתין לו. המעבר הוא opacity בלבד.
+ *
+ * 🔴 **ולמה `prev` ולא פשוט fade הדדי:** אם היוצאת מתעמעמת בזמן שהנכנסת
+ * מתבהרת, שתיהן שקופות למחצה באמצע הדרך והרקע הבהיר מבצבץ ביניהן — אותו
+ * הבהוב, רק עדין יותר. לכן היוצאת נשארת **אטומה לחלוטין** בשכבה
+ * שמתחת, והנכנסת מתבהרת מעליה. הרקע אינו נחשף באף נקודת זמן.
  *
  * 🔒 ChevronRight = הקודם ו-ChevronLeft = הבא, בדיוק כמו ב-ServiceCard:
  * באתר RTL החץ ימינה מצביע אחורה. היפוך כאן היה שובר את אחידות הניווט.
  */
 export default function ProductGallery({ images, alts, productName, comingSoon }: Props) {
   const [index, setIndex] = useState(0)
+  /** התמונה היוצאת, שנשארת גלויה מתחת לנכנסת עד שה-fade נגמר. */
+  const [prev, setPrev] = useState<number | null>(null)
   const count = images.length
-  const current = images[index] ?? images[0]
 
-  const go = (next: number) => setIndex((next + count) % count)
+  const show = (next: number) => {
+    const target = (next + count) % count
+    if (target === index) return
+    setPrev(index)
+    setIndex(target)
+  }
+
+  /*
+   * ⚠️ שחרור השכבה היוצאת בטיימר ולא ב-onTransitionEnd: האירוע אינו
+   * מובטח (prefers-reduced-motion מבטל את המעבר, וטאב ברקע עשוי לא
+   * לירות אותו), ושכבה שלא שוחררה הייתה נשארת אטומה מתחת לנכנסת —
+   * כלומר התמונה הנכונה למעלה ועוד אחת מתחתיה לנצח.
+   */
+  useEffect(() => {
+    if (prev === null) return
+    const t = setTimeout(() => setPrev(null), FADE_MS + 40)
+    return () => clearTimeout(t)
+  }, [prev, index])
 
   /**
    * ⚠️ נופל ל-"תמונה N מתוך M" רק כשאין תיאור כתוב — תיאור אמיתי תמיד
@@ -55,15 +97,46 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
   return (
     <div>
       <div className="relative aspect-square rounded-3xl overflow-hidden bg-brand-cream shadow-soft-lg group">
-        <Image
-          key={current}
-          src={current}
-          alt={altFor(index)}
-          fill
-          priority
-          sizes="(max-width: 1024px) 100vw, 50vw"
-          className="object-contain"
-        />
+        {images.map((src, i) => {
+          const isCurrent = i === index
+          const isLeaving = i === prev
+          return (
+            <Image
+              key={src}
+              src={src}
+              /*
+               * 🔒 רק לתמונה הנוכחית יש alt. חמש שכבות עם חמישה תיאורים
+               * היו נקראות כולן ברצף בקורא מסך, כאילו העמוד מציג חמש
+               * תמונות במקביל.
+               */
+              alt={isCurrent ? altFor(i) : ''}
+              aria-hidden={isCurrent ? undefined : true}
+              fill
+              /*
+               * 🔒 `loading="eager"` על **כל** החמש — זה מה שמונע את
+               * ההבהוב: תמונה שעדיין לא ירדה אין לה למה להתבהר.
+               *
+               * ⚠️ ולא `priority`: מ-Next 16 הוא deprecated לטובת
+               * `preload`, ובפועל לא הפיק `loading="eager"` — ה-console
+               * התלונן שתמונת ה-LCP נטענת עצלה. `preload` גם אינו מתאים
+               * כאן (התיעוד שולל אותו כשמשתמשים ב-loading או
+               * ב-fetchPriority); הראשונה מקבלת עדיפות רשת דרך
+               * fetchPriority, והשאר נטענות ברקע.
+               */
+              loading="eager"
+              fetchPriority={i === 0 ? 'high' : 'auto'}
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className={cn(
+                'object-cover transition-opacity duration-200 ease-out motion-reduce:transition-none',
+                isCurrent
+                  ? 'opacity-100 z-[2]'
+                  : isLeaving
+                    ? 'opacity-100 z-[1] pointer-events-none'
+                    : 'opacity-0 z-0 pointer-events-none',
+              )}
+            />
+          )
+        })}
 
         {comingSoon && (
           <span className="absolute top-4 end-4 inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-xs font-bold px-3 py-1.5 rounded-full tracking-wider z-10">
@@ -76,7 +149,7 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
           <>
             <button
               type="button"
-              onClick={() => go(index - 1)}
+              onClick={() => show(index - 1)}
               aria-label="תמונה קודמת"
               className="absolute top-1/2 -translate-y-1/2 start-3 z-10 w-9 h-9 rounded-full bg-brand-dark/45 backdrop-blur-sm flex items-center justify-center text-white transition-opacity duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
             >
@@ -84,7 +157,7 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
             </button>
             <button
               type="button"
-              onClick={() => go(index + 1)}
+              onClick={() => show(index + 1)}
               aria-label="תמונה הבאה"
               className="absolute top-1/2 -translate-y-1/2 end-3 z-10 w-9 h-9 rounded-full bg-brand-dark/45 backdrop-blur-sm flex items-center justify-center text-white transition-opacity duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
             >
@@ -108,7 +181,7 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
             <li key={src}>
               <button
                 type="button"
-                onClick={() => setIndex(i)}
+                onClick={() => show(i)}
                 aria-pressed={i === index}
                 aria-label={`הצגת תמונה ${i + 1}`}
                 className={cn(
@@ -126,7 +199,7 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
                   alt=""
                   fill
                   sizes="(max-width: 640px) 20vw, 10vw"
-                  className="object-contain"
+                  className="object-cover"
                 />
               </button>
             </li>
