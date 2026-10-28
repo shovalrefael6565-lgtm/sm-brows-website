@@ -149,8 +149,18 @@ export default function ProductGallery({ images, alts, productName, comingSoon }
           )
         })}
 
+        {/*
+          🔒 **למטה, ולא בפינה העליונה.** אחרי שהחיתוך עוגן למעלה
+          (object-top) הכותרת המוטבעת בתמונות הפורטרט עלתה לראש המסגרת,
+          והתווית כיסתה את האות הראשונה של "SHOVAL". קודם זה לא נראה רק
+          משום שהכותרת הייתה חתוכה ממילא.
+
+          ⚠️ הפינה התחתונה בצד ה-end נבחרה מפני שהיא היחידה שפנויה בכל
+          חמש התמונות: הכיתוב המשני בתמונת ה-tip יושב בצד ה-start, ושאר
+          התמונות נושאות שם רקע בלבד.
+        */}
         {comingSoon && (
-          <span className="absolute top-4 end-4 inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-xs font-bold px-3 py-1.5 rounded-full tracking-wider z-10">
+          <span className="absolute bottom-4 end-4 inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark text-xs font-bold px-3 py-1.5 rounded-full tracking-wider z-10">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-dark/70" aria-hidden="true" />
             בקרוב
           </span>
