@@ -8,6 +8,8 @@ const LINKS = [
   { href: '/admin/reminders', label: 'תזכורות' },
   { href: '/admin/appointments/new', label: 'תור חדש' },
   { href: '/admin/waitlist', label: 'רשימת המתנה' },
+  // ⚠️ נפרד מרשימת ההמתנה (שעה ביומן) ומהודעות ללקוחות (דיוור שיווקי).
+  { href: '/admin/product-interest', label: 'התעניינות במוצרים' },
   { href: '/admin/campaigns', label: 'הודעות ללקוחות' },
 ]
 

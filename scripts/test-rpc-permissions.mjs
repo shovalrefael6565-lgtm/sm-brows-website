@@ -409,6 +409,18 @@ const ASSERTION_MIGRATIONS = {
   ],
 
   /**
+   * 0039 — ניהול ההרשמות ושליחת הודעת ההשקה.
+   *
+   * 🔴 שתיהן כותבות, ושתיהן service_role בלבד:
+   *
+   *   set_product_interest_status — שינוי ידני open ⇄ closed. חשיפה ל-anon
+   *     הייתה מאפשרת לסגור הרשמות של אחרות, כלומר להשתיק לקוחה שביקשה
+   *     עדכון בלי שאיש יידע.
+   *   mark_product_interest_notified — מצהירה שהודעה יצאה. חשיפה הייתה
+   *     מאפשרת לסמן שורות כ"עודכנו" בלי שנשלח דבר, ובכך להוציא לקוחות
+   *     מרשימת הנמענות לצמיתות.
+   */
+  /**
    * 0040 — retention להרשמות מוצר. שתיהן service_role בלבד: חשיפת ה-purge
    * ל-anon הייתה מאפשרת למחוק לידים, וחשיפת ה-dry-run הייתה חושפת ספירות.
    */
@@ -417,6 +429,22 @@ const ASSERTION_MIGRATIONS = {
     'privacy_retention_purge_product_interest(timestamptz,integer)',
   ],
 
+  '0039_product_interest_admin.sql': [
+    'set_product_interest_status(uuid,text)',
+    'mark_product_interest_notified(uuid)',
+    /**
+     * 🔴 שתי פונקציות הריצה הן **הנעילה שמונעת SMS כפול**, ולכן חשיפתן
+     * חמורה במיוחד:
+     *
+     *   begin_product_launch_run — חשיפה ל-anon הייתה מאפשרת לפתוח ריצה
+     *     מזויפת ולחסום שליחה אמיתית, או (גרוע יותר) להריץ במקביל לריצה
+     *     לגיטימית אם היא הייתה ניתנת לעקיפה.
+     *   finish_product_launch_run — חשיפה הייתה מאפשרת לסגור ריצה עמומה
+     *     כ-completed, כלומר לשחרר את החסימה שנועדה למנוע הודעה כפולה.
+     */
+    'begin_product_launch_run(text,uuid)',
+    'finish_product_launch_run(uuid,integer,integer,integer,integer,integer)',
+  ],
 }
 
 const PROTECTED_SIGNATURES = Object.values(ASSERTION_MIGRATIONS).flat()

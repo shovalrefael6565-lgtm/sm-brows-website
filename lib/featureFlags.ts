@@ -73,3 +73,22 @@ export function areNotificationsEnabled(): boolean {
 export function isProductInterestEnabled(): boolean {
   return envFlagEnabled(process.env.PRODUCT_INTEREST_ENABLED)
 }
+
+/**
+ * שליחת הודעת ההשקה לנרשמות (0039). ברירת המחדל כבויה בכל סביבה.
+ *
+ * 🔴 **דגל שני ונפרד מ-`PRODUCT_INTEREST_ENABLED`, וזו לא כפילות.**
+ * הראשון פותח את *איסוף* ההרשמות; זה פותח *שליחה בפועל ללקוחות*. שני
+ * הברזים חייבים להיות דלוקים כדי שתצא הודעה, בדיוק כמו היחס בין
+ * `business_settings.notifications_enabled` ל-`NOTIFICATIONS_ENABLED`.
+ *
+ * ⚠️ המשמעות המעשית: אפשר לאסוף הרשמות חודשים מראש בזמן שהשליחה כבויה
+ * לחלוטין, ואין שום מסלול שבו הדלקת הטופס מדליקה גם שליחה המונית.
+ *
+ * ⚠️ הדגל הזה חוסם את **ההחלטה לשלוח**. מי ששולח בפועל הוא
+ * `PRODUCT_LAUNCH_SMS_PROVIDER` (lib/productLaunch/provider.ts), שברירת
+ * המחדל שלו היא `disabled` — כלומר צריך גם דגל וגם ספק.
+ */
+export function areProductLaunchNotificationsEnabled(): boolean {
+  return envFlagEnabled(process.env.PRODUCT_INTEREST_NOTIFICATIONS_ENABLED)
+}
