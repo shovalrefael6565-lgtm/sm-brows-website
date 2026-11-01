@@ -31,31 +31,64 @@ const buttons = [
   },
 ]
 
-/** מקבץ רשתות צף — דסקטופ בלבד. במובייל הרשתות מופיעות בתפריט ובפוטר. */
+/**
+ * מקבץ רשתות צף — טור בצד במחשב, ובמובייל שורה קומפקטית מעל כפתור הוואטסאפ.
+ * אותם אייקונים ואותם קישורים בשתי התצוגות.
+ */
 export default function FloatingSocialButtons() {
   return (
-    <div
-      className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
-      aria-label="רשתות חברתיות"
-    >
-      {buttons.map(({ href, label, bg, icon }, i) => (
-        <motion.a
-          key={label}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={label}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 1.7 + i * 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 ${bg}`}
-        >
-          {icon}
-        </motion.a>
-      ))}
-    </div>
+    <>
+      {/* מחשב — טור אנכי */}
+      <div
+        className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
+        aria-label="רשתות חברתיות"
+      >
+        {buttons.map(({ href, label, bg, icon }, i) => (
+          <motion.a
+            key={label}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 1.7 + i * 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 ${bg}`}
+          >
+            {icon}
+          </motion.a>
+        ))}
+      </div>
+
+      {/*
+        מובייל — שורה אחת מעל הוואטסאפ (שנשאר בתחתית, 1.5rem + 3.5rem גובה),
+        ולכן השורה יושבת 5.5rem מהתחתית עם מרווח של חצי rem ביניהן.
+        44px לכל כפתור: 4×44 + 3×8 = 200px, נכנס בנוחות גם ב-320px.
+      */}
+      <div
+        className="flex lg:hidden fixed bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5rem))] left-6 z-40 flex-row-reverse gap-2 items-center"
+        aria-label="רשתות חברתיות"
+      >
+        {buttons.map(({ href, label, bg, icon }, i) => (
+          <motion.a
+            key={label}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.7 + i * 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 ${bg}`}
+          >
+            {icon}
+          </motion.a>
+        ))}
+      </div>
+    </>
   )
 }
 
