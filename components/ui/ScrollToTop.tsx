@@ -25,7 +25,7 @@ export default function ScrollToTop() {
           transition={{ duration: 0.25 }}
           onClick={scrollUp}
           aria-label="חזרה לראש הדף"
-          className="fixed bottom-[9.5rem] lg:bottom-24 left-4 z-40 w-10 h-10 rounded-full bg-brand-dark/80 backdrop-blur-sm text-white shadow-soft flex items-center justify-center hover:bg-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+          className="fixed bottom-24 right-8 z-40 w-10 h-10 rounded-full bg-brand-dark/80 backdrop-blur-sm text-white shadow-soft flex items-center justify-center hover:bg-brand-dark transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
         >
           <ChevronUp className="w-5 h-5" />
         </motion.button>
