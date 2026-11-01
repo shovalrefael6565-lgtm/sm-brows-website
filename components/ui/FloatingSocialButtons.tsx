@@ -32,13 +32,12 @@ const buttons = [
 ]
 
 /**
- * מקבץ רשתות צף — טור בצד במחשב, ובמובייל שורה קומפקטית מעל כפתור הוואטסאפ.
- * אותם אייקונים ואותם קישורים בשתי התצוגות.
+ * מקבץ רשתות צף — דסקטופ בלבד.
+ * במובייל הרשתות יושבות בשורת הניווט (בין שם העסק לכפתור התפריט), ומתחת
+ * ל-375px — שם הן לא נכנסות לשורה — במגירה ובפוטר.
  */
 export default function FloatingSocialButtons() {
   return (
-    <>
-      {/* מחשב — טור אנכי */}
       <div
         className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
         aria-label="רשתות חברתיות"
@@ -61,36 +60,6 @@ export default function FloatingSocialButtons() {
           </motion.a>
         ))}
       </div>
-
-      {/*
-        מובייל — גלולה אחת מעל הוואטסאפ (שנשאר בתחתית: 1.5rem + 3.5rem גובה).
-        ארבע נקודות צבע נפרדות בפינה היו רועשות, אז הן יושבות בתוך מיכל לבן
-        אחד שנקרא כאובייקט יחיד, בלי לוותר על הצבעים שמזהים כל רשת.
-        רוחב: 4×44 + 3×2 מרווח + 8 ריפוד + 2 מסגרת = 192px — נכנס גם ב-320px.
-      */}
-      <motion.div
-        role="group"
-        aria-label="רשתות חברתיות"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.7, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="flex lg:hidden fixed bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5rem))] left-6 z-40 flex-row items-center gap-0.5 rounded-full border border-brand-rose-light bg-white/90 p-1 shadow-soft-lg backdrop-blur-sm"
-      >
-        {buttons.map(({ href, label, bg, icon }) => (
-          <motion.a
-            key={label}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={label}
-            whileTap={{ scale: 0.92 }}
-            className={`w-11 h-11 rounded-full text-white flex items-center justify-center transition-opacity duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark focus-visible:ring-offset-1 ${bg}`}
-          >
-            {icon}
-          </motion.a>
-        ))}
-      </motion.div>
-    </>
   )
 }
 

@@ -30,6 +30,13 @@ const mobileNavLinks = [
   { href: '/contact', label: 'יצירת קשר', special: null },
 ]
 
+/**
+ * עיגולי הרשתות בשורת הניווט — בגווני המותג ולא בצבעי הרשתות עצמן, כדי
+ * שהשורה תישאר שקטה מעל תמונת ההירו. 24px הוא מינימום שטח המגע (WCAG 2.5.8).
+ */
+const navSocialClass =
+  'w-6 h-6 rounded-full bg-brand-rose-light text-brand-dark flex items-center justify-center hover:bg-brand-gold-light active:scale-90 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold'
+
 const SECTIONS = [
   { id: 'hero', label: 'ראשי' },
   { id: 'services', label: 'טיפולים' },
@@ -246,46 +253,51 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             </Link>
 
             {/*
-              Social circles — טאבלט בלבד (sm עד lg).
-              מוסתרים מתחת ל-sm ומשחררים 102px: הם ממילא מופיעים בתחתית
-              המגירה (<SocialIcons>), ולכן שום דבר לא הולך לאיבוד במובייל.
+              Social circles — בגווני המותג, בין שם העסק לכפתור התפריט.
+
+              ⚠️ הסף הוא 375px ולא קטן מכך. בין קבוצת המותג לכפתור התפריט
+              יש 81px פנויים ב-320px, 121px ב-360px ו-136px ב-375px; הקבוצה
+              הזו דורשת 112px (4×24 + 3×2 מרווח + 10 מרווח מהשם). רק מ-375
+              נשאר גם מרווח ה-gap-4 בין הקבוצות — מתחת לזה קבוצת המותג
+              מתכווצת (min-w-0) ושם העסק מתחיל להיחתך ב-truncate.
+              מתחת ל-375 הרשתות מופיעות במגירה (<SocialIcons>) ובפוטר.
             */}
-            <div className="hidden sm:flex lg:hidden items-center gap-1 flex-shrink-0" aria-label="רשתות חברתיות">
+            <div className="hidden min-[375px]:flex lg:hidden items-center gap-0.5 flex-shrink-0" aria-label="רשתות חברתיות">
               <a
                 href={TIKTOK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS בטיקטוק"
-                className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className={navSocialClass}
               >
-                <TikTokIcon className="w-2.5 h-2.5" />
+                <TikTokIcon className="w-3.5 h-3.5" />
               </a>
               <a
                 href={FACEBOOK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS בפייסבוק"
-                className="w-5 h-5 rounded-full bg-[#1877F2] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className={navSocialClass}
               >
-                <FacebookIcon className="w-2.5 h-2.5" />
+                <FacebookIcon className="w-3.5 h-3.5" />
               </a>
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="S.M BROWS באינסטגרם"
-                className="w-5 h-5 rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className={navSocialClass}
               >
-                <InstagramIcon className="w-2.5 h-2.5" />
+                <InstagramIcon className="w-3.5 h-3.5" />
               </a>
               <a
                 href={GOOGLE_BUSINESS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="פרופיל העסק בגוגל"
-                className="w-5 h-5 rounded-full bg-[#4285F4] text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                className={navSocialClass}
               >
-                <GoogleIcon className="w-2.5 h-2.5" />
+                <GoogleIcon className="w-3.5 h-3.5" />
               </a>
             </div>
             </div>
