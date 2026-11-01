@@ -32,10 +32,17 @@ const mobileNavLinks = [
 
 /**
  * עיגולי הרשתות בשורת הניווט — בגווני המותג ולא בצבעי הרשתות עצמן, כדי
- * שהשורה תישאר שקטה מעל תמונת ההירו. 24px הוא מינימום שטח המגע (WCAG 2.5.8).
+ * שהשורה תישאר שקטה מעל תמונת ההירו.
+ *
+ * ⚠️ 24px הוא מינימום שטח המגע לפי WCAG 2.5.8, ומתחת ל-375px אנחנו יורדים
+ * ל-20px ביודעין: זה התנאי להצגתם ב-320px בכלל. החריגה מקובלת כאן כי אותם
+ * קישורים עצמם זמינים במגירה ובפוטר בשטח מגע מלא.
  */
 const navSocialClass =
-  'w-6 h-6 rounded-full bg-brand-rose-light text-brand-dark flex items-center justify-center hover:bg-brand-gold-light active:scale-90 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold'
+  'w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-full bg-brand-rose-light text-brand-dark flex items-center justify-center hover:bg-brand-gold-light active:scale-90 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold'
+
+/** גודל הגליף בתוך העיגול — מתכווץ יחד איתו. */
+const navSocialIconClass = 'w-3 h-3 min-[375px]:w-3.5 min-[375px]:h-3.5'
 
 const SECTIONS = [
   { id: 'hero', label: 'ראשי' },
@@ -210,7 +217,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
         )}>
           <nav
             aria-label="ניווט ראשי"
-            className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4"
+            className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 max-[374px]:px-3 max-[374px]:gap-2"
           >
             {/*
               Logo + social circles.
@@ -223,12 +230,12 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
               מהמסך (ב-375px ומטה: 0 פיקסלים ממנו נראו), ואיתו גם הכניסה
               היחידה ל"אזור אישי" במובייל, שקיימת רק בתוך המגירה.
             */}
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 max-[374px]:gap-1.5">
             {/* Logo */}
             <Link
               href="/"
               aria-label="S.M BROWS – דף הבית"
-              className="flex items-center gap-2 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl"
+              className="flex items-center gap-2 min-w-0 max-[374px]:gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-xl"
             >
               <Image
                 src="/logo.png"
@@ -236,7 +243,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 width={64}
                 height={64}
                 priority
-                className="w-11 h-11 sm:w-16 sm:h-16 flex-shrink-0"
+                className="w-11 h-11 sm:w-16 sm:h-16 flex-shrink-0 max-[374px]:w-9 max-[374px]:h-9"
               />
               <div className="flex flex-col items-start gap-0.5 min-w-0">
                 {/* truncate = רשת ביטחון בלבד. אחרי הסתרת ה-tagline ועיגולי
@@ -255,14 +262,15 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
             {/*
               Social circles — בגווני המותג, בין שם העסק לכפתור התפריט.
 
-              ⚠️ הסף הוא 375px ולא קטן מכך. בין קבוצת המותג לכפתור התפריט
-              יש 81px פנויים ב-320px, 121px ב-360px ו-136px ב-375px; הקבוצה
-              הזו דורשת 112px (4×24 + 3×2 מרווח + 10 מרווח מהשם). רק מ-375
-              נשאר גם מרווח ה-gap-4 בין הקבוצות — מתחת לזה קבוצת המותג
-              מתכווצת (min-w-0) ושם העסק מתחיל להיחתך ב-truncate.
-              מתחת ל-375 הרשתות מופיעות במגירה (<SocialIcons>) ובפוטר.
+              ⚠️ מתחת ל-375px הקבוצה לא נכנסת בגודלה המלא: בין קבוצת המותג
+              לכפתור התפריט יש שם 81px בלבד, מול 112px שהיא דורשת ב-24px
+              לעיגול. כדי בכל זאת להציג אותה ב-320px, כל הקבוצה מתכווצת יחד
+              מתחת ל-374px — עיגולים 20px, לוגו 40px, ומרווחים צרים יותר
+              בשורה כולה (ראי max-[374px] ב-<nav>, בקבוצת המותג ובלוגו).
+              זה המקסימום שאפשר לדחוס בלי ש-truncate יתחיל לחתוך את שם העסק,
+              ולכן אין להגדיל כאן שום מידה בלי למדוד מחדש ב-320px.
             */}
-            <div className="hidden min-[375px]:flex lg:hidden items-center gap-0.5 flex-shrink-0" aria-label="רשתות חברתיות">
+            <div className="flex lg:hidden items-center gap-0.5 flex-shrink-0" aria-label="רשתות חברתיות">
               <a
                 href={TIKTOK_URL}
                 target="_blank"
@@ -270,7 +278,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 aria-label="S.M BROWS בטיקטוק"
                 className={navSocialClass}
               >
-                <TikTokIcon className="w-3.5 h-3.5" />
+                <TikTokIcon className={navSocialIconClass} />
               </a>
               <a
                 href={FACEBOOK_URL}
@@ -279,7 +287,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 aria-label="S.M BROWS בפייסבוק"
                 className={navSocialClass}
               >
-                <FacebookIcon className="w-3.5 h-3.5" />
+                <FacebookIcon className={navSocialIconClass} />
               </a>
               <a
                 href={INSTAGRAM_URL}
@@ -288,7 +296,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 aria-label="S.M BROWS באינסטגרם"
                 className={navSocialClass}
               >
-                <InstagramIcon className="w-3.5 h-3.5" />
+                <InstagramIcon className={navSocialIconClass} />
               </a>
               <a
                 href={GOOGLE_BUSINESS_URL}
@@ -297,7 +305,7 @@ export default function Navbar({ newBookingSystemEnabled = false }: NavbarProps)
                 aria-label="פרופיל העסק בגוגל"
                 className={navSocialClass}
               >
-                <GoogleIcon className="w-3.5 h-3.5" />
+                <GoogleIcon className={navSocialIconClass} />
               </a>
             </div>
             </div>
