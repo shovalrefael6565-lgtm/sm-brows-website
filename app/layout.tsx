@@ -213,8 +213,8 @@ const businessJsonLd = {
     {
       '@type': 'OpeningHoursSpecification',
       dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-      opens: '17:00',
-      closes: '19:00',
+      opens: '17:40',
+      closes: '19:20',
     },
   ],
   // GOOGLE_BUSINESS_URL כבר מקושר גלוי בפוטר, בניווט ובאייקונים החברתיים —

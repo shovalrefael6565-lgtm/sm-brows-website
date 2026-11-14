@@ -172,8 +172,8 @@ chk('רשת מלאה לא חלה מעבר לטווח בלי זמינות מיו�
 
 chk('הרמת גבות: זוג תקין 10:20+10:40', isValidLiftingStart(2026, 7, 12, '10:20', now))
 chk('הרמת גבות: 14:40 לא תקין (15:00 סוף המשמרת)', !isValidLiftingStart(2026, 7, 12, '14:40', now))
-chk('הרמת גבות: 18:40 לא תקין (19:00 לא ברשת)', !isValidLiftingStart(2026, 7, 12, '18:40', now))
-chk('הרמת גבות: 18:20 תקין', isValidLiftingStart(2026, 7, 12, '18:20', now))
+chk('הרמת גבות: 19:00 לא תקין (19:20 סוף המשמרת)', !isValidLiftingStart(2026, 7, 12, '19:00', now))
+chk('הרמת גבות: 18:40 תקין (18:40–19:20)', isValidLiftingStart(2026, 7, 12, '18:40', now))
 
 // ⚠️ שלב 15B: חלון ההכנה קוצר מ-90 ל-40 דקות (MIN_LEAD_MINUTES).
 // now~12:00 ⟶ הסלוט הקביל הראשון הוא 12:40.
@@ -184,21 +184,21 @@ chk('חלון הכנה: היום 15:00 תקין', hasLeadTime(2026, 7, 4, '15:00
 chk('חלון הכנה: לא רלוונטי לתאריך עתידי', hasLeadTime(2026, 7, 12, '09:00', now))
 
 // ════════════════════════════════════════════════════════════════════════════
-section('שעות העבודה — 09:00–15:00 ו-17:00–19:00')
+section('שעות העבודה — 09:00–15:00 ו-17:40–19:20')
 // ════════════════════════════════════════════════════════════════════════════
 
-chk('המשמרות המוגדרות הן 09:00–15:00 ו-17:00–19:00',
+chk('המשמרות המוגדרות הן 09:00–15:00 ו-17:40–19:20',
   JSON.stringify(BUSINESS_SHIFTS) ===
-  JSON.stringify([{ start: '09:00', end: '15:00' }, { start: '17:00', end: '19:00' }]),
+  JSON.stringify([{ start: '09:00', end: '15:00' }, { start: '17:40', end: '19:20' }]),
   JSON.stringify(BUSINESS_SHIFTS))
 
 {
   const EXPECTED_GRID = [
     '09:00','09:20','09:40','10:00','10:20','10:40','11:00','11:20','11:40',
     '12:00','12:20','12:40','13:00','13:20','13:40','14:00','14:20','14:40',
-    '17:00','17:20','17:40','18:00','18:20','18:40',
+    '17:40','18:00','18:20','18:40','19:00',
   ]
-  chk('הרשת נגזרת מהמשמרות: 18 בוקר + 6 ערב = 24 סלוטים',
+  chk('הרשת נגזרת מהמשמרות: 18 בוקר + 5 ערב = 23 סלוטים',
     JSON.stringify(TIME_SLOTS) === JSON.stringify(EXPECTED_GRID), TIME_SLOTS.join(','))
   chk('מרווח 20 דק׳ בין סלוטים רצופים בתוך כל משמרת',
     SLOT_INTERVAL_MINUTES === 20 &&
@@ -211,21 +211,21 @@ chk('🔒 (4) אין שעות לפני 09:00',
   !TIME_SLOTS.some(t => mins(t) < mins('09:00')) &&
   !isValidTimeSlot(2026, 7, 12, '08:40', now))
 
-// (5) בין 15:00 ל-17:00 אין תורים
+// (5) בין 15:00 ל-17:40 אין תורים
 {
   const midday = []
-  for (let m = mins('15:00'); m < mins('17:00'); m += 20) midday.push(hhmm(m))
-  chk('🔒 (5) אף שעה בין 15:00 ל-16:59 אינה ברשת',
+  for (let m = mins('15:00'); m < mins('17:40'); m += 20) midday.push(hhmm(m))
+  chk('🔒 (5) אף שעה בין 15:00 ל-17:39 אינה ברשת',
     midday.every(t => !TIME_SLOTS.includes(t)))
   chk('🔒 (5) והשרת דוחה כל אחת מהן',
     midday.every(t => !isValidTimeSlot(2026, 7, 12, t, now)), midday.join(','))
 }
 
-// (6) אחרי 19:00 אין תורים
-chk('🔒 (6) הסלוט האחרון הוא 18:40 (מסתיים 19:00), ו-19:00 עצמה אינה ברשת',
-  TIME_SLOTS[TIME_SLOTS.length - 1] === '18:40' && !TIME_SLOTS.includes('19:00'))
-chk('🔒 (6) השרת דוחה 19:00 ו-19:20',
-  !isValidTimeSlot(2026, 7, 12, '19:00', now) && !isValidTimeSlot(2026, 7, 12, '19:20', now))
+// (6) אחרי 19:20 אין תורים
+chk('🔒 (6) הסלוט האחרון הוא 19:00 (מסתיים 19:20), ו-19:20 עצמה אינה ברשת',
+  TIME_SLOTS[TIME_SLOTS.length - 1] === '19:00' && !TIME_SLOTS.includes('19:20'))
+chk('🔒 (6) השרת דוחה 19:20 ו-19:40',
+  !isValidTimeSlot(2026, 7, 12, '19:20', now) && !isValidTimeSlot(2026, 7, 12, '19:40', now))
 
 // (7) הטיפול חייב להסתיים בתוך המשמרת
 chk('✅ (7) 14:40 תקין ל-20 דק׳ (מסתיים בדיוק ב-15:00)',
@@ -234,10 +234,10 @@ chk('🔒 (7) 14:40 אינו תקין ל-40 דק׳ (היה מסתיים 15:20, �
   !isValidLiftingStart(2026, 7, 12, '14:40', now))
 chk('✅ (7) 14:20 כן תקין ל-40 דק׳ (14:20–15:00)',
   isValidLiftingStart(2026, 7, 12, '14:20', now))
-chk('🔒 (7) 18:40 אינו תקין ל-40 דק׳ (היה מסתיים 19:20)',
-  !isValidLiftingStart(2026, 7, 12, '18:40', now))
-chk('✅ (7) 18:20 כן תקין ל-40 דק׳ (18:20–19:00)',
-  isValidLiftingStart(2026, 7, 12, '18:20', now))
+chk('🔒 (7) 19:00 אינו תקין ל-40 דק׳ (היה מסתיים 19:40)',
+  !isValidLiftingStart(2026, 7, 12, '19:00', now))
+chk('✅ (7) 18:40 כן תקין ל-40 דק׳ (18:40–19:20)',
+  isValidLiftingStart(2026, 7, 12, '18:40', now))
 
 // ════════════════════════════════════════════════════════════════════════════
 section('חשיפה הדרגתית — יעד 6 אפשרויות זמינות')
@@ -271,7 +271,7 @@ chk('הקבועים: 8 בקצה הסולם, יעד מינימום 6',
   // 🔒 הסולם גובר על היעד: תפוסה כבדה היום לא מטפסת אותו חזרה ל-6
   const busyToday = selectDisplaySlots({
     year: 2026, month: 7, day: 4, durationMin: 40, now,
-    busyRanges: [{ start: '17:00', end: '17:40' }],
+    busyRanges: [{ start: '17:40', end: '18:20' }],
   })
   chk('🔒 היום, טיפול 40 דק׳ אחרי תפוסה — עדיין ≤4, החשיפה לא מטפסת ל-6',
     busyToday.length <= 4, `${busyToday.length}: ${busyToday.join(',')}`)
@@ -319,7 +319,7 @@ chk('הקבועים: 8 בקצה הסולם, יעד מינימום 6',
   // כל היום תפוס חוץ מ-14:00, 14:20, 14:40 — שלושה סלוטים חוקיים בלבד
   const almostFull = [
     { start: '09:00', end: '14:00' },
-    { start: '17:00', end: '19:00' },
+    { start: '17:40', end: '19:20' },
   ]
   const three = show(almostFull, 20)
   chk('🔒 (3) נשארו 3 סלוטים חוקיים — מוצגים 3, לא 6',
@@ -327,15 +327,15 @@ chk('הקבועים: 8 בקצה הסולם, יעד מינימום 6',
   chk('🔒 (3) יום תפוס לחלוטין — אפס סלוטים, לא "המצאה" של שעות',
     show([{ start: '00:00', end: '23:59' }], 20).length === 0)
   chk('🔒 (3) 40 דק׳ ביום עם סלוט בודד פנוי — אפס אפשרויות',
-    show([{ start: '09:00', end: '18:40' }], 40).length === 0)
+    show([{ start: '09:00', end: '19:00' }], 40).length === 0)
 }
 
 // (8)(9) החשיפה ההדרגתית אינה עוקפת את היומן ואת התורים הקיימים
 {
-  const googleEvent = [{ start: '17:00', end: '18:00' }]
+  const googleEvent = [{ start: '17:40', end: '18:20' }]
   const withEvent = show(googleEvent, 40)
   chk('🔒 (8)(9) סלוט שחופף אירוע Google / תור קיים לא נחשף גם כשחסרות אפשרויות',
-    withEvent.every(t => mins(t) >= mins('18:00') || mins(t) + 40 <= mins('17:00')),
+    withEvent.every(t => mins(t) >= mins('18:20') || mins(t) + 40 <= mins('17:40')),
     withEvent.join(','))
   chk('🔒 (8)(9) כל מה שנחשף נמצא בתוך אחת המשמרות',
     withEvent.every(t => BUSINESS_SHIFTS.some(sh =>
@@ -351,7 +351,7 @@ chk('🔒 (11) יום חסום ביומן (חג / יום שאינה עובדת) 
   show([{ start: '00:00', end: '23:59' }], 40).length === 0)
 
 // ════════════════════════════════════════════════════════════════════════════
-section('שעות הפעילות החדשות — רגרסיה מפורשת (09:00–15:00 · 17:00–19:00)')
+section('שעות הפעילות החדשות — רגרסיה מפורשת (09:00–15:00 · 17:40–19:20)')
 // ════════════════════════════════════════════════════════════════════════════
 
 {
@@ -363,9 +363,9 @@ section('שעות הפעילות החדשות — רגרסיה מפורשת (09:
     pool.some(t => mins(t) >= mins('09:00') && mins(t) + 20 <= mins('15:00')),
     pool.join(','))
 
-  // (4) קיימת זמינות אפשרית בין 17:00–19:00
-  chk('✅ (4) יש זמינות חוקית בחלון הערב 17:00–19:00',
-    pool.some(t => mins(t) >= mins('17:00') && mins(t) + 20 <= mins('19:00')))
+  // (4) קיימת זמינות אפשרית בין 17:40–19:20
+  chk('✅ (4) יש זמינות חוקית בחלון הערב 17:40–19:20',
+    pool.some(t => mins(t) >= mins('17:40') && mins(t) + 20 <= mins('19:20')))
 
   // (1)(3)(6) אין דבר מחוץ לחלונות
   chk('🔒 (1)(3)(6) כל שעה חוקית נמצאת בתוך אחד משני החלונות',
@@ -375,11 +375,11 @@ section('שעות הפעילות החדשות — רגרסיה מפורשת (09:
   // (5) טיפול של 40 דק' לעולם אינו חוצה 15:00 ואינו מסתיים אחרי 19:00
   const lift = legalStartTimes({ ...FREE_DAY, busyRanges: [], durationMin: 40, now })
   chk('🔒 (5) אף התחלה ל-40 דק׳ אינה חורגת מ-15:00 בבוקר',
-    lift.every(t => mins(t) >= mins('17:00') || mins(t) + 40 <= mins('15:00')), lift.join(','))
-  chk('🔒 (5) ואף אחת אינה חוצה את ההפסקה 15:00–17:00',
-    lift.every(t => mins(t) + 40 <= mins('15:00') || mins(t) >= mins('17:00')))
-  chk('🔒 (6) ואף אחת אינה מסתיימת אחרי 19:00',
-    lift.every(t => mins(t) + 40 <= mins('19:00')))
+    lift.every(t => mins(t) >= mins('17:40') || mins(t) + 40 <= mins('15:00')), lift.join(','))
+  chk('🔒 (5) ואף אחת אינה חוצה את ההפסקה 15:00–17:40',
+    lift.every(t => mins(t) + 40 <= mins('15:00') || mins(t) >= mins('17:40')))
+  chk('🔒 (6) ואף אחת אינה מסתיימת אחרי 19:20',
+    lift.every(t => mins(t) + 40 <= mins('19:20')))
 }
 
 // (7) משך הטיפול עצמו לא נגע — הוא נשאר לפי הגדרת השירות הקיימת
@@ -411,7 +411,7 @@ section('שעות הפעילות החדשות — רגרסיה מפורשת (09:
     ...FREE_DAY, busyRanges: [{ start: '14:00', end: '15:00' }], durationMin: 20, now })
   chk('🔒 (8)(10) חסימת Google חלקית 14:00–15:00 מסירה בדיוק את שלושת הסלוטים',
     !partial.includes('14:00') && !partial.includes('14:20') && !partial.includes('14:40') &&
-    partial.includes('13:40') && partial.includes('17:00'), partial.join(','))
+    partial.includes('13:40') && partial.includes('17:40'), partial.join(','))
 }
 
 // (15) special closed dates — שישי/שבת ויום שנחסם ביומן נשארים סגורים
@@ -422,21 +422,22 @@ chk('🔒 (15) יום שנחסם במלואו ביומן נשאר סגור גם 
 {
   const read = rel => readFileSync(new URL(rel, import.meta.url), 'utf8')
   const layout = read('../app/layout.tsx')
-  chk('🔒 (22) openingHoursSpecification מצהיר 09:00–15:00 ו-17:00–19:00',
+  chk('🔒 (22) openingHoursSpecification מצהיר 09:00–15:00 ו-17:40–19:20',
     /opens: '09:00',\s*\n\s*closes: '15:00',/.test(layout) &&
-    /opens: '17:00',\s*\n\s*closes: '19:00',/.test(layout) &&
-    !layout.includes("closes: '13:00'") && !layout.includes("opens: '16:00'"))
+    /opens: '17:40',\s*\n\s*closes: '19:20',/.test(layout) &&
+    !layout.includes("closes: '13:00'") && !layout.includes("opens: '16:00'") &&
+    !layout.includes("opens: '17:00'"))
   for (const [file, needle] of [
-    ['../app/booking/page.tsx', '09:00–15:00 ו-17:00–19:00'],
-    ['../components/home/BookingSection.tsx', '09:00–15:00 ו-17:00–19:00'],
+    ['../app/booking/page.tsx', '09:00–15:00 ו-17:40–19:20'],
+    ['../components/home/BookingSection.tsx', '09:00–15:00 ו-17:40–19:20'],
     ['../components/contact/ContactContent.tsx', "time: '09:00 – 15:00'"],
   ]) {
     const src = read(file)
     chk(`🔒 (22) ${file.replace('../', '')} מציג את השעות החדשות`,
       src.includes(needle) && !src.includes('09:00–13:00') && !src.includes("'09:00 – 13:00'"))
   }
-  chk('🔒 (22) ContactContent ממשיך להציג את חלון הערב 17:00 – 19:00',
-    read('../components/contact/ContactContent.tsx').includes("time: '17:00 – 19:00'"))
+  chk('🔒 (22) ContactContent ממשיך להציג את חלון הערב 17:40 – 19:20',
+    read('../components/contact/ContactContent.tsx').includes("time: '17:40 – 19:20'"))
 }
 
 // (12) טווח ההזמנה — 37 יום, והחשיפה ההדרגתית אינה חורגת ממנו

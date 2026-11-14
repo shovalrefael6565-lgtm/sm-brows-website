@@ -58,7 +58,7 @@ export default function BookingSection() {
           </div>
 
           <p className="text-white/55 text-sm">
-            זמינות: ראשון–חמישי | 09:00–15:00 ו-17:00–19:00
+            זמינות: ראשון–חמישי | 09:00–15:00 ו-17:40–19:20
           </p>
         </motion.div>
       </div>
