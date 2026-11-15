@@ -41,7 +41,9 @@ const {
 const { verifyAuthUserPhone, findAuthUserIdByPhone } =
   await import('../lib/auth/adminUserResolver.ts')
 
-const { israelWallTimeToUtc } = await import('../lib/israelTime.ts')
+const { israelWallTimeToUtc, BUSINESS_START_MIN, BUSINESS_END_MIN } =
+  await import('../lib/israelTime.ts')
+const { BUSINESS_SHIFTS } = await import('../lib/bookingWindow.ts')
 const {
   NATURAL_SERVICE, LIFTING_SERVICE, MICROBLADING_SERVICE, MICROBLADING_CONSULT_SERVICE,
   ADMIN_ONLY_SERVICES, ADMIN_MIN_DURATION_MIN, ADMIN_MAX_DURATION_MIN, isBookableService,
@@ -190,7 +192,43 @@ chk('20:30 — מסומן כמחוץ לשעות הפעילות', w.outsideBusine
 // תור שמתחיל בתוך השעות אך נגמר אחריהן
 const spill = manualSlotInstants('2026-08-24', '18:50', 40)
 w = manualSlotWarnings(spill.startsAt, spill.endsAt)
-chk('18:50 למשך 40 דק׳ (נגמר אחרי 19:00) — מסומן כחריגה', w.outsideBusinessHours)
+chk('18:50 למשך 40 דק׳ (נגמר 19:30, אחרי סגירת היום) — מסומן כחריגה', w.outsideBusinessHours)
+
+// ── 🔒 המעטפת נגזרת מ-BUSINESS_SHIFTS ולא ממעטפת תפוגת ה-pending ──────────
+// עד 15.11.2026 האזהרה נשענה על BUSINESS_END_MIN מ-lib/israelTime, שקפוא על
+// 19:00 כי הוא משרת את גלגול תפוגת ה-pending. ברגע שמשמרת הערב עברה ל-
+// 17:40–19:20 הוא סימן תור חוקי לגמרי ב-19:00–19:20 כ"חריגה משעות הפעילות".
+{
+  const toMin = t => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
+  const open = BUSINESS_SHIFTS[0].start
+  const close = BUSINESS_SHIFTS[BUSINESS_SHIFTS.length - 1].end
+
+  // הסלוט האחרון ברשת — מתחיל ונגמר בדיוק בקצה המשמרת
+  const lastStart = `${String(Math.floor((toMin(close) - 20) / 60)).padStart(2, '0')}:${String((toMin(close) - 20) % 60).padStart(2, '0')}`
+  const lastSlot = manualSlotInstants('2026-08-24', lastStart, 20)
+  chk(`🔒 ${lastStart}–${close} (הסלוט האחרון) אינו מסומן כחריגה`,
+    !manualSlotWarnings(lastSlot.startsAt, lastSlot.endsAt).outsideBusinessHours,
+    `${lastStart} +20`)
+
+  // דקה אחרי הסגירה — כן חריגה
+  const past = manualSlotInstants('2026-08-24', lastStart, 40)
+  chk(`🔒 ${lastStart} למשך 40 דק׳ חורג מ-${close}`,
+    manualSlotWarnings(past.startsAt, past.endsAt).outsideBusinessHours)
+
+  // 🔒 וזו מעטפת, לא הכלה במשמרת: ההפסקה אינה מסומנת — בלי שינוי התנהגות
+  const breakStart = BUSINESS_SHIFTS.length > 1 ? BUSINESS_SHIFTS[0].end : null
+  if (breakStart) {
+    const inBreak = manualSlotInstants('2026-08-24', breakStart, 20)
+    chk(`🔒 ${breakStart} (בתוך ההפסקה) אינו מסומן כחריגה — ההתנהגות לא הורחבה`,
+      !manualSlotWarnings(inBreak.startsAt, inBreak.endsAt).outsideBusinessHours)
+  }
+
+  // 🔒 והקבועים של תפוגת ה-pending לא זזו בגלל התיקון
+  chk('🔒 BUSINESS_START_MIN/END_MIN (מעטפת תפוגת ה-pending) נשארו [09:00, 19:00)',
+    BUSINESS_START_MIN === 9 * 60 && BUSINESS_END_MIN === 19 * 60,
+    `${BUSINESS_START_MIN} ${BUSINESS_END_MIN}`)
+  chk('🔒 ושעת הפתיחה באזהרה היא פתיחת המשמרת הראשונה', toMin(open) === 9 * 60)
+}
 
 // 2026-08-28 הוא יום שישי, 2026-08-29 שבת
 const friday = manualSlotInstants('2026-08-28', '14:00', 20)

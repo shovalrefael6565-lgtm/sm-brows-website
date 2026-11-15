@@ -2,7 +2,6 @@ import 'server-only'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import {
   israelWallTimeToUtc, israelDateStr, israelMinutes, fmtIsrael,
-  BUSINESS_START_MIN, BUSINESS_END_MIN,
 } from '@/lib/israelTime'
 import {
   findConflictingCalendarEvent, logGoogleCalendarError, adoptExistingCalendarEvent,
@@ -15,7 +14,7 @@ import {
 } from '@/lib/db/appointments'
 import { retryCalendarSync } from '@/lib/appointmentApproval'
 import { POLICY_VERSION } from '@/lib/bookingPolicy'
-import { isFridayOrSaturday } from '@/lib/bookingWindow'
+import { isFridayOrSaturday, BUSINESS_SHIFTS } from '@/lib/bookingWindow'
 import { lookupIdempotency } from '@/lib/db/manualCustomers'
 import { appointmentCreateFingerprint } from '@/lib/adminIdempotency'
 import {
@@ -173,6 +172,25 @@ export function manualSlotInstants(
   return { startsAt, endsAt: new Date(startsAt.getTime() + durationMin * 60 * 1000) }
 }
 
+/**
+ * קצות יום העבודה, נגזרים מ-BUSINESS_SHIFTS — הפתיחה של המשמרת הראשונה
+ * והסגירה של האחרונה.
+ *
+ * ⚠️ **במכוון לא `BUSINESS_START_MIN` / `BUSINESS_END_MIN` מ-lib/israelTime.**
+ * שני הקבועים האלה הם המעטפת של *תפוגת בקשות pending* ושל גלגול התפוגה
+ * ליום העבודה הבא, ולא שעות הפעילות. הם קפואים על [09:00, 19:00), וכשמשמרת
+ * הערב עברה ל-17:40–19:20 (14.11.2026) הם הפכו תור ידני ב-19:00–19:20 —
+ * מועד חוקי לגמרי — ל"חריגה משעות הפעילות". האזהרה הזו מדברת על מה שמוצג
+ * ללקוחות, ולכן היא חייבת לרדוף אחרי המשמרות, לא אחרי מעטפת התפוגה.
+ *
+ * 🔒 זו מעטפת ולא בדיקת הכלה במשמרת: מועד שנופל בהפסקת הצהריים
+ * (15:00–17:40) **אינו** מסומן כחריגה, בדיוק כפי שלא סומן עד היום. הרחבת
+ * האזהרה גם להפסקה היא שינוי התנהגות בזרימת הניהול ולא תיקון.
+ */
+const toShiftMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3))
+const DAY_OPEN_MIN = toShiftMin(BUSINESS_SHIFTS[0].start)
+const DAY_CLOSE_MIN = toShiftMin(BUSINESS_SHIFTS[BUSINESS_SHIFTS.length - 1].end)
+
 /** אזהרה לא-חוסמת: המועד חוקי אך חורג ממה שמוצג ללקוחות */
 export interface SlotWarnings {
   outsideBusinessHours: boolean
@@ -184,10 +202,10 @@ export function manualSlotWarnings(startsAt: Date, endsAt: Date): SlotWarnings {
   const [y, m, d] = isoDate.split('-').map(Number)
   const startMin = israelMinutes(startsAt)
   // סוף שנופל אחרי חצות נחשב תמיד חריגה
-  const endMin = israelDateStr(endsAt) === isoDate ? israelMinutes(endsAt) : BUSINESS_END_MIN + 1
+  const endMin = israelDateStr(endsAt) === isoDate ? israelMinutes(endsAt) : DAY_CLOSE_MIN + 1
 
   return {
-    outsideBusinessHours: startMin < BUSINESS_START_MIN || endMin > BUSINESS_END_MIN,
+    outsideBusinessHours: startMin < DAY_OPEN_MIN || endMin > DAY_CLOSE_MIN,
     closedDay: isFridayOrSaturday(y, m - 1, d),
   }
 }
