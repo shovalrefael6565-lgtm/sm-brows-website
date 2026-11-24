@@ -361,8 +361,8 @@ The professional course ("קורס עיצוב גבות טבעיות") is Shoval'
 
 ### Floating Controls (site-wide)
 
-- Below 1440px, the WhatsApp, accessibility and back-to-top buttons sit inside an opaque bottom strip (`components/ui/MobileDock.tsx`). Its height is `--dock-h` (4rem plus the safe-area inset), and the body gets matching bottom padding. Content scrolls under the strip like it does under the header, so the buttons never cover text while it is being read. The strip captures taps, and `scroll-padding-bottom` keeps keyboard focus visible above it.
-- From 1440px up they are corner circles with a thin gold ring, and the social rail is shown. The back-to-top button hides itself only while text sits directly under it. The accessibility button is always visible.
+- Below 1440px, the WhatsApp, accessibility and back-to-top buttons sit in one row along the bottom edge (`components/ui/MobileDock.tsx`, height `--dock-h` = 4rem + safe-area). Since 24.11.2026 the strip is fully transparent: no background, blur, shadow or border. Only the buttons capture taps. The body keeps matching bottom padding, and `scroll-padding-bottom` keeps keyboard focus above the buttons. The back-to-top button hides itself whenever text sits directly under it, at every width.
+- From 1440px up they are corner circles with a thin gold ring, and the social rail is shown. The accessibility button is always visible.
 - The cookie banner sits above the strip. Below 640px its three choices are equal-width columns side by side; from 640px up the layout is unchanged.
 
 ### Treatment and Service Card

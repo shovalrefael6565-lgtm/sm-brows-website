@@ -10,18 +10,15 @@ import { ChevronUp } from 'lucide-react'
  * הנגישות; מעל — עיגול צף מעליו. 44px — יעד לחיצה מינימלי.
  * prefers-reduced-motion: בלי אנימציית כניסה/יציאה.
  *
- * ⚠️ הימנעות מחפיפה (מ-1440px בלבד, שם הכפתור צף מעל התוכן): בעמוד הבית יש
- * טקסט שמגיע עד 47px מקצה המסך, וכפתור של 44px לא יכול להימנע ממנו בשום מיקום.
- * לכן כשיש טקסט ממש מתחת לכפתור — הוא מוסתר זמנית, וחוזר כשהאזור מתפנה.
- * ביצועים: הבדיקה רצה רק כשהגלילה נעצרת (debounce של 120ms), ומשתמשת
+ * ⚠️ הימנעות מחפיפה (בכל הרוחבים — מאז שרצועת המעגן שקופה, הכפתור צף מעל
+ * התוכן גם במובייל): כשיש טקסט ממש מתחת לכפתור הוא מוסתר זמנית, וחוזר כשהאזור
+ * מתפנה. ביצועים: הבדיקה רצה רק כשהגלילה נעצרת (debounce של 120ms), ומשתמשת
  * ב-elementsFromPoint בחמש נקודות בתוך הכפתור — hit-test מקורי של הדפדפן,
- * בלי סריקת DOM. מתחת ל-1440px היא לא רצה בכלל (הכפתור בתוך הרצועה האטומה).
+ * בלי סריקת DOM.
  * 🔒 כפתור בפוקוס לעולם לא מוסתר.
  */
 
-const WIDE = '(min-width: 1440px)'
-
-/** האם יש שורת טקסט גלויה מתחת למלבן הכפתור (מלבד הכפתור עצמו) */
+/** האם יש שורת טקסט גלויה מתחת למלבן הכפתור (מלבד הכפתור עצמו והכפתורים הצפים האחרים) */
 function textUnder(btn: HTMLElement): boolean {
   const b = btn.getBoundingClientRect()
   const inset = 6
@@ -35,7 +32,7 @@ function textUnder(btn: HTMLElement): boolean {
   const seen = new Set<Element>()
   for (const [x, y] of points) {
     for (const el of document.elementsFromPoint(x, y)) {
-      if (el === btn || btn.contains(el) || seen.has(el)) continue
+      if (el === btn || btn.contains(el) || seen.has(el) || el.closest('.fixed')) continue
       seen.add(el)
       for (const node of el.childNodes) {
         if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue
@@ -58,25 +55,22 @@ export default function ScrollToTop() {
   const reduce = useReducedMotion()
 
   useEffect(() => {
-    const wide = window.matchMedia(WIDE)
     let timer: ReturnType<typeof setTimeout> | undefined
     const check = () => {
       const btn = ref.current
-      if (!btn || !wide.matches) { setOverText(false); return }
-      setOverText(textUnder(btn))
+      setOverText(btn ? textUnder(btn) : false)
     }
     const onScroll = () => {
       setVisible(window.scrollY > 400)
-      if (!wide.matches) return
       clearTimeout(timer)
       timer = setTimeout(check, 120)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
-    wide.addEventListener('change', check)
+    window.addEventListener('resize', onScroll, { passive: true })
     return () => {
       clearTimeout(timer)
       window.removeEventListener('scroll', onScroll)
-      wide.removeEventListener('change', check)
+      window.removeEventListener('resize', onScroll)
     }
   }, [])
 
