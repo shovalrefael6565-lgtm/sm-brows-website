@@ -1,8 +1,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Phone, Mail, MapPin } from 'lucide-react'
-import { WHATSAPP_URL, PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
+import { PHONE_NUMBER, LOCATION, EMAIL, INSTAGRAM_URL, FACEBOOK_URL, TIKTOK_URL, GOOGLE_BUSINESS_URL } from '@/lib/utils'
 import GoogleIcon from '@/components/ui/GoogleIcon'
+import FooterWhatsAppLink from './FooterWhatsAppLink'
 import PrivacySettingsFooterLink from '@/components/ui/PrivacySettingsFooterLink'
 
 const col2Links = [
@@ -175,16 +176,9 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a
-                  href={WHATSAPP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="קביעת תור בוואצאפ"
-                  className="inline-flex items-center gap-2 mt-2 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/30 text-brand-gold text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
-                >
+                <FooterWhatsAppLink className="inline-flex items-center gap-2 mt-2 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/30 text-brand-gold text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold">
                   <WhatsAppIcon className="w-4 h-4" />
-                  קבעי תור בוואצאפ
-                </a>
+                </FooterWhatsAppLink>
               </li>
             </ul>
           </div>

@@ -23,6 +23,52 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /*
+    ── רצועת המעגן התחתונה (components/ui/MobileDock.tsx) — מתחת ל-1440px ──
+    גובה אחד, מוגדר כאן בלבד, ומשמש: את הרצועה, את ה-padding של ה-body
+    (כדי שכל תוכן — כולל סוף הפוטר — ניתן לגלילה אל מעליה), את באנר העוגיות
+    ואת פאנל הנגישות. מ-1440px ומעלה הכפתורים חוזרים להיות עיגולים צפים בפינות.
+  */
+  :root {
+    --dock-h: calc(4rem + env(safe-area-inset-bottom));
+  }
+  @media (max-width: 1439.98px) {
+    body {
+      padding-bottom: var(--dock-h);
+    }
+    .mobile-dock {
+      height: var(--dock-h);
+    }
+    /*
+      ⚠️ scroll-padding-bottom: כשהדפדפן גולל אלמנט לתצוגה — בעיקר כשהפוקוס עובר
+      אליו ב-Tab — הוא משאיר מקום לרצועה, כך שאלמנט בפוקוס לא מוסתר מתחתיה
+      (WCAG 2.4.11). נמדד: בלי זה 14 מתוך 54 עצירות טאב נחבאו מתחת לרצועה.
+    */
+    html {
+      scroll-padding-bottom: calc(var(--dock-h) + 1rem);
+    }
+    /*
+      כשבאנר העוגיות פתוח הוא יושב מעל הרצועה — משאירים מקום לשניהם (באנר ≤ ~12rem).
+      גם ה-body מקבל את המקום הזה, אחרת קישורי סוף הפוטר לא יכולים לעלות מעל הבאנר
+      (בסוף העמוד אין לאן לגלול). זה זמני: הבאנר יורד מה-DOM ברגע שבוחרים.
+    */
+    html:has(#cookie-consent-heading) {
+      scroll-padding-bottom: calc(var(--dock-h) + 13rem);
+    }
+    html:has(#cookie-consent-heading) body {
+      padding-bottom: calc(var(--dock-h) + 13rem);
+    }
+  }
+  @media (min-width: 1440px) {
+    /* מעל 1440px אין רצועה, אבל באנר העוגיות (כשפתוח) עדיין יושב בתחתית */
+    html:has(#cookie-consent-heading) {
+      scroll-padding-bottom: 13rem;
+    }
+    html:has(#cookie-consent-heading) body {
+      padding-bottom: 13rem;
+    }
+  }
+
   *,
   *::before,
   *::after {

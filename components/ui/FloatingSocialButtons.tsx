@@ -32,14 +32,14 @@ const buttons = [
 ]
 
 /**
- * מקבץ רשתות צף — דסקטופ בלבד.
+ * מקבץ רשתות צף — מ-1440px בלבד (ב-1024px הוא כיסה טקסט; שם הרשתות בפוטר).
  * במובייל הרשתות יושבות בשורת הניווט (בין שם העסק לכפתור התפריט), ומתחת
  * ל-375px — שם הן לא נכנסות לשורה — במגירה ובפוטר.
  */
 export default function FloatingSocialButtons() {
   return (
       <div
-        className="hidden lg:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
+        className="hidden min-[1440px]:flex fixed bottom-24 left-6 z-40 flex-col gap-3 items-center pb-[env(safe-area-inset-bottom)]"
         aria-label="רשתות חברתיות"
       >
         {buttons.map(({ href, label, bg, icon }, i) => (

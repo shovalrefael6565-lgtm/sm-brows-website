@@ -205,7 +205,7 @@ export default function AccessibilityWidget() {
         aria-label="פתיחת תפריט נגישות"
         aria-expanded={isOpen}
         aria-controls="a11y-panel"
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-brand-dark text-white rounded-full shadow-lg hover:bg-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
+        className="fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] right-4 min-[1440px]:bottom-6 min-[1440px]:right-6 z-40 flex items-center justify-center w-12 h-12 min-[1440px]:w-14 min-[1440px]:h-14 bg-brand-dark text-white rounded-full shadow-lg ring-1 ring-brand-gold/70 hover:bg-brand-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-gold focus-visible:ring-offset-2"
         title="נגישות – תקן ישראלי 5568"
       >
         <Accessibility className="w-6 h-6" aria-hidden="true" />
@@ -269,7 +269,7 @@ export default function AccessibilityWidget() {
                 יוצא מהמסך בלי דרך להגיע אליו — כלומר בדיוק אותו מלכוד
                 שהתיקון הזה נועד לסגור.
               */
-              className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm max-h-[calc(100dvh-8rem)] overflow-y-auto bg-white rounded-2xl shadow-soft-lg border border-brand-rose-light"
+              className="fixed bottom-[calc(var(--dock-h)+0.75rem)] min-[1440px]:bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm max-h-[calc(100dvh-var(--dock-h)-6rem)] min-[1440px]:max-h-[calc(100dvh-8rem)] overflow-y-auto bg-white rounded-2xl shadow-soft-lg border border-brand-rose-light"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 bg-brand-cream border-b border-brand-rose-light">

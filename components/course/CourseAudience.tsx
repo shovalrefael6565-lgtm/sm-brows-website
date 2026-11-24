@@ -1,10 +1,19 @@
-import Image from 'next/image'
-import { Check } from 'lucide-react'
 import { courseAudience, courseOutcomes } from '@/lib/course'
 import Reveal from './Reveal'
 
-/** למי הקורס מתאים — ומה בדיוק יוצאים איתו ביום השני בערב. */
+/**
+ * למי הקורס מתאים — שני קהלים, ומה יוצאים איתו בסוף היומיים.
+ *
+ * פריסה עריכתית ללא כרטיסים וללא אייקונים: שני אזורי טקסט זה לצד זה,
+ * מופרדים בקו זהב דק (במובייל — זה מעל זה). מתחת, רשימת התוצרים
+ * (courseOutcomes — משותף ל-JSON-LD ולעמוד הטיפולים, לא נערך כאן).
+ *
+ * ⚠️ תמונת הטיפול natural-6 הוסרה מהסקשן הזה בשלב ו' (הקובץ עצמו נשאר —
+ * הוא בשימוש גם ב-lib/data.ts). Server Component; תנועה רק דרך Reveal.
+ */
 export default function CourseAudience() {
+  const { heading, groups } = courseAudience
+
   return (
     <section
       id="course-audience"
@@ -13,70 +22,56 @@ export default function CourseAudience() {
     >
       <div aria-hidden="true" className="absolute top-0 inset-x-0 h-px bg-gold-gradient opacity-50" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-12 lg:gap-16 items-start">
-          {/* Image column */}
-          <Reveal className="lg:sticky lg:top-28">
-            <div className="relative aspect-[4/5] rounded-[1.75rem] overflow-hidden shadow-soft-lg">
-              <Image
-                src="/natural-6.webp"
-                alt="עיצוב גבה מותאם למבנה הפנים"
-                fill
-                loading="lazy"
-                sizes="(max-width: 1024px) 100vw, 40vw"
-                className="object-cover"
-              />
-            </div>
-            <p className="text-brand-medium text-sm leading-relaxed mt-5 max-w-sm">
-              קבוצות קטנות בכוונה — כדי שיהיה זמן להסתכל על העבודה שלך, לתקן ולהסביר.
-            </p>
-          </Reveal>
-
-          {/* Lists column */}
-          <div className="space-y-14">
-            <Reveal>
-              <div className="w-12 h-px bg-gold-gradient mb-6 opacity-70" aria-hidden="true" />
-              <h2
-                id="course-audience-heading"
-                className="font-serif text-3xl sm:text-4xl font-medium text-brand-dark leading-snug mb-7"
-              >
-                הקורס נבנה בשבילך אם...
-              </h2>
-              <ul className="space-y-4">
-                {courseAudience.map((item) => (
-                  <li key={item} className="flex items-start gap-3.5">
-                    <span
-                      className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-gold mt-2.5"
-                      aria-hidden="true"
-                    />
-                    <span className="text-brand-medium text-base leading-relaxed">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-
-            <Reveal>
-              <div className="bg-white/75 border border-brand-cream-dark rounded-2xl p-7 sm:p-9 shadow-soft">
-                <h3 className="font-serif text-2xl sm:text-3xl font-medium text-brand-dark leading-snug mb-6">
-                  בסוף היומיים את יודעת לעשות את זה לבד
-                </h3>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                  {courseOutcomes.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <span
-                        className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 border border-brand-gold/40 flex items-center justify-center mt-0.5"
-                        aria-hidden="true"
-                      >
-                        <Check className="w-3 h-3 text-brand-gold-dark" />
-                      </span>
-                      <span className="text-brand-medium text-sm leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <Reveal>
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="w-12 h-px bg-gold-gradient mx-auto mb-6 opacity-70" aria-hidden="true" />
+            <h2
+              id="course-audience-heading"
+              className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] font-medium text-brand-dark leading-[1.25] text-balance"
+            >
+              {heading}
+            </h2>
           </div>
-        </div>
+        </Reveal>
+
+        {/* שני הקהלים */}
+        <ul className="grid grid-cols-1 md:grid-cols-2">
+          {groups.map((group, i) => (
+            <li
+              key={group.title}
+              className={
+                i === 0
+                  ? 'pb-10 md:pb-0 md:pe-12 lg:pe-16'
+                  : 'pt-10 md:pt-0 md:ps-12 lg:ps-16 border-t md:border-t-0 md:border-s border-brand-gold/40'
+              }
+            >
+              <Reveal delay={i * 100}>
+                <h3 className="font-serif text-2xl sm:text-[1.75rem] font-medium text-brand-rose-text leading-snug mb-4 text-balance">
+                  {group.title}
+                </h3>
+                <p className="text-brand-medium text-base sm:text-lg leading-[1.85]">{group.body}</p>
+              </Reveal>
+            </li>
+          ))}
+        </ul>
+
+        {/* מה יוצאים איתו */}
+        <Reveal>
+          <div className="mt-10 md:mt-20 pt-10 sm:pt-12 border-t border-brand-gold/40">
+            <h3 className="font-serif text-2xl sm:text-3xl font-medium text-brand-dark leading-snug mb-7 text-center text-balance">
+              מה תלמדי לעשות במהלך הקורס?
+            </h3>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-4 max-w-4xl mx-auto">
+              {courseOutcomes.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-gold mt-2.5" aria-hidden="true" />
+                  <span className="text-brand-medium text-sm sm:text-base leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
       </div>
     </section>
   )

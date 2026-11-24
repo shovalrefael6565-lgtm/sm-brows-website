@@ -5,13 +5,19 @@ interface Props {
   /** 'gold' — כפתור מלא; 'outline' — משני על רקע בהיר */
   variant?: 'gold' | 'outline'
   className?: string
+  /**
+   * שם נגיש מותאם. ברירת המחדל מוסיפה "לקורס עיצוב גבות טבעיות" לתווית —
+   * מתאים ל"לפרטים והרשמה", אבל מכפיל את המילה "קורס" כשהתווית כבר מזכירה אותו.
+   * ⚠️ חייב להתחיל בטקסט הגלוי (WCAG 2.5.3 Label in Name).
+   */
+  ariaLabel?: string
 }
 
 /**
  * כפתור ההתעניינות בקורס. תמיד וואצאפ עם הודעה שמזהה שמדובר בקורס
  * (ולא בקביעת תור) — כדי ששובל תדע מיד עם מה הפנייה מגיעה.
  */
-export default function CourseCta({ label = 'לפרטים והרשמה', variant = 'gold', className }: Props) {
+export default function CourseCta({ label = 'לפרטים והרשמה', variant = 'gold', className, ariaLabel }: Props) {
   const base =
     'inline-flex items-center justify-center gap-2 font-bold text-base px-6 py-3 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
   const styles =
@@ -24,7 +30,7 @@ export default function CourseCta({ label = 'לפרטים והרשמה', variant
       href={COURSE_WHATSAPP_URL}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${label} לקורס עיצוב גבות טבעיות — פתיחת שיחת וואצאפ`}
+      aria-label={ariaLabel ?? `${label} לקורס עיצוב גבות טבעיות — פתיחת שיחת וואצאפ`}
       className={`${base} ${styles}${className ? ` ${className}` : ''}`}
     >
       <WhatsAppIcon className="w-5 h-5" />

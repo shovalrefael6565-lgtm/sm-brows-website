@@ -12,6 +12,14 @@ export const SITE_URL = 'https://smbrows.co.il'
 
 export const WHATSAPP_BASE = 'https://wa.me/972552932813'
 export const WHATSAPP_URL  = `${WHATSAPP_BASE}?text=${encodeURIComponent('היי שובל 🤍 רציתי לקבוע תור')}`
+/*
+  קישור הוואטסאפ של הקורס — הודעה שמזהה מיד שמדובר בהתעניינות בקורס ולא
+  בקביעת תור. חי כאן ולא ב-lib/course.ts כדי שהכפתור הצף (רכיב צד-לקוח
+  שנטען בכל עמוד) יוכל להשתמש בו בלי לגרור את כל תוכן הקורס ל-bundle.
+  lib/course.ts מייצא אותו מחדש, כך שכל הייבואים הקיימים ממשיכים לעבוד.
+*/
+export const COURSE_WHATSAPP_MESSAGE = 'היי שובל 🤍 אני מתעניינת בקורס עיצוב גבות טבעיות ואשמח לקבל פרטים.'
+export const COURSE_WHATSAPP_URL = `${WHATSAPP_BASE}?text=${encodeURIComponent(COURSE_WHATSAPP_MESSAGE)}`
 export const PHONE_NUMBER = '055-293-2813'
 export const PHONE_RAW = '0552932813'
 /*

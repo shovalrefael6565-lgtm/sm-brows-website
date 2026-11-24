@@ -1,27 +1,83 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { WHATSAPP_URL } from '@/lib/utils'
+import { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { usePathname } from 'next/navigation'
+import { WHATSAPP_URL, COURSE_WHATSAPP_URL } from '@/lib/utils'
+
+/*
+  בעמוד הקורס הכפתור הצף פותח שיחה על הקורס, ובכל שאר האתר — על קביעת תור.
+  ⚠️ השוואה מדויקת ל-'/course' בלבד, בכוונה: אין תת-נתיבים לקורס, ו-startsWith
+  היה תופס גם נתיב עתידי כמו '/courses-…' בלי שהתכוונו.
+  מעקב הקליקים לא נוגע כאן: WhatsAppTracker מאזין לכל קישור wa.me בעמוד,
+  בכפוף להסכמה, כך שהכפתור נמדד בדיוק כמו קודם ופעם אחת.
+*/
+const COURSE_PATH = '/course'
+
+/*
+  בעמוד הקורס בלבד: כשכפתור וואטסאפ אחר (ב-Hero, בסוף התוכנית, בסיום או בפוטר)
+  נראה על המסך, הכפתור הצף מוסתר — אין צורך בשניים, והוא לא מתחרה בתוכן.
+  ⚠️ visibility:hidden (ולא הסרה מה-DOM): אין קפיצת עימוד, והכפתור המוסתר יוצא
+  אוטומטית מסדר הטאב ומעץ הנגישות. כפתור שנמצא בפוקוס לעולם לא מוסתר.
+  rootMargin התחתון מנכה את רצועת המעגן, כדי שקישור שמתחתיה לא ייחשב "נראה".
+*/
+function useOtherWhatsAppVisible(enabled: boolean, self: React.RefObject<HTMLAnchorElement | null>) {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    if (!enabled || typeof IntersectionObserver === 'undefined') return
+    const shown = new Set<Element>()
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && e.intersectionRatio >= 0.6) shown.add(e.target)
+          else shown.delete(e.target)
+        }
+        setVisible(shown.size > 0)
+      },
+      { threshold: [0, 0.6, 1], rootMargin: '0px 0px -80px 0px' },
+    )
+    document.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me"]').forEach((a) => {
+      if (a !== self.current) io.observe(a)
+    })
+    return () => io.disconnect()
+  }, [enabled, self])
+  return enabled && visible
+}
 
 export default function WhatsAppButton() {
+  const isCourse = usePathname() === COURSE_PATH
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLAnchorElement>(null)
+  const [focused, setFocused] = useState(false)
+  const otherVisible = useOtherWhatsAppVisible(isCourse, ref)
+  const hidden = otherVisible && !focused
+
   return (
     <motion.a
-      href={WHATSAPP_URL}
+      ref={ref}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      href={isCourse ? COURSE_WHATSAPP_URL : WHATSAPP_URL}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="פתיחת שיחת וואצאפ עם S.M BROWS לקביעת תור"
-      initial={{ scale: 0, opacity: 0 }}
+      aria-label={
+        isCourse
+          ? 'פתיחת שיחת וואטסאפ לקבלת פרטים על קורס עיצוב גבות טבעיות'
+          : 'פתיחת שיחת וואצאפ עם S.M BROWS לקביעת תור'
+      }
+      initial={reduce ? false : { scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 1.5, type: 'spring', stiffness: 200, damping: 20 }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      className="fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] left-6 z-40 flex items-center justify-center w-14 h-14 bg-brand-whatsapp-dark text-white rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2"
+      transition={reduce ? { duration: 0 } : { delay: 1.5, type: 'spring', stiffness: 200, damping: 20 }}
+      whileHover={reduce ? undefined : { scale: 1.1 }}
+      whileTap={reduce ? undefined : { scale: 0.95 }}
+      /* מתחת ל-1440px: בתוך רצועת המעגן (MobileDock); מעל — עיגול צף בפינה. */
+      className={`${hidden ? 'invisible ' : ''}fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] left-4 min-[1440px]:bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] min-[1440px]:left-6 z-40 flex items-center justify-center w-12 h-12 min-[1440px]:w-14 min-[1440px]:h-14 bg-brand-whatsapp-dark text-white rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-whatsapp-dark focus-visible:ring-offset-2`}
     >
-      <span className="sr-only">וואצאפ – קבעי תור</span>
+      <span className="sr-only">{isCourse ? 'וואטסאפ – פרטים על הקורס' : 'וואצאפ – קבעי תור'}</span>
       <svg
         viewBox="0 0 24 24"
         fill="currentColor"
-        className="w-7 h-7"
+        className="w-6 h-6 min-[1440px]:w-7 min-[1440px]:h-7"
         aria-hidden="true"
         focusable="false"
       >
@@ -30,7 +86,7 @@ export default function WhatsAppButton() {
 
       {/* Pulse ring */}
       <span
-        className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20"
+        className="absolute inset-0 rounded-full bg-[#25D366] motion-safe:animate-ping opacity-20"
         aria-hidden="true"
       />
     </motion.a>

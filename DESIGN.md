@@ -349,7 +349,21 @@ The professional course ("קורס עיצוב גבות טבעיות") is Shoval'
 - Price is intentionally absent. The CTA should lead to WhatsApp without implying a specific price. Do not add a placeholder or "מחיר לפי פנייה" text unless Shoval approves.
 - The course surface should communicate the promise ("ללמוד לראות, לא רק לעצב") and the three pillars (professional eye, personal customization, working confidence) as a designed hierarchy, not a bullet list.
 - The two-day format (theory + practical) is a key differentiator; the visual presentation should give each day its own identity.
-- Course imagery: `/public/natural-2.webp` is the current course image. The image treatment should feel studious and focused, not glamorous.
+- Course imagery: `/public/natural-2.webp` is the course image on the home page and the services card. The image treatment should feel studious and focused, not glamorous.
+
+**The course landing page `/course` (shipped November 2026):**
+- Section order: Hero → "למה ללמוד אצלי" → "הקורס הזה בשבילך אם..." → program ("מה תלמדי בקורס?", day shortcuts, all 32 topics visible) → "מה מקבלים בקורס?" → FAQ → closing message from Shoval.
+- Hero: eyebrow "S.M BROWS ACADEMY · עם שובל מאירה", and a collage of three real graduate photos (`public/course/graduate-*.webp`, listed in `lib/coursePhotos.ts`). Graduates' names on the certificates are blurred, and EXIF/GPS data is stripped. Originals are kept outside the repo.
+- Facts (two days, personal or small group, kit, printed and digital booklet, completion certificate from S.M BROWS ACADEMY) have one source: `lib/courseFacts.ts`. No price, dates, fixed number of models, income promises or claims of official accreditation.
+- All WhatsApp buttons on `/course` (including the footer and the floating button) send the same course message.
+- There is deliberately no course video on the page. `CourseVideo.tsx` is kept for future use.
+- Share image: `public/course/og-course.jpg` (1200×630), for `/course` only.
+
+### Floating Controls (site-wide)
+
+- Below 1440px, the WhatsApp, accessibility and back-to-top buttons sit inside an opaque bottom strip (`components/ui/MobileDock.tsx`). Its height is `--dock-h` (4rem plus the safe-area inset), and the body gets matching bottom padding. Content scrolls under the strip like it does under the header, so the buttons never cover text while it is being read. The strip captures taps, and `scroll-padding-bottom` keeps keyboard focus visible above it.
+- From 1440px up they are corner circles with a thin gold ring, and the social rail is shown. The back-to-top button hides itself only while text sits directly under it. The accessibility button is always visible.
+- The cookie banner sits above the strip. Below 640px its three choices are equal-width columns side by side; from 640px up the layout is unchanged.
 
 ### Treatment and Service Card
 
